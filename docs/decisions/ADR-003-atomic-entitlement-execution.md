@@ -16,9 +16,9 @@ Redemption requires a payment, a token burn, and an auditable receipt. Performin
 
 ## Decision
 
-Execute each holder entitlement in one Solana transaction. The instruction validates the action, snapshot commitment, recipient, amounts, and prior execution state; transfers payment; burns tokens when required; and creates an immutable Execution Receipt PDA.
+Execute each investor entitlement in one Solana transaction. The instruction validates the action, snapshot commitment, recipient, amounts, and prior execution state; transfers payment; burns tokens when required; and creates an immutable Execution Receipt PDA.
 
-The receipt PDA is derived from the corporate-action address and entitlement identity, making replay protection enforceable on-chain. API idempotency keys and transaction-attempt records provide a second, off-chain retry boundary.
+The receipt PDA is derived from the corporate-action address and stable Investor UUID, making replay protection enforceable on-chain. API idempotency keys and transaction-attempt records provide a second, off-chain retry boundary.
 
 The corporate action supports partial progress across holders. Failed entitlements remain retryable, while already created receipt PDAs make completed entitlements no-ops or explicit duplicates rather than double payments.
 

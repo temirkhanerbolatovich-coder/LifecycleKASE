@@ -18,7 +18,7 @@ Corporate-action entitlements must be derived from a reproducible ownership snap
 
 The MVP captures balances only at the current `finalized` slot during the record-date snapshot window. It does not backdate or approximate ownership.
 
-The API serializes balances using the versioned `snapshot-v1` canonical JSON contract, computes SHA-256 over the exact UTF-8 bytes, and stores the immutable payload in PostgreSQL. The program stores the snapshot slot, hash, holder count, and aggregate token amount.
+The API serializes balances using the versioned `snapshot-v2` canonical JSON contract (investor → wallet → token account), computes SHA-256 over the exact UTF-8 bytes, and stores the immutable payload in PostgreSQL. The program stores the snapshot slot, hash, investor count, wallet count, and aggregate token amount. `snapshot-v1` remains a historical test vector only.
 
 If the snapshot window is missed, the action transitions to `SNAPSHOT_MISSED` and requires an explicit administrator decision; it must not continue using a later balance set under the original record date.
 

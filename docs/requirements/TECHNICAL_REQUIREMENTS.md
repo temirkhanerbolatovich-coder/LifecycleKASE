@@ -1,6 +1,6 @@
 # LifecycleKASE — технические требования к разработке MVP
 
-Версия: 1.0
+Версия: 1.1
 Дата: 28 сентября 2026
 Статус: обязательная техническая спецификация
 Продуктовые требования: [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md)
@@ -19,7 +19,7 @@
 6. прозрачный UX;
 7. визуальная полировка.
 
-Не допускаются скрытые моки, hardcoded результаты, float arithmetic и перевод локального статуса в `COMPLETED` до finalized blockchain confirmation.
+Не допускаются скрытые моки, hardcoded результаты, float arithmetic и перевод локального статуса в `FINALIZED` до finalized blockchain confirmation, reconciliation и Action Receipt.
 
 ## 2. Зафиксированные архитектурные решения
 
@@ -41,7 +41,7 @@ Solana хранит ownership, execution receipts и критические comm
 
 ### 2.3. Token standard
 
-Bond и USD-Test создаются через Token-2022.
+Bond и KZT-Test создаются через Token-2022. KZT-Test — `SIMULATED ASSET`, не выпущен Национальным Банком Казахстана.
 
 Bond mint:
 
@@ -51,14 +51,14 @@ Bond mint:
 - mint authority безвозвратно отключается после выпуска 35 tokens;
 - freeze authority отсутствует.
 
-USD-Test mint:
+KZT-Test mint:
 
 - `decimals = 6`;
 - используется только на Devnet;
 - treasury token account принадлежит administrator wallet;
 - программа переводит settlement tokens через CPI только при наличии administrator signature.
 
-Permanent delegate не получает доступ к SOL, USD-Test или другим mint.
+Permanent delegate не получает доступ к SOL, KZT-Test или другим mint.
 
 Порядок создания bond фиксирован:
 
@@ -86,7 +86,7 @@ Ephemeral local keypairs разрешены только в automated tests и s
 
 ### 2.5. Execution granularity
 
-Одна transaction обслуживает один entitlement. Это обеспечивает понятную idempotency, bounded account list и честный `PARTIALLY_COMPLETED` для нескольких holders.
+Одна transaction обслуживает один investor entitlement. Это обеспечивает idempotency, bounded account list и честный `PARTIALLY_SETTLED` для нескольких инвесторов.
 
 ### 2.6. Snapshot policy
 
@@ -175,9 +175,16 @@ asset_type: BOND
 network: SOLANA_DEVNET
 program_id: base58 pubkey
 mint_address: base58 pubkey
-authority_wallet: base58 pubkey
+issuer_authority: base58 pubkey
+compliance_authority: base58 pubkey
+corporate_action_authority: base58 pubkey
+settlement_asset_id: UUID
+transfers_enabled: boolean
+whitelist_required: boolean
+issuer_approval_required: boolean
+freeze_enabled: boolean
 face_value_minor: bigint
-currency: USD_TEST
+currency: KZT_TEST
 settlement_decimals: 6
 coupon_rate_bps: integer
 payments_per_year: 1 | 2 | 4
@@ -204,6 +211,15 @@ Invariants:
 id: UUID
 instrument_id: UUID
 type: COUPON_PAYMENT | BOND_REDEMPTION | EARLY_REDEMPTION
+intent: string
+source_type: MANUAL | ISSUER_INSTRUCTION | EXCHANGE_EVENT | EXTERNAL_API | SYSTEM
+source_reference: string nullable
+source_document: string nullable
+source_timestamp: UTC timestamp nullable
+created_by_id: UUID
+approved_by_id: UUID nullable
+approved_at: UTC timestamp nullable
+review_note: string nullable
 record_at: UTC timestamp
 execute_at: UTC timestamp
 snapshot_id: UUID nullable
@@ -230,7 +246,7 @@ Action-type validation:
 
 ```text
 id: UUID
-schema_version: snapshot-v1
+schema_version: snapshot-v2
 instrument_id: UUID
 corporate_action_id: UUID unique
 record_at: UTC timestamp
@@ -239,7 +255,8 @@ solana_slot: bigint
 block_time: UTC timestamp
 canonical_json: jsonb
 snapshot_hash: 32-byte hex
-holder_count: integer
+investor_count: integer
+wallet_count: integer
 total_balance: bigint
 mint_supply: bigint
 status: PENDING_REGISTRATION | FINALIZED
@@ -250,8 +267,9 @@ status: PENDING_REGISTRATION | FINALIZED
 ```text
 id: UUID
 corporate_action_id: UUID
-snapshot_holder_id: UUID
-holder_wallet: base58 pubkey
+snapshot_investor_id: UUID
+investor_id: UUID
+settlement_wallet_address: active verified base58 pubkey
 balance_at_record_date: bigint
 amount_minor: bigint
 tokens_to_redeem: bigint
@@ -265,7 +283,19 @@ last_error_code: string nullable
 version: integer
 ```
 
-Unique constraint: `(corporate_action_id, holder_wallet)`.
+Unique constraint: `(corporate_action_id, investor_id)`. Snapshot rows: SnapshotInvestor → SnapshotWallet → SnapshotTokenAccount. SettlementAsset, SettlementLeg и ActionReceipt — отдельные модели. Расчёт хранит `calculation_inputs`, `formula_version` и `eligibility_reason`.
+
+### 5.5. Investor, Wallet и eligibility
+
+`Investor` хранит стабильный ID, display name, `INDIVIDUAL|INSTITUTIONAL`, ISO country code, KYC status, eligibility status и lifecycle status. `Wallet` хранит address, network, owner Investor ID, `PENDING|ACTIVE|BLOCKED|REVOKED`, verified/revoked timestamps. Admin auth wallets могут иметь User ID без Investor ID; для holder registry требуется именно Investor ID.
+
+Eligibility Engine принимает snapshot investor row, статус инвестора на record date, статус его wallets и параметры инструмента. Он возвращает decision, reason и версию правила. Только `ELIGIBLE` допускается к исполнению; `PENDING_REVIEW` и `SUSPENDED` требуют ручного разрешения или нового action. Проверка receiver wallet выполняется непосредственно перед payout, чтобы отзыв кошелька после snapshot не приводил к выплате на него. Это не меняет исторический snapshot.
+
+### 5.6. Settlement Legs и Action Receipt
+
+Каждый settlement содержит ровно по одному CASH и ASSET leg. Для coupon ASSET leg имеет `NOT_APPLICABLE`; для redemption оба leg обязательны. После finalized transaction watcher записывает actual amount и signature для каждого leg. Переход в `SETTLED` допускается только после подтверждения всех required legs. Reconciliation сравнивает expected/actual, on-chain receipt и burn. `MISMATCH` блокирует `FINALIZED`.
+
+Action Receipt содержит action, instrument, source, approval, snapshot hash/slot, список investor entitlements, leg statuses, reconciliation, signatures, timestamps и SHA-256 канонического JSON. Финальный JSON доступен в UI/API; PDF — необязательное расширение. On-chain Action Receipt PDA закрепляет итоговый hash, а per-entitlement receipt PDA остаётся защитой от повторной выплаты.
 
 ## 6. Financial calculation engine
 
@@ -335,10 +365,13 @@ Corporate Action PDA:
 ["action", instrument_pda, action_uuid_bytes]
 
 Entitlement PDA:
-["entitlement", action_pda, holder_wallet]
+["entitlement", action_pda, investor_uuid_bytes]
 
 Redemption Record PDA:
-["redemption", action_pda, holder_wallet]
+["redemption", action_pda, investor_uuid_bytes]
+
+Action Receipt PDA:
+["action-receipt", action_pda]
 ```
 
 Seeds, bump и relationships проверяются Anchor account constraints.
@@ -348,8 +381,9 @@ Seeds, bump и relationships проверяются Anchor account constraints.
 ```text
 version
 instrument_id
-authority_wallet
-issuer_wallet
+issuer_authority
+compliance_authority
+corporate_action_authority
 bond_mint
 settlement_mint
 face_value_minor
@@ -374,7 +408,8 @@ record_at
 execute_at
 snapshot_hash
 snapshot_slot
-holder_count
+investor_count
+wallet_count
 total_balance
 total_amount_minor
 registered_entitlements
@@ -390,7 +425,8 @@ bump
 ```text
 version
 action
-holder
+investor_id
+settlement_wallet
 balance_at_record_date
 amount_minor
 tokens_to_redeem
@@ -404,7 +440,7 @@ bump
 ```text
 version
 action
-holder
+investor_id
 tokens_redeemed
 principal_minor
 coupon_minor
@@ -426,7 +462,7 @@ bump
 
 #### `register_snapshot`
 
-Принимает hash, slot, holder count, total balance и mint supply.
+Принимает hash, slot, investor count, wallet count, total balance и mint supply.
 
 Проверяет:
 
@@ -441,7 +477,7 @@ bump
 
 #### `register_entitlement`
 
-Создаёт entitlement PDA для holder.
+Создаёт entitlement PDA для инвестора.
 
 Проверяет:
 
@@ -456,19 +492,23 @@ bump
 
 #### `finalize_calculation`
 
-Проверяет registered entitlement count, total balance и total amount. Переводит action в `READY_FOR_EXECUTION`.
+Проверяет registered entitlement count, total balance и total amount. Переводит action в `UNDER_REVIEW`; исполнение требует последующего approval.
+
+#### `approve_action`
+
+Требует corporate action authority signer, `UNDER_REVIEW`, неизменный snapshot hash и совпадение рассчитанного total. Записывает approval commitment и переводит on-chain action в `APPROVED`. Backend записывает actor, timestamp и audit event. `reject` и `return` доступны только до on-chain approval; возврат сохраняет snapshot и требует повторной регистрации изменённых calculations до нового approval. Если перепроведение зарегистрированных entitlement PDAs невозможно без удаления, создаётся новый action; API не обещает in-place перезапись on-chain entitlement.
 
 #### `execute_coupon`
 
 В одной transaction:
 
 1. проверяет administrator signer и treasury authority;
-2. проверяет `READY_FOR_EXECUTION | PROCESSING | PARTIALLY_COMPLETED`;
+2. проверяет `APPROVED | EXECUTING | PARTIALLY_SETTLED`;
 3. проверяет entitlement `READY`;
-4. переводит USD-Test через Token-2022 CPI;
+4. переводит KZT-Test через Token-2022 CPI;
 5. устанавливает entitlement `PAID`;
 6. увеличивает processed count;
-7. устанавливает `PARTIALLY_COMPLETED`, если обработана только часть entitlements; финальное завершение выполняет `finalize_action`.
+7. устанавливает `PARTIALLY_SETTLED`, если обработана только часть entitlements; финальное завершение выполняет `finalize_action`.
 
 #### `execute_redemption`
 
@@ -487,7 +527,7 @@ bump
 
 #### `finalize_action`
 
-Разрешена только когда processed count равен числу исполнимых entitlements. Устанавливает `COMPLETED` и timestamp.
+Разрешена только когда processed count равен числу исполнимых entitlements и все обязательные Cash/Asset Legs подтверждены. После сверки expected/actual записывает hash финального Action Receipt в Action Receipt PDA и устанавливает `FINALIZED` и timestamp. Backend сохраняет тот же canonical JSON/hash и проверяет finalized signature. Несовпадение блокирует финализацию.
 
 Для полного redemption дополнительно проверяет mint supply = 0 и устанавливает instrument `REDEEMED`.
 
@@ -554,13 +594,16 @@ SNAPSHOT_CREATED
   ▼
 CALCULATED
   ▼
-READY_FOR_EXECUTION
+UNDER_REVIEW ──→ REJECTED
+  ├── return ──→ RETURNED_FOR_REVISION ──→ CALCULATED
   ▼
-PROCESSING
-  ├── some complete ─→ PARTIALLY_COMPLETED ─→ PROCESSING
-  ├── retryable ─────→ FAILED_RETRYABLE ────→ PROCESSING
+APPROVED
+  ▼
+EXECUTING
+  ├── some complete ─→ PARTIALLY_SETTLED ─→ EXECUTING
+  ├── retryable ─────→ FAILED_RETRYABLE ────→ EXECUTING
   ├── terminal ──────→ FAILED_FINAL
-  └── all complete ──→ COMPLETED
+  └── all legs confirmed ──→ SETTLED ──→ RECONCILING ──→ FINALIZED
 ```
 
 `DRAFT`, `SNAPSHOT_MISSED`, `FAILED_RETRYABLE` и `FAILED_FINAL` являются orchestration statuses в database. On-chain state использует только состояния, подтверждающие выполненные transitions. On-chain entitlement остаётся неизменённым, если transaction не была выполнена.
@@ -611,7 +654,7 @@ Holder service:
 4. декодирует все token accounts;
 5. исключает zero balance;
 6. агрегирует balances по owner wallet;
-7. связывает wallets с investors;
+7. связывает только verified wallets с investors и агрегирует по Investor ID;
 8. сверяет сумму с mint supply.
 
 Запрещено использовать только `getTokenLargestAccounts`, потому что он не гарантирует полный registry.
@@ -624,10 +667,10 @@ Holder service:
 2. проверяет time window и state;
 3. получает registry на finalized context;
 4. требует отсутствие unregistered wallets;
-5. формирует `snapshot-v1`;
+5. формирует `snapshot-v2` с Investor ID, eligibility, wallets, token accounts и агрегированными balances;
 6. сериализует canonical bytes;
 7. вычисляет SHA-256;
-8. атомарно сохраняет snapshot, raw token accounts и aggregated holders в `PENDING_REGISTRATION`;
+8. атомарно сохраняет snapshot, investor rows, wallet rows и raw token accounts в `PENDING_REGISTRATION`;
 9. готовит `register_snapshot` transaction;
 10. после wallet signature, finalized confirmation и проверки on-chain commitment переводит snapshot в `FINALIZED`; после этого payload и дочерние rows неизменяемы.
 
@@ -650,7 +693,7 @@ Frontend проверяет network и connected wallet перед подпис�
 ### 9.6. Confirmation and reconciliation
 
 - signature сохраняется сразу после отправки;
-- `PROCESSING` не означает success;
+- `EXECUTING` не означает success;
 - confirmation watcher ждёт `finalized`;
 - timeout создаёт `UNKNOWN_CONFIRMATION`, а не `FAILED_FINAL`;
 - watcher повторно проверяет signature и on-chain PDA;
@@ -691,9 +734,16 @@ GET  /instruments
 POST /instruments
 GET  /instruments/:id
 GET  /instruments/:id/holders
+GET  /instruments/:id/timeline
 POST /instruments/:id/deploy/prepare
 POST /instruments/:id/deploy/confirm
 POST /instruments/:id/reconcile
+GET  /investors
+POST /investors
+GET  /investors/:id
+POST /investors/:id/wallets
+POST /investors/:id/wallets/:walletId/verify
+POST /investors/:id/wallets/:walletId/revoke
 ```
 
 `POST /instruments` создаёт database draft и не объявляет instrument on-chain. `deploy/prepare` возвращает последовательность wallet-signed transactions для mint, distribution, authority revocation и Instrument PDA. `deploy/confirm` проверяет каждую signature и итоговые authorities/supply.
@@ -711,14 +761,19 @@ POST /corporate-actions/:id/snapshot/confirm
 POST /corporate-actions/:id/calculate
 POST /corporate-actions/:id/calculation/prepare
 POST /corporate-actions/:id/calculation/confirm
+POST /corporate-actions/:id/review/approve
+POST /corporate-actions/:id/review/reject
+POST /corporate-actions/:id/review/return
 POST /corporate-actions/:id/execute/prepare
 POST /corporate-actions/:id/execute/confirm
 POST /corporate-actions/:id/finalize/prepare
 POST /corporate-actions/:id/finalize/confirm
 POST /corporate-actions/:id/cancel
+GET  /corporate-actions/:id/receipt
+GET  /corporate-actions/:id/reconciliation
 ```
 
-`POST /corporate-actions` создаёт database draft. `schedule/prepare` создаёт on-chain action. `calculate` выполняет pure off-chain расчёт и сохраняет draft entitlements. `calculation/prepare` формирует transaction с `register_entitlement` instructions и `finalize_calculation`; при превышении transaction limits создаётся упорядоченная последовательность transactions. `calculation/confirm` проверяет entitlement PDAs и action counters до перехода database projection в `READY_FOR_EXECUTION`.
+`POST /corporate-actions` создаёт database draft с intent и source provenance. `schedule/prepare` создаёт on-chain action. `calculate` выполняет pure off-chain расчёт и сохраняет draft entitlements. `calculation/prepare` формирует transaction с `register_entitlement` instructions и `finalize_calculation`; при превышении transaction limits создаётся упорядоченная последовательность transactions. `calculation/confirm` проверяет entitlement PDAs и action counters до перехода database projection в `UNDER_REVIEW`. `review/approve`, `review/reject` и `review/return` требуют authenticated operator и сохраняют audit event. `execute` отклоняет action без approval.
 
 ### 10.5. Entitlements
 
@@ -765,13 +820,17 @@ sessions
 issuers
 investors
 wallets
+settlement_assets
 instruments
 corporate_actions
 snapshots
 snapshot_token_accounts
-snapshot_holders
+snapshot_investors
+snapshot_wallets
 entitlements
 settlements
+settlement_legs
+action_receipts
 blockchain_transactions
 execution_jobs
 idempotency_records
@@ -784,8 +843,10 @@ audit_logs
 - unique wallet address;
 - unique instrument mint address;
 - unique snapshot per corporate action;
-- unique `(snapshot_id, wallet_address)`;
-- unique `(corporate_action_id, holder_wallet)` entitlement;
+- unique `(snapshot_id, investor_id)` and `(snapshot_investor_id, wallet_address)`;
+- unique `(settlement_id, type)` for CASH/ASSET legs;
+- unique `(corporate_action_id, entitlement_id, job_type)` for execution jobs; transaction attempts remain separate records;
+- unique `(corporate_action_id, investor_id)` entitlement;
 - unique blockchain signature;
 - unique `(scope, idempotency_key)`;
 - all foreign keys enforced;
@@ -805,7 +866,7 @@ audit_logs
 
 ### 11.4. Immutability
 
-После `FINALIZED` application layer запрещает UPDATE snapshot и snapshot holder rows. Database trigger либо restricted repository method является дополнительной защитой. Canonical JSON и hash изменяются только созданием нового snapshot для нового action.
+После `FINALIZED` application layer запрещает UPDATE snapshot и investor/wallet/token-account rows. Database triggers являются дополнительной защитой. Canonical JSON и hash изменяются только созданием нового snapshot для нового action.
 
 ### 11.5. Audit log
 
@@ -819,6 +880,8 @@ event
 entity_type
 entity_id
 correlation_id
+corporate_action_id nullable
+blockchain_transaction_id nullable
 metadata_json
 created_at
 ```
@@ -831,6 +894,8 @@ Metadata не содержит private keys, raw sessions, full signed challenge
 
 ```text
 /dashboard
+/investors
+/investors/[id]
 /instruments
 /instruments/new
 /instruments/[id]
@@ -838,6 +903,8 @@ Metadata не содержит private keys, raw sessions, full signed challenge
 /corporate-actions
 /corporate-actions/new
 /corporate-actions/[id]
+/corporate-actions/[id]/review
+/corporate-actions/[id]/receipt
 /transactions
 /audit
 ```
@@ -873,10 +940,10 @@ UI показывает integer inputs и человекочитаемое фо�
 
 ```text
 10 bonds
-× 1,000.00 USD-Test
+× 1,000.00 KZT-Test
 × 1,000 bps / 10,000
 ÷ 2
-= 500.00 USD-Test
+= 500.00 KZT-Test
 ```
 
 ### 12.4. Accessibility and responsiveness
@@ -1118,6 +1185,7 @@ docs/decisions/ADR-001-token-authority.md
 docs/decisions/ADR-002-record-date-snapshot.md
 docs/decisions/ADR-003-atomic-entitlement-execution.md
 docs/decisions/ADR-004-source-of-truth.md
+docs/decisions/ADR-006-investor-identity-and-action-control.md
 docs/IMPLEMENTED_VS_SIMULATED.md
 ```
 
@@ -1128,22 +1196,22 @@ README включает requirements, setup, configuration, migrations, Solana d
 ### Milestone 0 — Decisions and scaffold
 
 Owner: Tech Lead.
-Acceptance: четыре ADR утверждены; repository, CI и local validator test запускаются.
+Acceptance: ADR по authority, snapshot, atomic execution, source of truth и investor identity утверждены; repository, CI и local validator test запускаются.
 
 ### Milestone 1 — Token and program core
 
 Owner: Blockchain Developer.
-Acceptance: Token-2022 bond/USD-Test, Instrument PDA, Action PDA и authority tests работают локально.
+Acceptance: Token-2022 bond/KZT-Test, Instrument PDA, Action PDA и authority tests работают локально.
 
 ### Milestone 2 — Registry and snapshot
 
 Owner: Backend + Blockchain.
-Acceptance: registry агрегирует 10/20/5, supply reconciles to 35, canonical hash воспроизводится и регистрируется on-chain.
+Acceptance: Investor Registry связывает verified wallets, агрегирует 10/20/5 по Investor ID, supply reconciles to 35, canonical snapshot-v2 hash воспроизводится и регистрируется on-chain.
 
 ### Milestone 3 — Coupon vertical slice
 
 Owner: Full team.
-Acceptance: API и минимальный UI проводят 500/1,000/250 payments, показывают proofs и отвергают duplicate execution.
+Acceptance: API и минимальный UI проводят review/approval, затем 500/1,000/250 KZT-Test payments, показывают Cash/Asset Legs, Action Receipt и proofs, отвергают duplicate execution.
 
 Это первый обязательный demo gate. До него не выполняется broad UI polishing.
 
@@ -1177,6 +1245,8 @@ Acceptance: full CI, clean setup, Devnet evidence, demo video и Technical Overv
 - bond и settlement mints проверяемы;
 - snapshot hash воспроизводится из API artifact;
 - coupon, redemption и early redemption имеют finalized signatures;
+- approval обязателен перед execution и фиксируется в audit/on-chain state;
+- Cash/Asset Legs подтверждены; reconciliation = MATCHED; финальный Action Receipt доступен в JSON;
 - duplicate execution tests проходят;
 - database projection совпадает с PDA и token balances;
 - UI не содержит ложных completed/simulated states;
@@ -1191,7 +1261,7 @@ Acceptance: full CI, clean setup, Devnet evidence, demo video и Technical Overv
 - entitlement dataset доверяет authorized snapshot creator, хотя amounts дополнительно проверяются on-chain;
 - per-holder transaction не оптимизирована для большого registry;
 - Devnet не предоставляет production SLA;
-- USD-Test не имеет денежной стоимости;
+- KZT-Test — SIMULATED ASSET без денежной стоимости; «Not issued by the National Bank of Kazakhstan»;
 - fixed-period coupon formula не является полной bond-calculation library.
 
 ## 22. Post-MVP gates

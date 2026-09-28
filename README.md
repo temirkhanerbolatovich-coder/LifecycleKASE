@@ -1,16 +1,16 @@
 # LifecycleKASE
 
-Corporate Action Engine for tokenized securities on Solana. The repository has its **Milestone 0 foundation** and the first shared domain contracts: requirements, architecture decisions, repository boundaries, CI checks, local PostgreSQL infrastructure, checked financial calculations, state transitions, and canonical snapshot hashing. Product services and the on-chain program are not implemented yet.
+Corporate Action Engine for tokenized securities on Solana. The repository has its **Milestone 0 foundation** and shared domain/database contracts: requirements, architecture decisions, CI checks, local PostgreSQL migrations, checked financial calculations, approval state transitions, and investor-level canonical snapshot hashing. Product services and the on-chain program are not implemented yet.
 
 ## Scope
 
 The MVP demonstrates an end-to-end lifecycle for a fixed-supply tokenized bond:
 
 - issuance of 35 indivisible Token-2022 tokens;
-- holder balances of 10, 20, and 5 tokens;
+- three investors with balances of 10, 20, and 5 tokens, each potentially using several wallets;
 - coupon, early-redemption, and maturity-redemption corporate actions;
 - finalized-slot snapshots with deterministic calculation;
-- atomic payment, token burn, and execution receipt per entitlement.
+- review and approval, atomic KZT-Test payment and burn legs, reconciliation, and receipts per entitlement and action.
 
 The binding requirements are:
 
@@ -19,6 +19,7 @@ The binding requirements are:
 - [Solana toolchain setup](docs/development/toolchain.md)
 - [Domain contracts and test vectors](docs/testing/domain-contracts.md)
 - [Persistence architecture](docs/architecture/persistence.md)
+- [Implemented, simulated, and pending scope](docs/IMPLEMENTED_VS_SIMULATED.md)
 
 ## Repository layout
 
@@ -26,7 +27,7 @@ The binding requirements are:
 apps/                 Future API and web applications
 packages/             Shared domain and Solana client packages
 programs/             Future Anchor program
-prisma/               Future PostgreSQL schema and migrations
+prisma/               PostgreSQL schema and guarded migrations
 docs/architecture/    Current system boundaries
 docs/decisions/       Accepted architecture decisions
 docs/requirements/    Product and technical requirements
@@ -55,6 +56,8 @@ npm run check:toolchain
 npm install
 npm run check
 docker compose up -d postgres
+npm run prisma:migrate:deploy
+npm run test:database
 ```
 
 Copy `.env.example` to `.env` only when local services need configuration. `.env` is ignored by Git.
@@ -72,7 +75,7 @@ The smoke test starts an isolated validator on port `18899`, waits for a JSON-RP
 ## Current limitations
 
 - API, frontend, Solana client, and Anchor program are not implemented.
-- The Prisma schema is implemented, but its first SQL migration and database integration tests still require a running PostgreSQL instance.
+- Four SQL migrations and database guard tests are implemented. The third migration requires an empty pre-MVP domain database; it stops when domain records exist.
 - The TypeScript domain contracts are implemented; matching Rust calculations are not yet available.
 - The validator smoke-test requires an external Solana CLI installation.
 - Docker Compose currently provisions PostgreSQL only; application containers will be added with their implementation milestone.

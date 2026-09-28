@@ -5,8 +5,10 @@
 It currently provides:
 
 - checked `bigint` coupon, principal, and early-redemption calculations;
+- deterministic investor payout eligibility with explicit rejection reasons;
+- Cash/Asset Leg reconciliation for coupon and redemption;
 - corporate-action state-transition validation;
-- deterministic `snapshot-v1` canonical JSON and SHA-256 hashing;
+- deterministic `snapshot-v2` investor-level canonical JSON and SHA-256 hashing, with `snapshot-v1` retained as a historical vector;
 - validation compatible with Solana `u64` storage and `u128` intermediate arithmetic.
 
 The package has no database, RPC, wallet, or system-clock dependency. Callers must pass all timestamps and balances explicitly.

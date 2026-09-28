@@ -13,15 +13,15 @@ import {
 import { MAX_U64 } from "./numeric.js";
 
 const canonicalCoupon = {
-  faceValueMinor: 1_000n,
-  couponRateBps: 500,
-  paymentsPerYear: 1
+  faceValueMinor: 1_000_000_000n,
+  couponRateBps: 1_000,
+  paymentsPerYear: 2
 };
 
 test("calculates canonical 10/20/5 coupon allocation", () => {
-  assert.equal(calculateCoupon({ balance: 10n, ...canonicalCoupon }), 500n);
-  assert.equal(calculateCoupon({ balance: 20n, ...canonicalCoupon }), 1_000n);
-  assert.equal(calculateCoupon({ balance: 5n, ...canonicalCoupon }), 250n);
+  assert.equal(calculateCoupon({ balance: 10n, ...canonicalCoupon }), 500_000_000n);
+  assert.equal(calculateCoupon({ balance: 20n, ...canonicalCoupon }), 1_000_000_000n);
+  assert.equal(calculateCoupon({ balance: 5n, ...canonicalCoupon }), 250_000_000n);
 });
 
 test("reports floor-rounding remainder without redistributing it", () => {
@@ -37,10 +37,10 @@ test("reports floor-rounding remainder without redistributing it", () => {
 });
 
 test("calculates principal and final coupon", () => {
-  assert.equal(calculatePrincipal({ balance: 35n, faceValueMinor: 1_000n }), 35_000n);
+  assert.equal(calculatePrincipal({ balance: 35n, faceValueMinor: 1_000_000_000n }), 35_000_000_000n);
   assert.equal(
     calculateFinalCoupon({ balance: 35n, ...canonicalCoupon }),
-    1_750n
+    1_750_000_000n
   );
 });
 
@@ -49,9 +49,9 @@ test("calculates 20 percent early redemption and remaining balance", () => {
     calculateEarlyRedemption({
       balance: 20n,
       percentageBps: 2_000,
-      redemptionPriceMinor: 1_000n
+      redemptionPriceMinor: 1_000_000_000n
     }),
-    { redeemedTokens: 4n, amountMinor: 4_000n, remainingTokens: 16n }
+    { redeemedTokens: 4n, amountMinor: 4_000_000_000n, remainingTokens: 16n }
   );
 });
 

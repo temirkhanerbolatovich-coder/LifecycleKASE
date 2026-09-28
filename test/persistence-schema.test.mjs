@@ -14,13 +14,17 @@ test("persistence schema contains every required table boundary", async () => {
     "Issuer",
     "Investor",
     "Wallet",
+    "SettlementAsset",
     "Instrument",
     "CorporateAction",
     "Snapshot",
     "SnapshotTokenAccount",
-    "SnapshotHolder",
+    "SnapshotInvestor",
+    "SnapshotWallet",
     "Entitlement",
     "Settlement",
+    "SettlementLeg",
+    "ActionReceipt",
     "BlockchainTransaction",
     "ExecutionJob",
     "IdempotencyRecord",
@@ -35,8 +39,11 @@ test("persistence schema contains every required table boundary", async () => {
 test("schema enforces core uniqueness and optimistic-version fields", async () => {
   const schema = await readFile(schemaPath, "utf8");
 
-  assert.match(schema, /@@unique\(\[snapshotId, walletAddress\]\)/);
-  assert.match(schema, /@@unique\(\[corporateActionId, holderWallet\]\)/);
+  assert.match(schema, /@@unique\(\[snapshotId, investorId\]\)/);
+  assert.match(schema, /@@unique\(\[snapshotInvestorId, walletAddress\]\)/);
+  assert.match(schema, /@@unique\(\[corporateActionId, investorId\]\)/);
+  assert.match(schema, /@@unique\(\[settlementId, type\]\)/);
+  assert.match(schema, /@@unique\(\[corporateActionId, entitlementId, jobType\]\)/);
   assert.match(schema, /@@unique\(\[scope, idempotencyKey\]\)/);
   assert.match(schema, /corporateActionId\s+String\s+@unique/);
   assert.match(schema, /signature\s+String\?\s+@unique/);
