@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-lifecycle_kase}
+      POSTGRES_USER: ${DATABASE_USER:-lifecycle_kase}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-local_development_only}
+    ports:
+      - "${DATABASE_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - lifecycle_kase_postgres:/var/lib/postgresql/data
+
+volumes:
+  lifecycle_kase_postgres:
