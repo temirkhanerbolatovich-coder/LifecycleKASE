@@ -59,6 +59,8 @@ docker compose up -d postgres
 
 Copy `.env.example` to `.env` only when local services need configuration. `.env` is ignored by Git.
 
+PostgreSQL is exposed on host port `55432` by default to avoid collisions with an existing local PostgreSQL installation; the container still listens on its standard internal port `5432`. The default host URL uses IPv6 loopback `[::1]`, which avoids an IPv4 PostgreSQL service intercepting Docker Desktop traffic on Windows.
+
 To verify a locally installed Solana validator:
 
 ```powershell

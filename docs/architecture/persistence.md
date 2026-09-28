@@ -21,9 +21,9 @@ It does not override Solana ownership, mint supply, program state, snapshot comm
 
 ## Immutability
 
-The Prisma schema captures relationships, enums, indexes, and unique constraints. The first SQL migration must add PostgreSQL check constraints for nonnegative amounts and valid date ranges, plus a trigger preventing updates to finalized snapshots, holders, and token-account rows.
+A snapshot and all holder/token-account rows are first written atomically in `PENDING_REGISTRATION`. After finalized on-chain commitment verification, the snapshot moves to `FINALIZED`. PostgreSQL triggers then reject mutation or deletion of the snapshot and its child rows, and reject new child rows.
 
-Until that migration exists and runs against PostgreSQL, snapshot immutability is a documented requirement rather than a database-verified guarantee.
+The migration also adds PostgreSQL check constraints for nonnegative amounts, valid date ranges, fixed demo constants, action-specific parameters, hash lengths, and counter ranges.
 
 ## Validation
 

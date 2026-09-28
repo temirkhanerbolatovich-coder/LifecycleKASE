@@ -17,8 +17,10 @@
     "solana:smoke": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-solana-validator.ps1",
     "prisma:format": "node scripts/run-prisma.mjs format",
     "prisma:generate": "node scripts/run-prisma.mjs generate",
+    "prisma:migrate:deploy": "node scripts/run-prisma.mjs migrate-deploy",
     "prisma:validate": "node scripts/run-prisma.mjs validate",
     "test": "npm run test --workspaces --if-present && node --test \"test/**/*.test.mjs\"",
+    "test:database": "node scripts/test-database.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "validate": "node scripts/validate-scaffold.mjs && node scripts/check-doc-links.mjs"
   },

@@ -10,8 +10,10 @@ Validate and format the schema without connecting to PostgreSQL:
 npm run prisma:validate
 npm run prisma:format
 npm run prisma:generate
+npm run prisma:migrate:deploy
+npm run test:database
 ```
 
-Database-level check constraints and finalized-snapshot immutability triggers will be added in the first reviewed SQL migration. They are intentionally not claimed by the schema-only foundation.
+Database-level check constraints and finalized-snapshot immutability triggers are defined in the reviewed migrations and exercised by a PostgreSQL integration test.
 
 The project currently pins Prisma `6.12.0`; see ADR-005 for the security rationale and upgrade gate.

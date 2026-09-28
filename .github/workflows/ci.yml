@@ -32,3 +32,26 @@ jobs:
 
       - name: Validate Compose configuration
         run: docker compose config --quiet
+
+      - name: Start PostgreSQL
+        run: docker compose up -d postgres
+
+      - name: Wait for PostgreSQL
+        shell: bash
+        run: |
+          for attempt in {1..30}; do
+            if [ "$(docker inspect --format='{{.State.Health.Status}}' lifecyclekase-postgres-1)" = "healthy" ]; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs postgres
+          exit 1
+
+      - name: Apply database migrations
+        env:
+          DATABASE_URL: postgresql://lifecycle_kase:local_development_only@127.0.0.1:55432/lifecycle_kase?schema=public
+        run: npm run prisma:migrate:deploy
+
+      - name: Test database guards
+        run: npm run test:database

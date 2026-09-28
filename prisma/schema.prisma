@@ -48,6 +48,7 @@ enum SettlementType {
 }
 
 enum SnapshotStatus {
+  PENDING_REGISTRATION
   FINALIZED
 }
 
@@ -237,7 +238,7 @@ model Snapshot {
   holderCount        Int              @map("holder_count")
   totalBalance       BigInt           @map("total_balance") @db.BigInt
   mintSupply         BigInt           @map("mint_supply") @db.BigInt
-  status             SnapshotStatus   @default(FINALIZED)
+  status             SnapshotStatus   @default(PENDING_REGISTRATION)
   createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   instrument         Instrument       @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
   corporateAction    CorporateAction  @relation(fields: [corporateActionId], references: [id], onDelete: Restrict)

@@ -242,7 +242,7 @@ snapshot_hash: 32-byte hex
 holder_count: integer
 total_balance: bigint
 mint_supply: bigint
-status: FINALIZED
+status: PENDING_REGISTRATION | FINALIZED
 ```
 
 ### 5.4. Entitlement
@@ -627,9 +627,9 @@ Holder service:
 5. формирует `snapshot-v1`;
 6. сериализует canonical bytes;
 7. вычисляет SHA-256;
-8. сохраняет snapshot, raw token accounts и aggregated holders;
+8. атомарно сохраняет snapshot, raw token accounts и aggregated holders в `PENDING_REGISTRATION`;
 9. готовит `register_snapshot` transaction;
-10. после wallet signature и finalized confirmation обновляет projection.
+10. после wallet signature, finalized confirmation и проверки on-chain commitment переводит snapshot в `FINALIZED`; после этого payload и дочерние rows неизменяемы.
 
 Окно snapshot задаётся `SNAPSHOT_GRACE_SECONDS`; default для demo — 300 секунд. Пропущенное окно не восстанавливается автоматически.
 
