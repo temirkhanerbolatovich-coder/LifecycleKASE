@@ -57,7 +57,6 @@ solana-test-validator \
     --quiet \
     --rpc-port "$rpc_port" \
     --bind-address "$wsl_ip" \
-    --bpf-program "$program_id" "$program_path" \
     >"$run_path/validator.stdout.log" \
     2>"$run_path/validator.stderr.log" &
 validator_pid=$!
@@ -74,9 +73,17 @@ while ((SECONDS < deadline)); do
         --data '{"jsonrpc":"2.0","id":1,"method":"getHealth"}' \
         "http://$wsl_ip:$rpc_port" 2>/dev/null \
         | grep -Eq '"result"[[:space:]]*:[[:space:]]*"ok"'; then
+        solana-keygen new --no-bip39-passphrase --silent --outfile "$run_path/admin.json" >/dev/null
+        administrator_pubkey="$(solana-keygen pubkey "$run_path/admin.json")"
+        solana airdrop 10 "$administrator_pubkey" --url "http://$wsl_ip:$rpc_port" >/dev/null
+        solana program deploy "$program_path" \
+            --program-id "$repo_root/target/deploy/lifecycle_kase-keypair.json" \
+            --upgrade-authority "$run_path/admin.json" \
+            --keypair "$run_path/admin.json" \
+            --url "http://$wsl_ip:$rpc_port" >/dev/null
         cd "$repo_root"
         node.exe "$(wslpath -w "$repo_root/tools/solana-integration/test-initialize-instrument.mjs")" \
-            "http://$wsl_ip:$rpc_port"
+            "http://$wsl_ip:$rpc_port" "$(wslpath -w "$run_path/admin.json")"
         exit 0
     fi
     sleep 0.5

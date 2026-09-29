@@ -30,12 +30,23 @@ const rpcUrl = process.argv[2];
 if (!rpcUrl || !/^http:\/\/(127\.0\.0\.1|localhost|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}):\d+$/.test(rpcUrl)) {
   throw new Error("A loopback or private WSL HTTP validator URL is required as the first argument");
 }
+const administratorKeyPath = process.argv[3];
+if (!administratorKeyPath) {
+  throw new Error("A disposable local administrator keypair path is required");
+}
 
 const idlPath = fileURLToPath(new URL("../../target/idl/lifecycle_kase.json", import.meta.url));
 const idl = JSON.parse(await readFile(idlPath, "utf8"));
 const programId = new PublicKey(idl.address);
 const connection = new Connection(rpcUrl, "finalized");
-const administrator = Keypair.generate();
+const administrator = Keypair.fromSecretKey(
+  Uint8Array.from(JSON.parse(await readFile(administratorKeyPath, "utf8"))),
+);
+const outsider = Keypair.generate();
+const upgradeableLoader = new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111");
+const [programData] = PublicKey.findProgramAddressSync(
+  [programId.toBuffer()], upgradeableLoader,
+);
 const instrumentId = Uint8Array.from({ length: 16 }, (_, index) => index + 1);
 const [instrumentAddress] = PublicKey.findProgramAddressSync(
   [Buffer.from("instrument"), instrumentId],
@@ -47,13 +58,17 @@ const [instrumentAuthority] = PublicKey.findProgramAddressSync(
 );
 const program = new Program(idl, { connection });
 
-async function send(...instructions) {
+async function sendWith(signer, ...instructions) {
   return sendAndConfirmTransaction(
     connection,
     new Transaction().add(...instructions),
-    [administrator],
+    [signer],
     { commitment: "finalized" },
   );
+}
+
+async function send(...instructions) {
+  return sendWith(administrator, ...instructions);
 }
 
 async function createMint(decimals, permanentDelegate = null) {
@@ -126,7 +141,7 @@ function terms(id = instrumentId, supply = 35) {
   };
 }
 
-async function initialize(bondMint, settlementMint, id = instrumentId, supply = 35) {
+async function initialize(bondMint, settlementMint, id = instrumentId, supply = 35, signer = administrator) {
   const [address] = PublicKey.findProgramAddressSync(
     [Buffer.from("instrument"), id], programId,
   );
@@ -135,7 +150,9 @@ async function initialize(bondMint, settlementMint, id = instrumentId, supply = 
   );
   const instruction = await program.methods.initializeInstrument(terms(id, supply))
     .accountsStrict({
-      administrator: administrator.publicKey,
+      administrator: signer.publicKey,
+      program: programId,
+      programData,
       instrument: address,
       instrumentAuthority: authority,
       bondMint,
@@ -144,11 +161,13 @@ async function initialize(bondMint, settlementMint, id = instrumentId, supply = 
       systemProgram: SystemProgram.programId,
     })
     .instruction();
-  return send(instruction);
+  return sendWith(signer, instruction);
 }
 
 const airdrop = await connection.requestAirdrop(administrator.publicKey, 10_000_000_000);
 await connection.confirmTransaction(airdrop, "finalized");
+const outsiderAirdrop = await connection.requestAirdrop(outsider.publicKey, 1_000_000_000);
+await connection.confirmTransaction(outsiderAirdrop, "finalized");
 
 const bondMint = await createBondMint(instrumentAuthority, true);
 const settlementMint = await createMint(6);
@@ -161,6 +180,22 @@ assert.equal(instrument.settlementMint.toBase58(), settlementMint.toBase58());
 assert.equal(instrument.totalSupply.toString(), "35");
 assert.deepEqual(Object.keys(instrument.status), ["deploying"]);
 console.log("PASS initialize_instrument creates the expected PDA for an irreversible Token-2022 mint");
+
+const outsiderId = Uint8Array.from({ length: 16 }, (_, index) => index + 49);
+const [outsiderAddress] = PublicKey.findProgramAddressSync(
+  [Buffer.from("instrument"), outsiderId], programId,
+);
+const [outsiderInstrumentAuthority] = PublicKey.findProgramAddressSync(
+  [Buffer.from("instrument-authority"), outsiderAddress.toBuffer()], programId,
+);
+const outsiderBondMint = await createBondMint(outsiderInstrumentAuthority, true);
+await assert.rejects(
+  initialize(outsiderBondMint, settlementMint, outsiderId, 35, outsider),
+  (error) => /UnauthorizedAdministrator|Administrator must be the program upgrade authority/
+    .test(`${error.message} ${JSON.stringify(error.transactionLogs ?? [])}`),
+);
+assert.equal(await connection.getAccountInfo(outsiderAddress), null);
+console.log("PASS initialize_instrument rejects a signer who is not the upgrade authority");
 
 const mismatchedId = Uint8Array.from({ length: 16 }, (_, index) => index + 17);
 await assert.rejects(initialize(bondMint, settlementMint, mismatchedId, 34));

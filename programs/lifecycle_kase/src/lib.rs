@@ -1,3 +1,4 @@
+use crate::program::LifecycleKase;
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, Token2022};
 
@@ -11,6 +12,19 @@ pub mod lifecycle_kase {
         ctx: Context<InitializeInstrument>,
         terms: InstrumentTerms,
     ) -> Result<()> {
+        require_keys_eq!(
+            ctx.accounts
+                .program
+                .programdata_address()?
+                .ok_or(ErrorCode::InvalidProgramData)?,
+            ctx.accounts.program_data.key(),
+            ErrorCode::InvalidProgramData
+        );
+        require!(
+            ctx.accounts.program_data.upgrade_authority_address
+                == Some(ctx.accounts.administrator.key()),
+            ErrorCode::UnauthorizedAdministrator
+        );
         terms.validate()?;
 
         let bond_mint = &ctx.accounts.bond_mint;
@@ -73,6 +87,8 @@ pub mod lifecycle_kase {
 pub struct InitializeInstrument<'info> {
     #[account(mut)]
     pub administrator: Signer<'info>,
+    pub program: Program<'info, LifecycleKase>,
+    pub program_data: Account<'info, ProgramData>,
     #[account(
         init,
         payer = administrator,
@@ -193,6 +209,10 @@ pub enum ErrorCode {
     MintAuthorityNotRevoked,
     #[msg("Bond freeze authority must be absent")]
     FreezeAuthorityPresent,
+    #[msg("Program data account does not belong to this program")]
+    InvalidProgramData,
+    #[msg("Administrator must be the program upgrade authority")]
+    UnauthorizedAdministrator,
 }
 
 #[cfg(test)]

@@ -454,7 +454,7 @@ bump
 
 #### `initialize_instrument`
 
-Проверяет administrator signer, mint, decimals, Token-2022 program, supply и permanent delegate. Создаёт Instrument PDA.
+Проверяет administrator signer как текущую upgrade authority этой программы через связанный с ней ProgramData account, затем mint, decimals, Token-2022 program, supply и permanent delegate. Создаёт Instrument PDA. Для MVP administrator wallet и upgrade authority совпадают; отдельная issuer delegation требует нового authority design.
 
 #### `create_corporate_action`
 
