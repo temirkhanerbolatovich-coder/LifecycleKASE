@@ -1,4 +1,4 @@
-# ADR-007: Program upgrade authority as MVP administrator
+# ADR-008: Program upgrade authority as MVP administrator
 
 Status: Accepted for local MVP
 Date: 2026-09-29

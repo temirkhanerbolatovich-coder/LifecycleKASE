@@ -2,7 +2,7 @@
 
 The program currently implements only `initialize_instrument`. It creates the instrument PDA at `["instrument", instrument UUID bytes]` in `Deploying` status. The signer must be the current upgrade authority of this program (verified against its own ProgramData account) and becomes the instrument's issuer authority. The supplied bond and settlement mints must be distinct Token-2022 mints with 0 and 6 decimals respectively. The bond mint must have the requested nonzero supply, no mint or freeze authority, and the Instrument Authority PDA as its permanent delegate. Terms also validate the face value, coupon rate, payment frequency, dates, authorities, and UUID.
 
-This instruction does **not** issue or distribute tokens, reconcile holder balances, or make an instrument `Active`. No action, snapshot, entitlement, payment, burn, receipt, or Devnet deployment exists yet. The MVP binds administrator access to the program's upgrade authority; an immutable program or a different issuer wallet requires a separate governance design before deployment. See [ADR-007](../../docs/decisions/ADR-007-program-administrator.md).
+This instruction does **not** issue or distribute tokens, reconcile holder balances, or make an instrument `Active`. No action, snapshot, entitlement, payment, burn, receipt, or Devnet deployment exists yet. The MVP binds administrator access to the program's upgrade authority; an immutable program or a different issuer wallet requires a separate governance design before deployment. See [ADR-008](../../docs/decisions/ADR-008-program-administrator.md).
 
 ## Local development
 
