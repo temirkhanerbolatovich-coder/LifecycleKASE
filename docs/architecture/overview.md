@@ -8,7 +8,7 @@ Last updated: 2026-09-29
 | Component | Responsibility | Trust boundary |
 |---|---|---|
 | Next.js web | Administrator and investor workflows; wallet interaction | Untrusted client; no authoritative validation |
-| NestJS API | Authentication, authorization, orchestration, canonical snapshots, transaction preparation and reconciliation | Trusted application service; never holds administrator private keys |
+| API package | Internal read-only snapshot candidate preparation implemented; HTTP, authentication, persistence and transaction orchestration pending | Trusted application service when deployed; never holds administrator private keys |
 | Domain package | Deterministic calculations and state rules | Pure logic with no network or persistence side effects |
 | Solana client package | Token-2022 holder collection and RPC boundary implemented; instructions and confirmation helpers pending | Converts finalized chain account data into validated holder balances |
 | Anchor program | Enforces authority, lifecycle transitions, commitments, atomic settlement and replay protection | Authoritative execution boundary |
@@ -27,6 +27,8 @@ Last updated: 2026-09-29
 Snapshot construction is a special case: the API reads Token-2022 accounts at the current finalized slot, creates canonical JSON, computes SHA-256, persists the payload, and commits the hash and slot on-chain. Historical reconstruction is intentionally unsupported in the MVP.
 
 The implemented client collector reads all mint-filtered Token-2022 accounts at one returned finalized context slot, decodes the base token-account prefix even when extensions are present, and checks that positive balances sum to mint supply. It refuses inconsistent supply/slot responses. The API binding, canonical persistence, and on-chain snapshot registration are not yet implemented; a fixture-tested collector is not a live snapshot proof.
+
+The internal API candidate service now joins that collector with Prisma action and wallet mappings, checks the configured genesis hash and record-date window, and computes canonical snapshot-v2 bytes. It has no HTTP entry point or write path yet. Concurrent workflow changes are not locked at this stage; the eventual authenticated persistence step must revalidate state and version before committing any rows.
 
 ## Authority model
 

@@ -1,6 +1,6 @@
 # LifecycleKASE
 
-Corporate Action Engine for tokenized securities on Solana. The repository has its **Milestone 0 foundation** and partial holder-collection work: requirements, architecture decisions, CI checks, local PostgreSQL migrations, checked financial calculations, approval state transitions, investor-level canonical snapshot hashing, and a fixture-tested Token-2022 holder collector. Product services and the on-chain program are not implemented yet.
+Corporate Action Engine for tokenized securities on Solana. The repository has its **Milestone 0 foundation** and partial snapshot work: requirements, architecture decisions, CI checks, local PostgreSQL migrations, checked financial calculations, approval state transitions, a fixture-tested Token-2022 holder collector, and an internal read-only API snapshot candidate service. The HTTP API and on-chain program are not implemented yet.
 
 ## Scope
 
@@ -24,7 +24,7 @@ The binding requirements are:
 ## Repository layout
 
 ```text
-apps/                 Future API and web applications
+apps/                 Internal API preparation service and future web application
 packages/             Shared domain contracts and Token-2022 holder collector
 programs/             Future Anchor program
 prisma/               PostgreSQL schema and guarded migrations
@@ -74,7 +74,7 @@ The smoke test starts an isolated validator on port `18899`, waits for a JSON-RP
 
 ## Current limitations
 
-- API, frontend, Solana instruction builders, and Anchor program are not implemented. The Solana client currently covers holder collection and investor grouping only; it has not been checked against a live mint.
+- The internal API package only prepares a read-only snapshot candidate; authenticated routes, database persistence, transaction preparation, and on-chain registration are not implemented. The frontend, Solana instruction builders, and Anchor program are also pending. No live mint has been checked.
 - Four SQL migrations and database guard tests are implemented. The third migration requires an empty pre-MVP domain database; it stops when domain records exist.
 - The TypeScript domain contracts are implemented; matching Rust calculations are not yet available.
 - The validator smoke-test requires an external Solana CLI installation.
