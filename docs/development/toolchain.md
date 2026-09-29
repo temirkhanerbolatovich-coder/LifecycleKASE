@@ -3,7 +3,7 @@
 Status: local WSL toolchain and first Anchor build verified
 Last reviewed: 2026-09-29
 
-Observed in the current Ubuntu WSL environment on 2026-09-29: Rust 1.98.1, Anchor CLI 1.2.0, Solana CLI and validator 4.1.2, and SBF platform-tools v1.57. `npm run check:toolchain`, `npm run solana:smoke`, Rust unit tests, Clippy, and `anchor build` pass. The local-validator integration test deploys an upgradeable program with a disposable local administrator key and checks instrument creation, three action types, and activation with canonical 10/20/5 balances, including authorization and reconciliation failures. Anchor and Solana versions are pinned in `Anchor.toml`; the minimum supported host Rust version is in `Cargo.toml`.
+Observed in the current Ubuntu WSL environment on 2026-09-29: Rust 1.98.1, Anchor CLI 1.2.0, Solana CLI and validator 4.1.2, and SBF platform-tools v1.57. `npm run check:toolchain`, `npm run solana:smoke`, Rust unit tests, Clippy, and `anchor build` pass. The local-validator integration test deploys an upgradeable program with a disposable local administrator key and checks instrument creation, three action types, pre-snapshot cancellation, and activation with canonical 10/20/5 balances, including authorization, replay, and reconciliation failures. Anchor and Solana versions are pinned in `Anchor.toml`; the minimum supported host Rust version is in `Cargo.toml`.
 
 The current Ubuntu distribution opens as `root`, so the binaries above live under `/root`. Before creating any Devnet signer or deployment key, switch development to a non-root WSL user and install or expose the toolchain there. No Devnet key has been created by this setup step.
 

@@ -203,6 +203,17 @@ async function activate(holderAccounts, signer = administrator) {
   return sendWith(signer, instruction);
 }
 
+async function cancelAction(actionAddress, signer = administrator) {
+  const instruction = await program.methods.cancelAction()
+    .accountsStrict({
+      issuerAuthority: signer.publicKey,
+      instrument: instrumentAddress,
+      corporateAction: actionAddress,
+    })
+    .instruction();
+  return sendWith(signer, instruction);
+}
+
 const airdrop = await connection.requestAirdrop(administrator.publicKey, 10_000_000_000);
 await connection.confirmTransaction(airdrop, "finalized");
 const outsiderAirdrop = await connection.requestAirdrop(outsider.publicKey, 1_000_000_000);
@@ -282,6 +293,27 @@ await assert.rejects(
 );
 assert.equal(await connection.getAccountInfo(invalidActionAddress), null);
 console.log("PASS create_corporate_action rejects invalid early-redemption terms");
+
+await assert.rejects(
+  cancelAction(couponAddress, outsider),
+  (error) => /UnauthorizedIssuer|Only the instrument issuer authority/
+    .test(`${error.message} ${JSON.stringify(error.transactionLogs ?? [])}`),
+);
+assert.deepEqual(Object.keys((await program.account.corporateAction.fetch(couponAddress)).status), ["scheduled"]);
+console.log("PASS cancel_action rejects a non-issuer signer");
+
+await cancelAction(couponAddress);
+const cancelledCoupon = await program.account.corporateAction.fetch(couponAddress);
+assert.deepEqual(Object.keys(cancelledCoupon.status), ["cancelled"]);
+assert.ok(cancelledCoupon.completedAt.toNumber() >= now);
+console.log("PASS cancel_action makes a scheduled action terminal");
+
+await assert.rejects(
+  cancelAction(couponAddress),
+  (error) => /InvalidActionStatus|Corporate action must be scheduled to cancel/
+    .test(`${error.message} ${JSON.stringify(error.transactionLogs ?? [])}`),
+);
+console.log("PASS cancel_action rejects replay");
 
 const administratorBondAccount = getAssociatedTokenAddressSync(
   bondMint, administrator.publicKey, false, TOKEN_2022_PROGRAM_ID,

@@ -182,6 +182,17 @@ pub mod lifecycle_kase {
         instrument.status = InstrumentStatus::Active;
         Ok(())
     }
+
+    pub fn cancel_action(ctx: Context<CancelAction>) -> Result<()> {
+        let action = &mut ctx.accounts.corporate_action;
+        require!(
+            action.status == CorporateActionStatus::Scheduled,
+            ErrorCode::InvalidActionStatus
+        );
+        action.status = CorporateActionStatus::Cancelled;
+        action.completed_at = Some(Clock::get()?.unix_timestamp);
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -253,6 +264,23 @@ pub struct ActivateInstrument<'info> {
     #[account(extensions::permanent_delegate::delegate = instrument_authority)]
     pub bond_mint: InterfaceAccount<'info, Mint>,
     pub token_2022_program: Program<'info, Token2022>,
+}
+
+#[derive(Accounts)]
+pub struct CancelAction<'info> {
+    pub issuer_authority: Signer<'info>,
+    #[account(
+        constraint = instrument.issuer_authority == issuer_authority.key()
+            @ ErrorCode::UnauthorizedIssuer
+    )]
+    pub instrument: Account<'info, Instrument>,
+    #[account(
+        mut,
+        has_one = instrument @ ErrorCode::InvalidActionInstrument,
+        seeds = [b"action", instrument.key().as_ref(), corporate_action.action_id.as_ref()],
+        bump = corporate_action.bump
+    )]
+    pub corporate_action: Account<'info, CorporateAction>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug)]
@@ -421,6 +449,7 @@ pub enum CorporateActionType {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, PartialEq, Eq, InitSpace)]
 pub enum CorporateActionStatus {
     Scheduled,
+    Cancelled,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, PartialEq, Eq, InitSpace)]
@@ -477,6 +506,10 @@ pub enum ErrorCode {
     InvalidHolderAccount,
     #[msg("Holder token account was supplied more than once")]
     DuplicateHolderAccount,
+    #[msg("Corporate action does not belong to this instrument")]
+    InvalidActionInstrument,
+    #[msg("Corporate action must be scheduled to cancel")]
+    InvalidActionStatus,
 }
 
 #[cfg(test)]

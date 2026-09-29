@@ -15,7 +15,7 @@ This is a repository status, not a claim that the full MVP or a production finan
 | Coupon, principal and early redemption math | Pure TypeScript functions implemented | Canonical KZT-Test minor-unit vectors tested; Rust parity pending |
 | Corporate-action approval states | Transition contract implemented | Authentication, on-chain approval and audit writes pending |
 | KZT-Test | Specified simulated settlement asset | SIMULATED ASSET. Not issued by the National Bank of Kazakhstan. Mint and transfers pending |
-| Bond, Solana program, execution receipts | `initialize_instrument`, `create_corporate_action`, and `activate_instrument` implemented and local-validator tested; activation checks a 10/20/5 distribution against supply 35 | No application-side investor identity gate, snapshot registration, payment/burn/receipt, separate administrator delegation, or Devnet deployment/signature |
+| Bond, Solana program, execution receipts | Instrument initialization/activation and corporate-action scheduling/cancellation implemented and local-validator tested; activation checks a 10/20/5 distribution against supply 35 | No application-side investor identity gate, snapshot registration, payment/burn/receipt, separate administrator delegation, or Devnet deployment/signature |
 | Transfer Hook, whitelist, freeze, role separation | Post-MVP options | Schema flags and role names do not enforce direct token transfers or permissions |
 | Real KYC, bank settlement, digital tenge, KASE/CSD integration | Out of scope | No external integration or real-money claim |
 

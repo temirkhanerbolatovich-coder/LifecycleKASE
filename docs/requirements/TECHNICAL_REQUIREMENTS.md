@@ -537,7 +537,7 @@ bump
 
 #### `cancel_action`
 
-On-chain разрешена только из `SCHEDULED`, до snapshot. Database draft отменяется без blockchain transaction.
+On-chain разрешена только из `SCHEDULED`, до snapshot, по подписи `Instrument.issuer_authority` и при совпадении action → instrument/PDA. Инструкция сохраняет terminal timestamp в `completed_at`; повторная отмена отклоняется. Database draft отменяется без blockchain transaction.
 
 ### 7.7. Program security checks
 

@@ -6,6 +6,8 @@
 
 `activate_instrument` moves an instrument from `Deploying` to `Active` only when its issuer signs and 1–64 distinct, positive-balance Token-2022 holder accounts for the bond mint sum exactly to its supply at activation. It rechecks the mint configuration and permanent delegate. This is on-chain balance reconciliation, **not** KYC or verified investor-wallet mapping; the application must verify those separately and confirm the activation transaction at `finalized`. See [ADR-009](../../docs/decisions/ADR-009-instrument-activation.md).
 
+`cancel_action` lets the issuer authority move only a `Scheduled` action to terminal `Cancelled`, recording the terminal timestamp. It checks the action's instrument relationship and PDA seeds. A database-only `Draft` is cancelled without an on-chain transaction. Actions after snapshot registration are not cancellable through this instruction.
+
 These instructions do **not** issue or distribute tokens or verify investor identities. No snapshot, entitlement, payment, burn, receipt, or Devnet deployment exists yet. The MVP binds administrator access to the program's upgrade authority; an immutable program or a different issuer wallet requires a separate governance design before deployment. See [ADR-008](../../docs/decisions/ADR-008-program-administrator.md).
 
 ## Local development
@@ -19,6 +21,6 @@ cargo clippy -p lifecycle_kase --all-targets --locked -- -D warnings
 anchor build
 ```
 
-After `anchor build`, run `npm ci --prefix tools/solana-integration` and `npm run test:solana:integration` from PowerShell. This deploys to an isolated local validator with a disposable upgrade-authority key and tests instrument initialization, action scheduling, and activation with a 10/20/5 distribution, including unauthorized-signer, mismatch, duplicate, and replay rejection. The test does not use or create a Devnet key. Its legacy Anchor client dependencies are isolated from the deployed application; see the [toolchain notes](../../docs/development/toolchain.md) for the current security limitation.
+After `anchor build`, run `npm ci --prefix tools/solana-integration` and `npm run test:solana:integration` from PowerShell. This deploys to an isolated local validator with a disposable upgrade-authority key and tests instrument initialization, action scheduling/cancellation, and activation with a 10/20/5 distribution, including unauthorized-signer, mismatch, duplicate, and replay rejection. The test does not use or create a Devnet key. Its legacy Anchor client dependencies are isolated from the deployed application; see the [toolchain notes](../../docs/development/toolchain.md) for the current security limitation.
 
 The checked-in program ID is a local development address. Its keypair is under ignored `target/deploy/`; no private key is committed. A fresh checkout can compile the program, but local deployment requires a disposable keypair. Run `mkdir -p target/deploy`, create it with `solana-keygen new --silent --no-bip39-passphrase --outfile target/deploy/lifecycle_kase-keypair.json`, then run `anchor keys sync` to align the source and `Anchor.toml` with that key. Never commit or publish the JSON keypair. Do not use this development key for Devnet or real assets.
