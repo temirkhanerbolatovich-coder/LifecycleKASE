@@ -1,6 +1,6 @@
 # LifecycleKASE
 
-Corporate Action Engine for tokenized securities on Solana. The repository has its **Milestone 0 foundation** and partial snapshot work: requirements, architecture decisions, CI checks, local PostgreSQL migrations, checked financial calculations, approval state transitions, a fixture-tested Token-2022 holder collector, and an internal read-only API snapshot candidate service. The HTTP API and on-chain program are not implemented yet.
+Corporate Action Engine for tokenized securities on Solana. The repository has its **Milestone 0 foundation** and partial snapshot work: requirements, architecture decisions, CI checks, local PostgreSQL migrations, checked financial calculations, approval state transitions, a fixture-tested Token-2022 holder collector, and internal API preparation plus pending snapshot persistence. The HTTP API and on-chain program are not implemented yet.
 
 ## Scope
 
@@ -58,6 +58,7 @@ npm run check
 docker compose up -d postgres
 npm run prisma:migrate:deploy
 npm run test:database
+npm run test:api:database
 ```
 
 Copy `.env.example` to `.env` only when local services need configuration. `.env` is ignored by Git.
@@ -74,7 +75,7 @@ The smoke test starts an isolated validator on port `18899`, waits for a JSON-RP
 
 ## Current limitations
 
-- The internal API package only prepares a read-only snapshot candidate; authenticated routes, database persistence, transaction preparation, and on-chain registration are not implemented. The frontend, Solana instruction builders, and Anchor program are also pending. No live mint has been checked.
+- The internal API package prepares a snapshot candidate and persists it as `PENDING_REGISTRATION`; authenticated routes, transaction preparation, and on-chain registration are not implemented. The frontend, Solana instruction builders, and Anchor program are also pending. No live mint has been checked.
 - Four SQL migrations and database guard tests are implemented. The third migration requires an empty pre-MVP domain database; it stops when domain records exist.
 - The TypeScript domain contracts are implemented; matching Rust calculations are not yet available.
 - The validator smoke-test requires an external Solana CLI installation.

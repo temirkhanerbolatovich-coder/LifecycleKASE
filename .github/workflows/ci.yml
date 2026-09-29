@@ -55,3 +55,8 @@ jobs:
 
       - name: Test database guards
         run: npm run test:database
+
+      - name: Test API snapshot persistence
+        env:
+          DATABASE_URL: postgresql://lifecycle_kase:local_development_only@127.0.0.1:55432/lifecycle_kase?schema=public
+        run: npm run test:api:database

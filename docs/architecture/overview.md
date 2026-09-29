@@ -8,7 +8,7 @@ Last updated: 2026-09-29
 | Component | Responsibility | Trust boundary |
 |---|---|---|
 | Next.js web | Administrator and investor workflows; wallet interaction | Untrusted client; no authoritative validation |
-| API package | Internal read-only snapshot candidate preparation implemented; HTTP, authentication, persistence and transaction orchestration pending | Trusted application service when deployed; never holds administrator private keys |
+| API package | Internal snapshot candidate preparation and pending PostgreSQL persistence implemented; HTTP, authentication and on-chain transaction orchestration pending | Trusted application service when deployed; never holds administrator private keys |
 | Domain package | Deterministic calculations and state rules | Pure logic with no network or persistence side effects |
 | Solana client package | Token-2022 holder collection and RPC boundary implemented; instructions and confirmation helpers pending | Converts finalized chain account data into validated holder balances |
 | Anchor program | Enforces authority, lifecycle transitions, commitments, atomic settlement and replay protection | Authoritative execution boundary |
@@ -28,7 +28,7 @@ Snapshot construction is a special case: the API reads Token-2022 accounts at th
 
 The implemented client collector reads all mint-filtered Token-2022 accounts at one returned finalized context slot, decodes the base token-account prefix even when extensions are present, and checks that positive balances sum to mint supply. It refuses inconsistent supply/slot responses. The API binding, canonical persistence, and on-chain snapshot registration are not yet implemented; a fixture-tested collector is not a live snapshot proof.
 
-The internal API candidate service now joins that collector with Prisma action and wallet mappings, checks the configured genesis hash and record-date window, and computes canonical snapshot-v2 bytes. It has no HTTP entry point or write path yet. Concurrent workflow changes are not locked at this stage; the eventual authenticated persistence step must revalidate state and version before committing any rows.
+The internal API service joins that collector with Prisma action and wallet mappings, checks the configured genesis hash and record-date window, and computes canonical snapshot-v2 bytes. Its persistence step revalidates state, versions and wallet mappings in a serializable transaction, then writes the canonical payload and child rows as `PENDING_REGISTRATION`. It does not move the corporate action to `SNAPSHOT_CREATED`; that requires later signed on-chain registration and finalized confirmation. No authenticated HTTP entry point exists yet.
 
 ## Authority model
 

@@ -34,6 +34,7 @@ function tokenAccount(address: string, owner: string, amount: bigint) {
 function fixture(overrides: {
   missingWallet?: boolean;
   unverifiedWallet?: boolean;
+  lateVerifiedWallet?: boolean;
   wrongGenesis?: boolean;
   supply?: bigint;
   blockTime?: number | null;
@@ -44,11 +45,13 @@ function fixture(overrides: {
   const action = {
     id: ACTION_ID,
     instrumentId: INSTRUMENT_ID,
+    version: 3,
     status: overrides.actionStatus ?? "SCHEDULED",
     snapshot: overrides.snapshotExists ? { id: "existing" } : null,
     recordAt: new Date("2026-09-29T00:00:00.000Z"),
     instrument: {
       status: "ACTIVE",
+      version: 2,
       mintAddress: MINT,
       circulatingSupply: overrides.supply ?? 35n
     }
@@ -68,7 +71,9 @@ function fixture(overrides: {
       investorId: INVESTOR_ONE,
       address: ASSOCIATED,
       status: "ACTIVE",
-      verifiedAt: overrides.unverifiedWallet ? null : new Date("2026-09-28T00:00:00.000Z"),
+      verifiedAt: overrides.unverifiedWallet
+        ? null
+        : new Date(overrides.lateVerifiedWallet ? "2026-09-29T00:00:30.000Z" : "2026-09-28T00:00:00.000Z"),
       network: "SOLANA_DEVNET",
       investor: { id: INVESTOR_ONE, eligibilityStatus: "ELIGIBLE" }
     },
@@ -142,6 +147,8 @@ test("builds a canonical investor-level candidate from DB mappings and finalized
   assert.equal(candidate.snapshot.investors[0]?.balance, "30");
   assert.equal(candidate.snapshot.investors[1]?.eligibility_status, "SUSPENDED");
   assert.equal(candidate.captureSlot, 101);
+  assert.equal(candidate.actionVersion, 3);
+  assert.equal(candidate.instrumentVersion, 2);
   assert.match(candidate.sha256, /^[0-9a-f]{64}$/);
   assert.deepEqual(setup.requestedMethods, [
     "getGenesisHash", "getTokenSupply", "getProgramAccounts", "getTokenSupply", "getBlockTime"
@@ -178,7 +185,7 @@ test("stops before capture on wrong network or missed window", async () => {
 });
 
 test("refuses unknown or unverified holder wallets and stale DB supply", async () => {
-  for (const overrides of [{ missingWallet: true }, { unverifiedWallet: true }]) {
+  for (const overrides of [{ missingWallet: true }, { unverifiedWallet: true }, { lateVerifiedWallet: true }]) {
     const setup = fixture(overrides);
     await assert.rejects(
       prepareSnapshotCandidate(setup.database, setup.rpc, ACTION_ID, setup.options),

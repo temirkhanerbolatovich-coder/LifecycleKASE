@@ -86,7 +86,9 @@ export async function prepareSnapshotCandidate(
       investorId: wallet.investorId!,
       address: wallet.address,
       status: wallet.status,
-      verified: wallet.verifiedAt !== null && wallet.network === options.walletNetwork
+      verified: wallet.verifiedAt !== null &&
+        wallet.verifiedAt <= action.recordAt &&
+        wallet.network === options.walletNetwork
     }));
   const registry = groupHoldersByInvestor(capture, mappings);
   if (!registry.canCreateSnapshot) {
@@ -134,5 +136,10 @@ export async function prepareSnapshotCandidate(
       };
     })
   });
-  return { ...candidate, captureSlot: capture.slot };
+  return {
+    ...candidate,
+    captureSlot: capture.slot,
+    actionVersion: action.version,
+    instrumentVersion: action.instrument.version
+  };
 }

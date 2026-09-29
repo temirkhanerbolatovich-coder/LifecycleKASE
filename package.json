@@ -21,6 +21,7 @@
     "prisma:validate": "node scripts/run-prisma.mjs validate",
     "test": "npm run test --workspaces --if-present && node --test \"test/**/*.test.mjs\"",
     "test:database": "node scripts/test-database.mjs",
+    "test:api:database": "npm run build --workspace @lifecycle-kase/api && node scripts/test-api-persistence.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "validate": "node scripts/validate-scaffold.mjs && node scripts/check-doc-links.mjs"
   },
