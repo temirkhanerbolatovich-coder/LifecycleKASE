@@ -20,7 +20,7 @@ The binding requirements are:
 - [Domain contracts and test vectors](docs/testing/domain-contracts.md)
 - [Persistence architecture](docs/architecture/persistence.md)
 - [Implemented, simulated, and pending scope](docs/IMPLEMENTED_VS_SIMULATED.md)
-- [Disposable Render staging plan](docs/deployment/render-staging.md)
+- [Disposable Render staging deployment](docs/deployment/render-staging.md)
 
 ## Repository layout
 
@@ -95,4 +95,4 @@ The smoke test starts an isolated validator on port `18899`, waits for a JSON-RP
 - The validator smoke-test requires an external Solana CLI installation.
 - Docker Compose currently provisions PostgreSQL only; application containers will be added with their implementation milestone.
 - No production deployment, key custody, or real-money operation is supported.
-- `render.yaml` prepares a disposable status-only staging Blueprint, but no Render deployment has been created or verified. Its free PostgreSQL has a short lifetime and no backups; do not store real data there.
+- The status-only staging dashboard is publicly deployed at <https://lifecyclekase-web.onrender.com/dashboard>; it is not a production application. Its free PostgreSQL has a short lifetime and no backups; do not store real data there. See the [deployment record](docs/deployment/render-staging.md).

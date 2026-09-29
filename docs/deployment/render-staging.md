@@ -1,6 +1,16 @@
 # Disposable Render staging
 
-Status: configuration prepared; no public deployment verified.
+Status: status-only staging deployed and verified on 2026-09-29.
+
+The `lifecyclekase-staging` Blueprint in the separate `LifecycleKASE` Hobby workspace deployed commit `626cc326800e0c84eff1796088a735cdee6e14e3` from `master`. Its initial sync created the free `lifecyclekase-staging-db`, `lifecyclekase-api`, and `lifecyclekase-web` resources without changing the separate VKO workspace.
+
+- Dashboard: <https://lifecyclekase-web.onrender.com/dashboard>
+- Web liveness: <https://lifecyclekase-web.onrender.com/health/live>
+- API liveness: <https://lifecyclekase-api.onrender.com/api/v1/health/live>
+- API readiness: <https://lifecyclekase-api.onrender.com/api/v1/health/ready>
+- [Blueprint sync](https://dashboard.render.com/blueprint/exs-datqao8u01pc73a5afl0/sync/exe-datqaogu01pc73a5ag0g)
+
+At verification, both services were Live. The three health requests returned HTTP 200 with `live`/`ready` JSON; `/dashboard` returned HTTP 200 and visibly showed web available, API/PostgreSQL ready, and Solana Devnet unconnected. The unavailable investor domain route returned HTTP 404. This verifies only the status slice, not the corporate-action MVP.
 
 The root [`render.yaml`](../../render.yaml) defines two free Node web services and one free PostgreSQL 17 database in Frankfurt. It is for the **read-only status page only**. It does not deploy the Solana program, create tokens, enable investors or execute payments.
 
@@ -10,7 +20,7 @@ The root [`render.yaml`](../../render.yaml) defines two free Node web services a
 2. Commit and push the reviewed application and Blueprint changes to the intended repository branch. The current local working tree alone cannot be deployed from GitHub.
 3. In your own Render account, create a Blueprint from that branch and review the three proposed resources before approving creation. Do not attach an existing production database to this Blueprint.
 
-As observed on 2026-09-29, the current Render workspace already has a Free PostgreSQL database for the separate VKO project. Render permits only one Free PostgreSQL database per workspace. Do not sync this Blueprint into that workspace unchanged: use a separate Hobby workspace if available, or explicitly choose and approve a paid isolated database. Do not delete, repurpose, or upgrade the VKO database as part of this deployment.
+As observed on 2026-09-29, the original Render workspace already has a Free PostgreSQL database for the separate VKO project. Render permits only one Free PostgreSQL database per workspace. The deployment therefore uses a separate Hobby workspace. Do not delete, repurpose, or upgrade the VKO database as part of this deployment.
 
 The API build command installs dependencies, generates Prisma Client, builds the API and then runs `prisma migrate deploy`. Free web services have no pre-deploy command; this explicit build step is only acceptable for a disposable demo. Never put migrations in the start command. If a migration fails, stop and diagnose it rather than retrying against valuable data.
 
