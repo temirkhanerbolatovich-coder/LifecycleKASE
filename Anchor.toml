@@ -1,0 +1,14 @@
+[toolchain]
+anchor_version = "1.2.0"
+solana_version = "4.1.2"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+lifecycle_kase = "6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"

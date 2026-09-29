@@ -11,6 +11,25 @@ permissions:
   contents: read
 
 jobs:
+  program-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install pinned host Rust toolchain
+        run: rustup toolchain install 1.98.1 --profile minimal --component rustfmt --component clippy
+
+      - name: Check Rust formatting
+        run: cargo +1.98.1 fmt --all -- --check
+
+      - name: Test program logic
+        run: cargo +1.98.1 test -p lifecycle_kase --locked
+
+      - name: Lint program
+        run: cargo +1.98.1 clippy -p lifecycle_kase --all-targets --locked -- -D warnings
+
   repository-checks:
     runs-on: ubuntu-latest
     timeout-minutes: 10

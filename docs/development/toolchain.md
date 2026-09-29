@@ -1,7 +1,11 @@
 # Solana development toolchain
 
-Status: installation pending
-Last reviewed: 2026-09-28
+Status: local WSL toolchain and first Anchor build verified
+Last reviewed: 2026-09-29
+
+Observed in the current Ubuntu WSL environment on 2026-09-29: Rust 1.98.1, Anchor CLI 1.2.0, Solana CLI and validator 4.1.2, and SBF platform-tools v1.57. `npm run check:toolchain`, `npm run solana:smoke`, Rust unit tests, Clippy, and `anchor build` pass. Anchor and Solana versions are now pinned in `Anchor.toml`; the minimum supported host Rust version is in `Cargo.toml`. A full validator integration test of the new instruction is still pending.
+
+The current Ubuntu distribution opens as `root`, so the binaries above live under `/root`. Before creating any Devnet signer or deployment key, switch development to a non-root WSL user and install or expose the toolchain there. No Devnet key has been created by this setup step.
 
 ## Supported environment
 
@@ -31,18 +35,18 @@ Then run:
 solana-test-validator --version
 ```
 
-The selected Anchor and Solana versions must be recorded in `Anchor.toml` only after a generated program successfully builds and its local tests pass together. AVM should manage the Anchor version and resolve the project-compatible Solana CLI. Using floating `latest` versions in CI is prohibited after this compatibility check.
+The selected Anchor and Solana versions are recorded in `Anchor.toml` after the first program build and Rust tests. AVM manages the Anchor version and resolves the project-compatible Solana CLI. CI must not use floating `latest` versions.
 
 ## Repository gate
 
-The current PowerShell diagnostics remain useful before WSL setup:
+The PowerShell diagnostic checks Node/npm/Docker on Windows and Rust/Solana/Anchor inside the `Ubuntu` WSL distribution (override with `-WslDistribution` when calling the script directly):
 
 ```powershell
 npm run check:toolchain
 npm run solana:smoke
 ```
 
-They intentionally fail while the tools are unavailable on the current `PATH`. Once the Anchor workspace exists, CI must install the exact pinned versions and run Rustfmt, Clippy, build, and local-validator tests.
+`solana:smoke` starts a disposable validator inside Ubuntu and checks its RPC health, then removes its temporary ledger. Both diagnostics fail while the blockchain tools are unavailable in WSL. Once the Anchor workspace exists, CI must install the exact pinned versions and run Rustfmt, Clippy, build, and local-validator tests.
 
 ## Security boundaries
 

@@ -11,6 +11,9 @@
     "node": ">=22"
   },
   "scripts": {
+    "dev:web": "npm run dev --workspace @lifecycle-kase/web",
+    "start:api": "npm run start --workspace @lifecycle-kase/api",
+    "start:web": "npm run start --workspace @lifecycle-kase/web",
     "build": "npm run build --workspaces --if-present",
     "check": "npm run validate && npm run prisma:validate && npm run typecheck && npm test",
     "check:toolchain": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-toolchain.ps1",
