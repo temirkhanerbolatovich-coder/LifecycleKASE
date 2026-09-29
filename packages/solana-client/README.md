@@ -1,3 +1,9 @@
 # Solana client boundary
 
-This package will contain typed program-address derivation, instruction builders, account decoders, transaction construction, and finalized-confirmation helpers shared by the API and web application. It must not contain private keys or business rules that belong on-chain.
+The implemented holder collector reads all positive-balance Token-2022 accounts for one zero-decimal bond mint at `finalized` commitment. It uses `getProgramAccounts` with a mint filter and `withContext`, decodes the 165-byte base account prefix (also valid when extensions follow it), groups token accounts by owner wallet, and reconciles their sum with mint supply. A second step joins wallets to the Investor Registry mapping and identifies unknown or unverified owners. The caller must refuse snapshot creation when `canCreateSnapshot` is false.
+
+The collector brackets the account read with two `getTokenSupply` calls and rejects changed supply or unordered slots. The registry account read has a single reported context slot; this does not prove the RPC provider is honest or that the later snapshot transaction will land in the same slot. The API must bind the result to the action window, persist the canonical snapshot, and verify the on-chain commitment after signing. No live-mint integration has been tested yet.
+
+`HttpSolanaRpc` permits HTTPS endpoints and local HTTP only. It rejects redirects, applies a timeout, and does not include endpoint credentials or raw provider error details in its errors. Configure provider URLs server-side; do not place API keys in frontend bundles or logs.
+
+Run `npm test --workspace @lifecycle-kase/solana-client` and `npm run typecheck --workspace @lifecycle-kase/solana-client` from the repository root. The tests use deterministic RPC fixtures. Instruction builders, transaction construction, and finalized-confirmation helpers remain pending.

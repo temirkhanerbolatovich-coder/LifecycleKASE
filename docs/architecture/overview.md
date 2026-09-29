@@ -1,7 +1,7 @@
 # Architecture overview
 
-Status: Milestone 0 baseline
-Last updated: 2026-09-28
+Status: Milestone 0 baseline with partial Milestone 2 client implementation
+Last updated: 2026-09-29
 
 ## Components
 
@@ -10,7 +10,7 @@ Last updated: 2026-09-28
 | Next.js web | Administrator and investor workflows; wallet interaction | Untrusted client; no authoritative validation |
 | NestJS API | Authentication, authorization, orchestration, canonical snapshots, transaction preparation and reconciliation | Trusted application service; never holds administrator private keys |
 | Domain package | Deterministic calculations and state rules | Pure logic with no network or persistence side effects |
-| Solana client package | Typed instructions, account decoding, confirmation helpers | Converts domain intent into verifiable chain operations |
+| Solana client package | Token-2022 holder collection and RPC boundary implemented; instructions and confirmation helpers pending | Converts finalized chain account data into validated holder balances |
 | Anchor program | Enforces authority, lifecycle transitions, commitments, atomic settlement and replay protection | Authoritative execution boundary |
 | Token-2022 | Bond ownership, transfers, burns, and total supply | Authoritative token ledger |
 | PostgreSQL | Identity links, workflow orchestration, immutable snapshot payloads and read projections | Recoverable projection; not authoritative for chain facts |
@@ -25,6 +25,8 @@ Last updated: 2026-09-28
 6. Reconciliation detects and reports any divergence between PostgreSQL and Solana.
 
 Snapshot construction is a special case: the API reads Token-2022 accounts at the current finalized slot, creates canonical JSON, computes SHA-256, persists the payload, and commits the hash and slot on-chain. Historical reconstruction is intentionally unsupported in the MVP.
+
+The implemented client collector reads all mint-filtered Token-2022 accounts at one returned finalized context slot, decodes the base token-account prefix even when extensions are present, and checks that positive balances sum to mint supply. It refuses inconsistent supply/slot responses. The API binding, canonical persistence, and on-chain snapshot registration are not yet implemented; a fixture-tested collector is not a live snapshot proof.
 
 ## Authority model
 

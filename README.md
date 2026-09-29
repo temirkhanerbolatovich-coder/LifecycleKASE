@@ -1,6 +1,6 @@
 # LifecycleKASE
 
-Corporate Action Engine for tokenized securities on Solana. The repository has its **Milestone 0 foundation** and shared domain/database contracts: requirements, architecture decisions, CI checks, local PostgreSQL migrations, checked financial calculations, approval state transitions, and investor-level canonical snapshot hashing. Product services and the on-chain program are not implemented yet.
+Corporate Action Engine for tokenized securities on Solana. The repository has its **Milestone 0 foundation** and partial holder-collection work: requirements, architecture decisions, CI checks, local PostgreSQL migrations, checked financial calculations, approval state transitions, investor-level canonical snapshot hashing, and a fixture-tested Token-2022 holder collector. Product services and the on-chain program are not implemented yet.
 
 ## Scope
 
@@ -25,7 +25,7 @@ The binding requirements are:
 
 ```text
 apps/                 Future API and web applications
-packages/             Shared domain and Solana client packages
+packages/             Shared domain contracts and Token-2022 holder collector
 programs/             Future Anchor program
 prisma/               PostgreSQL schema and guarded migrations
 docs/architecture/    Current system boundaries
@@ -74,7 +74,7 @@ The smoke test starts an isolated validator on port `18899`, waits for a JSON-RP
 
 ## Current limitations
 
-- API, frontend, Solana client, and Anchor program are not implemented.
+- API, frontend, Solana instruction builders, and Anchor program are not implemented. The Solana client currently covers holder collection and investor grouping only; it has not been checked against a live mint.
 - Four SQL migrations and database guard tests are implemented. The third migration requires an empty pre-MVP domain database; it stops when domain records exist.
 - The TypeScript domain contracts are implemented; matching Rust calculations are not yet available.
 - The validator smoke-test requires an external Solana CLI installation.
