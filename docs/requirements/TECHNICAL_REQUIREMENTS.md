@@ -458,7 +458,7 @@ bump
 
 #### `create_corporate_action`
 
-Проверяет instrument authority, action type, dates и action-specific parameters. Создаёт on-chain action в `SCHEDULED`. Статус `DRAFT` существует только в database до подписания этой transaction.
+Проверяет signer = `Instrument.issuer_authority`, статус инструмента `DEPLOYING | ACTIVE`, action type, будущие даты (`record_at >= Clock`, `record_at >= issue_at`, `record_at <= execute_at`) и action-specific parameters. Coupon запрещает redemption parameters и `execute_at > maturity_at`; maturity redemption запрещает redemption parameters и требует `execute_at >= maturity_at`; early redemption требует `1..10_000` bps, positive price и `execute_at < maturity_at`. Создаёт on-chain action в `SCHEDULED` с нулевыми snapshot fields/counters. Scheduling при `DEPLOYING` — только подготовка: snapshot и исполнение не разрешены до отдельной activation/reconciliation. Статус `DRAFT` существует только в database до подписания этой transaction.
 
 #### `register_snapshot`
 

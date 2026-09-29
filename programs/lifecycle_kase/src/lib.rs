@@ -80,6 +80,38 @@ pub mod lifecycle_kase {
         });
         Ok(())
     }
+
+    pub fn create_corporate_action(
+        ctx: Context<CreateCorporateAction>,
+        terms: CorporateActionTerms,
+    ) -> Result<()> {
+        let now = Clock::get()?.unix_timestamp;
+        terms.validate(&ctx.accounts.instrument, now)?;
+
+        ctx.accounts.corporate_action.set_inner(CorporateAction {
+            version: 1,
+            action_id: terms.action_id,
+            instrument: ctx.accounts.instrument.key(),
+            action_type: terms.action_type,
+            record_at: terms.record_at,
+            execute_at: terms.execute_at,
+            redemption_percentage_bps: terms.redemption_percentage_bps,
+            redemption_price_minor: terms.redemption_price_minor,
+            snapshot_hash: [0; 32],
+            snapshot_slot: 0,
+            investor_count: 0,
+            wallet_count: 0,
+            total_balance: 0,
+            total_amount_minor: 0,
+            registered_entitlements: 0,
+            processed_entitlements: 0,
+            status: CorporateActionStatus::Scheduled,
+            created_at: now,
+            completed_at: None,
+            bump: ctx.bumps.corporate_action,
+        });
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -107,6 +139,27 @@ pub struct InitializeInstrument<'info> {
     pub bond_mint: InterfaceAccount<'info, Mint>,
     pub settlement_mint: InterfaceAccount<'info, Mint>,
     pub token_2022_program: Program<'info, Token2022>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(terms: CorporateActionTerms)]
+pub struct CreateCorporateAction<'info> {
+    #[account(mut)]
+    pub issuer_authority: Signer<'info>,
+    #[account(
+        constraint = instrument.issuer_authority == issuer_authority.key()
+            @ ErrorCode::UnauthorizedIssuer
+    )]
+    pub instrument: Account<'info, Instrument>,
+    #[account(
+        init,
+        payer = issuer_authority,
+        space = 8 + CorporateAction::INIT_SPACE,
+        seeds = [b"action", instrument.key().as_ref(), terms.action_id.as_ref()],
+        bump
+    )]
+    pub corporate_action: Account<'info, CorporateAction>,
     pub system_program: Program<'info, System>,
 }
 
@@ -154,6 +207,72 @@ impl InstrumentTerms {
     }
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug)]
+pub struct CorporateActionTerms {
+    pub action_id: [u8; 16],
+    pub action_type: CorporateActionType,
+    pub record_at: i64,
+    pub execute_at: i64,
+    pub redemption_percentage_bps: Option<u16>,
+    pub redemption_price_minor: Option<u64>,
+}
+
+impl CorporateActionTerms {
+    fn validate(&self, instrument: &Instrument, now: i64) -> Result<()> {
+        require!(self.action_id != [0; 16], ErrorCode::InvalidActionId);
+        require!(
+            matches!(
+                instrument.status,
+                InstrumentStatus::Deploying | InstrumentStatus::Active
+            ),
+            ErrorCode::InvalidInstrumentStatus
+        );
+        require!(
+            self.record_at >= now
+                && self.record_at >= instrument.issue_at
+                && self.record_at <= self.execute_at,
+            ErrorCode::InvalidActionDates
+        );
+
+        match self.action_type {
+            CorporateActionType::CouponPayment => {
+                require!(
+                    self.redemption_percentage_bps.is_none()
+                        && self.redemption_price_minor.is_none(),
+                    ErrorCode::InvalidRedemptionParameters
+                );
+                require!(
+                    self.execute_at <= instrument.maturity_at,
+                    ErrorCode::InvalidActionDates
+                );
+            }
+            CorporateActionType::BondRedemption => {
+                require!(
+                    self.redemption_percentage_bps.is_none()
+                        && self.redemption_price_minor.is_none(),
+                    ErrorCode::InvalidRedemptionParameters
+                );
+                require!(
+                    self.execute_at >= instrument.maturity_at,
+                    ErrorCode::InvalidActionDates
+                );
+            }
+            CorporateActionType::EarlyRedemption => {
+                require!(
+                    matches!(self.redemption_percentage_bps, Some(1..=10_000))
+                        && matches!(self.redemption_price_minor, Some(1..)),
+                    ErrorCode::InvalidRedemptionParameters
+                );
+                require!(
+                    self.execute_at < instrument.maturity_at,
+                    ErrorCode::InvalidActionDates
+                );
+            }
+        }
+        Ok(())
+    }
+}
+
 #[account]
 #[derive(InitSpace)]
 pub struct Instrument {
@@ -173,6 +292,43 @@ pub struct Instrument {
     pub status: InstrumentStatus,
     pub bump: u8,
     pub authority_bump: u8,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct CorporateAction {
+    pub version: u8,
+    pub action_id: [u8; 16],
+    pub instrument: Pubkey,
+    pub action_type: CorporateActionType,
+    pub record_at: i64,
+    pub execute_at: i64,
+    pub redemption_percentage_bps: Option<u16>,
+    pub redemption_price_minor: Option<u64>,
+    pub snapshot_hash: [u8; 32],
+    pub snapshot_slot: u64,
+    pub investor_count: u32,
+    pub wallet_count: u32,
+    pub total_balance: u64,
+    pub total_amount_minor: u64,
+    pub registered_entitlements: u32,
+    pub processed_entitlements: u32,
+    pub status: CorporateActionStatus,
+    pub created_at: i64,
+    pub completed_at: Option<i64>,
+    pub bump: u8,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, PartialEq, Eq, InitSpace)]
+pub enum CorporateActionType {
+    CouponPayment,
+    BondRedemption,
+    EarlyRedemption,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, PartialEq, Eq, InitSpace)]
+pub enum CorporateActionStatus {
+    Scheduled,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, PartialEq, Eq, InitSpace)]
@@ -213,11 +369,23 @@ pub enum ErrorCode {
     InvalidProgramData,
     #[msg("Administrator must be the program upgrade authority")]
     UnauthorizedAdministrator,
+    #[msg("Only the instrument issuer authority may create an action")]
+    UnauthorizedIssuer,
+    #[msg("Corporate action ID must not be nil")]
+    InvalidActionId,
+    #[msg("Instrument status does not allow a new action")]
+    InvalidInstrumentStatus,
+    #[msg("Corporate action dates are invalid")]
+    InvalidActionDates,
+    #[msg("Redemption parameters do not match the action type")]
+    InvalidRedemptionParameters,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const TEST_NOW: i64 = 1_750_000_000;
 
     fn valid_terms() -> InstrumentTerms {
         InstrumentTerms {
@@ -230,6 +398,39 @@ mod tests {
             issue_at: 1_700_000_000,
             maturity_at: 1_800_000_000,
             total_supply: 35,
+        }
+    }
+
+    fn valid_instrument() -> Instrument {
+        let terms = valid_terms();
+        Instrument {
+            version: 1,
+            instrument_id: terms.instrument_id,
+            issuer_authority: Pubkey::new_unique(),
+            compliance_authority: terms.compliance_authority,
+            corporate_action_authority: terms.corporate_action_authority,
+            bond_mint: Pubkey::new_unique(),
+            settlement_mint: Pubkey::new_unique(),
+            face_value_minor: terms.face_value_minor,
+            coupon_rate_bps: terms.coupon_rate_bps,
+            payments_per_year: terms.payments_per_year,
+            issue_at: terms.issue_at,
+            maturity_at: terms.maturity_at,
+            total_supply: terms.total_supply,
+            status: InstrumentStatus::Deploying,
+            bump: 1,
+            authority_bump: 1,
+        }
+    }
+
+    fn coupon_action() -> CorporateActionTerms {
+        CorporateActionTerms {
+            action_id: [2; 16],
+            action_type: CorporateActionType::CouponPayment,
+            record_at: TEST_NOW + 100,
+            execute_at: TEST_NOW + 200,
+            redemption_percentage_bps: None,
+            redemption_price_minor: None,
         }
     }
 
@@ -270,5 +471,75 @@ mod tests {
         let mut terms = valid_terms();
         terms.maturity_at = terms.issue_at;
         assert!(terms.validate().is_err());
+    }
+
+    #[test]
+    fn accepts_all_action_types_with_valid_parameters() {
+        let instrument = valid_instrument();
+        assert!(coupon_action().validate(&instrument, TEST_NOW).is_ok());
+
+        let mut maturity = coupon_action();
+        maturity.action_type = CorporateActionType::BondRedemption;
+        maturity.execute_at = instrument.maturity_at;
+        assert!(maturity.validate(&instrument, TEST_NOW).is_ok());
+
+        let mut early = coupon_action();
+        early.action_type = CorporateActionType::EarlyRedemption;
+        early.redemption_percentage_bps = Some(2_000);
+        early.redemption_price_minor = Some(100_000);
+        assert!(early.validate(&instrument, TEST_NOW).is_ok());
+    }
+
+    #[test]
+    fn rejects_invalid_action_parameters_and_dates() {
+        let instrument = valid_instrument();
+        let mut action = coupon_action();
+        action.action_id = [0; 16];
+        assert!(action.validate(&instrument, TEST_NOW).is_err());
+
+        let mut action = coupon_action();
+        action.record_at = TEST_NOW - 1;
+        assert!(action.validate(&instrument, TEST_NOW).is_err());
+
+        let mut action = coupon_action();
+        action.execute_at = action.record_at - 1;
+        assert!(action.validate(&instrument, TEST_NOW).is_err());
+
+        let mut action = coupon_action();
+        action.redemption_percentage_bps = Some(2_000);
+        assert!(action.validate(&instrument, TEST_NOW).is_err());
+
+        let mut action = coupon_action();
+        action.action_type = CorporateActionType::BondRedemption;
+        assert!(action.validate(&instrument, TEST_NOW).is_err());
+
+        let mut action = coupon_action();
+        action.action_type = CorporateActionType::EarlyRedemption;
+        action.redemption_percentage_bps = Some(0);
+        action.redemption_price_minor = Some(100_000);
+        assert!(action.validate(&instrument, TEST_NOW).is_err());
+
+        let mut action = coupon_action();
+        action.action_type = CorporateActionType::EarlyRedemption;
+        action.redemption_percentage_bps = Some(10_001);
+        action.redemption_price_minor = Some(100_000);
+        assert!(action.validate(&instrument, TEST_NOW).is_err());
+
+        let mut action = coupon_action();
+        action.action_type = CorporateActionType::EarlyRedemption;
+        action.redemption_percentage_bps = Some(2_000);
+        action.redemption_price_minor = Some(0);
+        assert!(action.validate(&instrument, TEST_NOW).is_err());
+
+        let mut action = coupon_action();
+        action.action_type = CorporateActionType::EarlyRedemption;
+        action.redemption_percentage_bps = Some(2_000);
+        action.redemption_price_minor = Some(100_000);
+        action.execute_at = instrument.maturity_at;
+        assert!(action.validate(&instrument, TEST_NOW).is_err());
+
+        let mut redeemed = valid_instrument();
+        redeemed.status = InstrumentStatus::Redeemed;
+        assert!(coupon_action().validate(&redeemed, TEST_NOW).is_err());
     }
 }

@@ -11,7 +11,7 @@ Last updated: 2026-09-29
 | API package | Internal snapshot candidate preparation and pending PostgreSQL persistence; NestJS liveness and PostgreSQL readiness routes implemented; authentication and on-chain transaction orchestration pending | Trusted application service when deployed; never holds administrator private keys |
 | Domain package | Deterministic calculations and state rules | Pure logic with no network or persistence side effects |
 | Solana client package | Token-2022 holder collection and RPC boundary implemented; instructions and confirmation helpers pending | Converts finalized chain account data into validated holder balances |
-| Anchor program | `initialize_instrument` checks the program upgrade-authority signer, validates fixed-supply Token-2022 mints, and creates a `Deploying` instrument PDA; actions and execution are pending | Future authoritative execution boundary; not deployed |
+| Anchor program | `initialize_instrument` checks the program upgrade-authority signer and creates a `Deploying` instrument PDA; `create_corporate_action` checks the issuer signer and creates a `Scheduled` action PDA; activation, snapshots, and execution are pending | Future authoritative execution boundary; not deployed |
 | Token-2022 | Bond ownership, transfers, burns, and total supply | Authoritative token ledger |
 | PostgreSQL | Identity links, workflow orchestration, immutable snapshot payloads and read projections | Recoverable projection; not authoritative for chain facts |
 
