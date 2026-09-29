@@ -1,6 +1,6 @@
 # LifecycleKASE
 
-Corporate Action Engine for tokenized securities on Solana. The repository has its **Milestone 0 foundation** and partial Milestone 1/2 work: requirements, architecture decisions, CI checks, local PostgreSQL migrations, checked financial calculations, approval state transitions, a fixture-tested Token-2022 holder collector, internal snapshot preparation, the first locally built Anchor instruction, and a minimal web/API status slice. The authenticated product API and end-to-end on-chain workflow are not implemented yet.
+Corporate Action Engine for tokenized securities on Solana. The repository has its **Milestone 0 foundation** and partial Milestone 1/2 work: requirements, architecture decisions, CI checks, local PostgreSQL migrations, checked financial calculations, approval state transitions, a fixture-tested Token-2022 holder collector, internal snapshot preparation, the first locally built and validator-tested Anchor instruction, and a minimal web/API status slice. The authenticated product API and end-to-end on-chain workflow are not implemented yet.
 
 ## Scope
 

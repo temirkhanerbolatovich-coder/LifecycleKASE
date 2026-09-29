@@ -1,0 +1,12 @@
+{
+  "name": "@lifecycle-kase/solana-integration-test",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Isolated local-validator test dependencies; never install in the deployed application",
+  "dependencies": {
+    "@anchor-lang/core": "1.2.0",
+    "@solana/spl-token": "0.4.14",
+    "@solana/web3.js": "1.98.4"
+  }
+}
