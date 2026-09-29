@@ -1,8 +1,13 @@
 use crate::program::LifecycleKase;
 use anchor_lang::prelude::*;
+use anchor_spl::token_2022::spl_token_2022::{
+    extension::StateWithExtensions, state::Account as TokenAccount,
+};
 use anchor_spl::token_interface::{Mint, Token2022};
 
 declare_id!("6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo");
+
+const MAX_ACTIVATION_HOLDER_ACCOUNTS: usize = 64;
 
 #[program]
 pub mod lifecycle_kase {
@@ -112,6 +117,71 @@ pub mod lifecycle_kase {
         });
         Ok(())
     }
+
+    pub fn activate_instrument(ctx: Context<ActivateInstrument>) -> Result<()> {
+        let instrument = &mut ctx.accounts.instrument;
+        require!(
+            instrument.status == InstrumentStatus::Deploying,
+            ErrorCode::InvalidInstrumentStatus
+        );
+        let bond_mint = &ctx.accounts.bond_mint;
+        require_eq!(bond_mint.decimals, 0, ErrorCode::InvalidTokenDecimals);
+        require_eq!(
+            bond_mint.supply,
+            instrument.total_supply,
+            ErrorCode::InvalidMintSupply
+        );
+        require!(
+            bond_mint.mint_authority.is_none(),
+            ErrorCode::MintAuthorityNotRevoked
+        );
+        require!(
+            bond_mint.freeze_authority.is_none(),
+            ErrorCode::FreezeAuthorityPresent
+        );
+
+        let holders = ctx.remaining_accounts;
+        require!(
+            !holders.is_empty() && holders.len() <= MAX_ACTIVATION_HOLDER_ACCOUNTS,
+            ErrorCode::InvalidHolderCount
+        );
+        let mut reconciled_supply = 0u64;
+        for (index, holder) in holders.iter().enumerate() {
+            require_keys_eq!(
+                *holder.owner,
+                ctx.accounts.token_2022_program.key(),
+                ErrorCode::InvalidHolderAccount
+            );
+            require!(
+                holders[..index]
+                    .iter()
+                    .all(|previous| previous.key() != holder.key()),
+                ErrorCode::DuplicateHolderAccount
+            );
+            let data = holder.try_borrow_data()?;
+            let token_account = StateWithExtensions::<TokenAccount>::unpack(&data)
+                .map_err(|_| error!(ErrorCode::InvalidHolderAccount))?;
+            require_keys_eq!(
+                token_account.base.mint,
+                bond_mint.key(),
+                ErrorCode::InvalidHolderAccount
+            );
+            require!(
+                token_account.base.amount > 0,
+                ErrorCode::InvalidHolderAccount
+            );
+            reconciled_supply = reconciled_supply
+                .checked_add(token_account.base.amount)
+                .ok_or(ErrorCode::InvalidMintSupply)?;
+        }
+        require_eq!(
+            reconciled_supply,
+            instrument.total_supply,
+            ErrorCode::InvalidMintSupply
+        );
+        instrument.status = InstrumentStatus::Active;
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -161,6 +231,28 @@ pub struct CreateCorporateAction<'info> {
     )]
     pub corporate_action: Account<'info, CorporateAction>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ActivateInstrument<'info> {
+    pub issuer_authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = instrument.issuer_authority == issuer_authority.key()
+            @ ErrorCode::UnauthorizedIssuer,
+        constraint = instrument.bond_mint == bond_mint.key()
+            @ ErrorCode::InvalidMint
+    )]
+    pub instrument: Account<'info, Instrument>,
+    /// CHECK: Only the PDA address is used to verify the permanent delegate.
+    #[account(
+        seeds = [b"instrument-authority", instrument.key().as_ref()],
+        bump = instrument.authority_bump
+    )]
+    pub instrument_authority: UncheckedAccount<'info>,
+    #[account(extensions::permanent_delegate::delegate = instrument_authority)]
+    pub bond_mint: InterfaceAccount<'info, Mint>,
+    pub token_2022_program: Program<'info, Token2022>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug)]
@@ -379,6 +471,12 @@ pub enum ErrorCode {
     InvalidActionDates,
     #[msg("Redemption parameters do not match the action type")]
     InvalidRedemptionParameters,
+    #[msg("Activation requires 1 to 64 holder token accounts")]
+    InvalidHolderCount,
+    #[msg("Holder account is not a positive-balance Token-2022 account for this bond")]
+    InvalidHolderAccount,
+    #[msg("Holder token account was supplied more than once")]
+    DuplicateHolderAccount,
 }
 
 #[cfg(test)]

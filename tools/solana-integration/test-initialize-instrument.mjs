@@ -20,6 +20,7 @@ import {
   createInitializePermanentDelegateInstruction,
   createMintToInstruction,
   createSetAuthorityInstruction,
+  createTransferCheckedInstruction,
   getAssociatedTokenAddressSync,
   getMintLen,
 } from "@solana/spl-token";
@@ -184,6 +185,24 @@ async function createAction(id, actionType, recordAt, executeAt, percentage = nu
   return sendWith(signer, instruction);
 }
 
+async function activate(holderAccounts, signer = administrator) {
+  const instruction = await program.methods.activateInstrument()
+    .accountsStrict({
+      issuerAuthority: signer.publicKey,
+      instrument: instrumentAddress,
+      instrumentAuthority,
+      bondMint,
+      token2022Program: TOKEN_2022_PROGRAM_ID,
+    })
+    .remainingAccounts(holderAccounts.map((pubkey) => ({
+      pubkey,
+      isSigner: false,
+      isWritable: false,
+    })))
+    .instruction();
+  return sendWith(signer, instruction);
+}
+
 const airdrop = await connection.requestAirdrop(administrator.publicKey, 10_000_000_000);
 await connection.confirmTransaction(airdrop, "finalized");
 const outsiderAirdrop = await connection.requestAirdrop(outsider.publicKey, 1_000_000_000);
@@ -263,6 +282,96 @@ await assert.rejects(
 );
 assert.equal(await connection.getAccountInfo(invalidActionAddress), null);
 console.log("PASS create_corporate_action rejects invalid early-redemption terms");
+
+const administratorBondAccount = getAssociatedTokenAddressSync(
+  bondMint, administrator.publicKey, false, TOKEN_2022_PROGRAM_ID,
+);
+const holders = [10, 20, 5].map((amount) => {
+  const wallet = Keypair.generate().publicKey;
+  return {
+    amount,
+    tokenAccount: getAssociatedTokenAddressSync(
+      bondMint, wallet, false, TOKEN_2022_PROGRAM_ID,
+    ),
+    wallet,
+  };
+});
+await send(...holders.flatMap(({ amount, tokenAccount, wallet }) => [
+  createAssociatedTokenAccountInstruction(
+    administrator.publicKey, tokenAccount, wallet, bondMint, TOKEN_2022_PROGRAM_ID,
+  ),
+  createTransferCheckedInstruction(
+    administratorBondAccount, bondMint, tokenAccount, administrator.publicKey,
+    amount, 0, [], TOKEN_2022_PROGRAM_ID,
+  ),
+]));
+const holderAccounts = holders.map(({ tokenAccount }) => tokenAccount);
+
+await assert.rejects(
+  activate([]),
+  (error) => /InvalidHolderCount|Activation requires 1 to 64/
+    .test(`${error.message} ${JSON.stringify(error.transactionLogs ?? [])}`),
+);
+console.log("PASS activate_instrument rejects an empty holder list");
+
+await assert.rejects(
+  activate([...holderAccounts, administratorBondAccount]),
+  (error) => /InvalidHolderAccount|positive-balance Token-2022 account/
+    .test(`${error.message} ${JSON.stringify(error.transactionLogs ?? [])}`),
+);
+console.log("PASS activate_instrument rejects a zero-balance token account");
+
+const settlementAccount = getAssociatedTokenAddressSync(
+  settlementMint, administrator.publicKey, false, TOKEN_2022_PROGRAM_ID,
+);
+await send(
+  createAssociatedTokenAccountInstruction(
+    administrator.publicKey, settlementAccount, administrator.publicKey,
+    settlementMint, TOKEN_2022_PROGRAM_ID,
+  ),
+  createMintToInstruction(
+    settlementMint, settlementAccount, administrator.publicKey, 1, [], TOKEN_2022_PROGRAM_ID,
+  ),
+);
+await assert.rejects(
+  activate([...holderAccounts, settlementAccount]),
+  (error) => /InvalidHolderAccount|positive-balance Token-2022 account/
+    .test(`${error.message} ${JSON.stringify(error.transactionLogs ?? [])}`),
+);
+console.log("PASS activate_instrument rejects a token account for another mint");
+
+await assert.rejects(
+  activate(holderAccounts.slice(0, 2)),
+  (error) => /InvalidMintSupply|Bond mint supply does not match/
+    .test(`${error.message} ${JSON.stringify(error.transactionLogs ?? [])}`),
+);
+assert.deepEqual(Object.keys((await program.account.instrument.fetch(instrumentAddress)).status), ["deploying"]);
+console.log("PASS activate_instrument rejects incomplete holder balance reconciliation");
+
+await assert.rejects(
+  activate([holderAccounts[0], holderAccounts[0], ...holderAccounts.slice(1)]),
+  (error) => /DuplicateHolderAccount|supplied more than once/
+    .test(`${error.message} ${JSON.stringify(error.transactionLogs ?? [])}`),
+);
+console.log("PASS activate_instrument rejects duplicate holder accounts");
+
+await assert.rejects(
+  activate(holderAccounts, outsider),
+  (error) => /UnauthorizedIssuer|Only the instrument issuer authority/
+    .test(`${error.message} ${JSON.stringify(error.transactionLogs ?? [])}`),
+);
+console.log("PASS activate_instrument rejects a non-issuer signer");
+
+await activate(holderAccounts);
+assert.deepEqual(Object.keys((await program.account.instrument.fetch(instrumentAddress)).status), ["active"]);
+console.log("PASS activate_instrument reconciles the canonical 10/20/5 distribution to supply 35");
+
+await assert.rejects(
+  activate(holderAccounts),
+  (error) => /InvalidInstrumentStatus|Instrument status does not allow/
+    .test(`${error.message} ${JSON.stringify(error.transactionLogs ?? [])}`),
+);
+console.log("PASS activate_instrument rejects replay");
 
 const outsiderId = Uint8Array.from({ length: 16 }, (_, index) => index + 49);
 const [outsiderAddress] = PublicKey.findProgramAddressSync(

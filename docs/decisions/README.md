@@ -8,3 +8,4 @@
 - [ADR-006: Investor identity and controlled corporate action completion](ADR-006-investor-identity-and-action-control.md)
 - [ADR-007: Disposable Render status staging](ADR-007-disposable-render-staging.md)
 - [ADR-008: Program upgrade authority as MVP administrator](ADR-008-program-administrator.md)
+- [ADR-009: On-chain balance reconciliation for instrument activation](ADR-009-instrument-activation.md)

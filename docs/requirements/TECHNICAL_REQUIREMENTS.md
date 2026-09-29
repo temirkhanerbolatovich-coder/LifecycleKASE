@@ -456,6 +456,10 @@ bump
 
 Проверяет administrator signer как текущую upgrade authority этой программы через связанный с ней ProgramData account, затем mint, decimals, Token-2022 program, supply и permanent delegate. Создаёт Instrument PDA. Для MVP administrator wallet и upgrade authority совпадают; отдельная issuer delegation требует нового authority design.
 
+#### `activate_instrument`
+
+Требует signer = `Instrument.issuer_authority` и статус `DEPLOYING`. Повторно проверяет bond mint, 0 decimals, fixed supply, отозванную mint authority, отсутствие freeze authority и permanent delegate = Instrument Authority PDA. Принимает 1–64 уникальных положительных Token-2022 holder accounts этого mint; их checked sum должна равняться supply. Только после этого переводит Instrument PDA в `ACTIVE`. Проверка verified wallet → Investor ID и finalized confirmation остаются обязательными задачами backend; on-chain сверка balances не доказывает KYC. См. [ADR-009](../decisions/ADR-009-instrument-activation.md).
+
 #### `create_corporate_action`
 
 Проверяет signer = `Instrument.issuer_authority`, статус инструмента `DEPLOYING | ACTIVE`, action type, будущие даты (`record_at >= Clock`, `record_at >= issue_at`, `record_at <= execute_at`) и action-specific parameters. Coupon запрещает redemption parameters и `execute_at > maturity_at`; maturity redemption запрещает redemption parameters и требует `execute_at >= maturity_at`; early redemption требует `1..10_000` bps, positive price и `execute_at < maturity_at`. Создаёт on-chain action в `SCHEDULED` с нулевыми snapshot fields/counters. Scheduling при `DEPLOYING` — только подготовка: snapshot и исполнение не разрешены до отдельной activation/reconciliation. Статус `DRAFT` существует только в database до подписания этой transaction.
