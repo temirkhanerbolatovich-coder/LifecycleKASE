@@ -13,6 +13,7 @@ const WALLET_ID = "00000000-0000-4000-8000-000000000021";
 const KEY = "11111111111111111111111111111111";
 const MINT = "So11111111111111111111111111111111111111112";
 const TOKEN_ACCOUNT = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
+const CORRELATION_ID = "00000000-0000-4000-8000-000000000099";
 
 function fixture(overrides: {
   actionVersion?: number;
@@ -72,7 +73,7 @@ function fixture(overrides: {
     network: "SOLANA_DEVNET",
     investor: { id: INVESTOR_ID, eligibilityStatus: "ELIGIBLE" }
   }];
-  const calls: { lock?: unknown; create?: unknown } = {};
+  const calls: { lock?: unknown; create?: unknown; audit?: unknown } = {};
   const tx = {
     corporateAction: {
       findUnique: async () => action,
@@ -87,7 +88,8 @@ function fixture(overrides: {
         calls.create = args;
         return { id: "00000000-0000-4000-8000-000000000031" };
       }
-    }
+    },
+    auditLog: { create: async (args: unknown) => { calls.audit = args; return { id: "audit" }; } }
   };
   const database = {
     $transaction: async (callback: (transaction: typeof tx) => Promise<unknown>) => callback(tx)
@@ -95,7 +97,8 @@ function fixture(overrides: {
   const options = {
     now: overrides.now ?? new Date("2026-09-29T00:02:30.000Z"),
     graceSeconds: 300,
-    walletNetwork: "SOLANA_DEVNET"
+    walletNetwork: "SOLANA_DEVNET",
+    audit: { actorId: ACTION_ID, actorWallet: KEY, correlationId: CORRELATION_ID }
   };
   return { candidate, database, options, calls };
 }
@@ -113,6 +116,21 @@ test("persists all snapshot rows atomically while action stays scheduled", async
   assert.equal(data.status, "PENDING_REGISTRATION");
   assert.equal(data.investors.create[0].wallets.create[0].tokenAccounts.create[0].balance, 10n);
   assert.equal(data.snapshotHash.toString("hex"), setup.candidate.sha256);
+  assert.deepEqual((setup.calls.audit as { data: Record<string, unknown> }).data, {
+    actorId: ACTION_ID,
+    actorWallet: KEY,
+    event: "SNAPSHOT_CAPTURED",
+    entityType: "Snapshot",
+    entityId: "00000000-0000-4000-8000-000000000031",
+    correlationId: CORRELATION_ID,
+    corporateActionId: ACTION_ID,
+    metadataJson: {
+      schemaVersion: "snapshot-v2",
+      snapshotHash: setup.candidate.sha256,
+      effectiveSlot: "101",
+      effectiveBlockTime: "2026-09-29T00:01:00.000Z"
+    }
+  });
 });
 
 test("rejects changed candidate, action, wallet, and compare-and-set conflict", async () => {

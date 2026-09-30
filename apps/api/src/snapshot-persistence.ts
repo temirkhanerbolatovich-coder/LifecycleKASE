@@ -10,6 +10,11 @@ export type SnapshotPersistenceOptions = {
   now: Date;
   graceSeconds: number;
   walletNetwork: string;
+  audit: {
+    actorId: string;
+    actorWallet: string;
+    correlationId: string;
+  };
 };
 
 /** Persists a prepared candidate atomically; it never marks the on-chain action as registered. */
@@ -125,6 +130,23 @@ export async function persistSnapshotCandidate(
         }
       },
       select: { id: true }
+    });
+    await tx.auditLog.create({
+      data: {
+        actorId: options.audit.actorId,
+        actorWallet: options.audit.actorWallet,
+        event: "SNAPSHOT_CAPTURED",
+        entityType: "Snapshot",
+        entityId: snapshot.id,
+        correlationId: options.audit.correlationId,
+        corporateActionId: action.id,
+        metadataJson: {
+          schemaVersion: payload.schema_version,
+          snapshotHash: candidate.sha256,
+          effectiveSlot: payload.solana_slot,
+          effectiveBlockTime: payload.block_time
+        }
+      }
     });
     return { snapshotId: snapshot.id, snapshotHash: candidate.sha256, status: "PENDING_REGISTRATION" as const };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });

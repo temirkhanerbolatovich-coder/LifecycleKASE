@@ -7,6 +7,7 @@ import {
   createOperatorChallenge,
   readOperatorSession,
   requireAuthenticationEnabled,
+  sessionTokenFromCookieHeader,
   revokeOperatorSession,
   verifyOperatorChallenge
 } from "./auth.js";
@@ -17,22 +18,6 @@ type CookieResponse = {
   clearCookie(name: string, options: Record<string, unknown>): void;
 };
 type CookieRequest = { headers?: { cookie?: string } };
-
-function sessionToken(request: CookieRequest): string | undefined {
-  const header = request.headers?.cookie;
-  if (!header) return undefined;
-  for (const item of header.split(";")) {
-    const [name, ...value] = item.trim().split("=");
-    if (name === AUTH_COOKIE_NAME) {
-      try {
-        return decodeURIComponent(value.join("="));
-      } catch {
-        return undefined;
-      }
-    }
-  }
-  return undefined;
-}
 
 function throwHttp(error: unknown): never {
   if (error instanceof AuthFlowError) {
@@ -96,7 +81,9 @@ export class AuthController {
   async session(@Req() request: CookieRequest) {
     try {
       requireAuthenticationEnabled();
-      return await readOperatorSession(this.prisma, sessionToken(request), new Date());
+      return await readOperatorSession(
+        this.prisma, sessionTokenFromCookieHeader(request.headers?.cookie), new Date()
+      );
     } catch (error) {
       throwHttp(error);
     }
@@ -106,7 +93,9 @@ export class AuthController {
   async logout(@Req() request: CookieRequest, @Res({ passthrough: true }) response: CookieResponse) {
     try {
       requireAuthenticationEnabled();
-      await revokeOperatorSession(this.prisma, sessionToken(request), new Date());
+      await revokeOperatorSession(
+        this.prisma, sessionTokenFromCookieHeader(request.headers?.cookie), new Date()
+      );
       response.clearCookie(AUTH_COOKIE_NAME, cookieOptions());
       return { status: "logged_out" as const };
     } catch (error) {

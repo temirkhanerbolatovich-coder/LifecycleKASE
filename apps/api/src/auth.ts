@@ -22,6 +22,20 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3
 
 export const AUTH_COOKIE_NAME = "lifecyclekase_session";
 
+export function sessionTokenFromCookieHeader(header: string | undefined): string | undefined {
+  if (!header) return undefined;
+  for (const item of header.split(";")) {
+    const [name, ...value] = item.trim().split("=");
+    if (name !== AUTH_COOKIE_NAME) continue;
+    try {
+      return decodeURIComponent(value.join("="));
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
 export class AuthFlowError extends Error {
   constructor(public readonly code: string, message: string, public readonly status: number) {
     super(message);
@@ -85,6 +99,10 @@ function requireAllowedOrigin(origin: string | undefined, options: AuthRuntimeOp
     throw new AuthFlowError("ORIGIN_NOT_ALLOWED", "Request origin is not allowed", 403);
   }
   return origin;
+}
+
+export function requireRequestOrigin(origin: string | undefined, options: AuthRuntimeOptions): string {
+  return requireAllowedOrigin(origin, options);
 }
 
 function requireWalletAddress(value: unknown): string {
@@ -242,7 +260,12 @@ export async function verifyOperatorChallenge(
       throw new AuthFlowError("INVALID_CHALLENGE", "Authentication challenge is invalid or expired", 401);
     }
     const session = await transaction.session.create({
-      data: { userId: wallet.user.id, tokenHash: digest(sessionToken), expiresAt },
+      data: {
+        userId: wallet.user.id,
+        walletAddress: challenge.walletAddress,
+        tokenHash: digest(sessionToken),
+        expiresAt
+      },
       select: { id: true }
     });
     return { sessionId: session.id, user: wallet.user };
@@ -264,12 +287,13 @@ export async function readOperatorSession(database: PrismaClient, token: string 
     where: { tokenHash: digest(token) },
     include: { user: true }
   });
-  if (!session || session.revokedAt !== null || session.expiresAt <= now ||
+  if (!session || !session.walletAddress || session.revokedAt !== null || session.expiresAt <= now ||
       !OPERATOR_ROLES.has(session.user.role)) {
     throw new AuthFlowError("SESSION_INVALID", "Operator session is invalid or expired", 401);
   }
   return {
     sessionId: session.id,
+    walletAddress: session.walletAddress,
     expiresAt: session.expiresAt.toISOString(),
     user: { id: session.user.id, displayName: session.user.displayName, role: session.user.role }
   };

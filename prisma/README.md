@@ -14,6 +14,6 @@ npm run prisma:migrate:deploy
 npm run test:database
 ```
 
-Database-level check constraints and finalized-snapshot immutability triggers are defined in the reviewed migrations and exercised by a PostgreSQL integration test.
+Database-level check constraints and finalized-snapshot immutability triggers are defined in the reviewed migrations and exercised by a PostgreSQL integration test. Operator sessions retain the authenticating wallet address as nullable migration context; newly created sessions always populate it, and protected routes reject legacy rows without it.
 
 The project currently pins Prisma `6.12.0`; see ADR-005 for the security rationale and upgrade gate.

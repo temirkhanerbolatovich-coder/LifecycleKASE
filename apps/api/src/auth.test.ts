@@ -110,6 +110,7 @@ test("creates a domain-bound challenge and one-time operator session", async () 
     setup.database, verified.sessionToken, new Date("2026-09-30T10:02:00.000Z")
   );
   assert.equal(session.user.id, verified.user.id);
+  assert.equal(session.walletAddress, setup.walletAddress);
   await revokeOperatorSession(setup.database, verified.sessionToken, new Date("2026-09-30T10:03:00.000Z"));
   await assert.rejects(
     readOperatorSession(setup.database, verified.sessionToken, new Date("2026-09-30T10:04:00.000Z")),

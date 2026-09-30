@@ -24,9 +24,11 @@ const tokenAccountAddress = address();
 const genesisHash = address();
 let assetId;
 let createdAsset = false;
+let databaseReachable = false;
 
 try {
   const existingAsset = await database.settlementAsset.findUnique({ where: { code: "KZT_TEST" } });
+  databaseReachable = true;
   if (existingAsset) {
     assetId = existingAsset.id;
   } else {
@@ -122,7 +124,8 @@ try {
   const result = await persistSnapshotCandidate(database, candidate, {
     now: new Date(),
     graceSeconds: 300,
-    walletNetwork: "SOLANA_DEVNET"
+    walletNetwork: "SOLANA_DEVNET",
+    audit: { actorId: ids.user, actorWallet: walletAddress, correlationId: randomUUID() }
   });
   const stored = await database.snapshot.findUnique({
     where: { id: result.snapshotId },
@@ -137,28 +140,32 @@ try {
   await assert.rejects(persistSnapshotCandidate(database, candidate, {
     now: new Date(),
     graceSeconds: 300,
-    walletNetwork: "SOLANA_DEVNET"
+    walletNetwork: "SOLANA_DEVNET",
+    audit: { actorId: ids.user, actorWallet: walletAddress, correlationId: randomUUID() }
   }));
   console.log("PASS Prisma snapshot persistence, nested rows, compare-and-set and duplicate rejection");
 } finally {
   try {
-    const snapshot = await database.snapshot.findUnique({ where: { corporateActionId: ids.action } });
-    if (snapshot) {
-      await database.snapshotTokenAccount.deleteMany({
-        where: { snapshotWallet: { snapshotInvestor: { snapshotId: snapshot.id } } }
-      });
-      await database.snapshotWallet.deleteMany({ where: { snapshotInvestor: { snapshotId: snapshot.id } } });
-      await database.snapshotInvestor.deleteMany({ where: { snapshotId: snapshot.id } });
-      await database.snapshot.delete({ where: { id: snapshot.id } });
-    }
-    await database.corporateAction.deleteMany({ where: { id: ids.action } });
-    await database.instrument.deleteMany({ where: { id: ids.instrument } });
-    await database.wallet.deleteMany({ where: { id: ids.wallet } });
-    await database.investor.deleteMany({ where: { id: ids.investor } });
-    await database.issuer.deleteMany({ where: { id: ids.issuer } });
-    await database.user.deleteMany({ where: { id: ids.user } });
-    if (createdAsset && assetId) {
-      await database.settlementAsset.delete({ where: { id: assetId } });
+    if (databaseReachable) {
+      await database.auditLog.deleteMany({ where: { corporateActionId: ids.action } });
+      const snapshot = await database.snapshot.findUnique({ where: { corporateActionId: ids.action } });
+      if (snapshot) {
+        await database.snapshotTokenAccount.deleteMany({
+          where: { snapshotWallet: { snapshotInvestor: { snapshotId: snapshot.id } } }
+        });
+        await database.snapshotWallet.deleteMany({ where: { snapshotInvestor: { snapshotId: snapshot.id } } });
+        await database.snapshotInvestor.deleteMany({ where: { snapshotId: snapshot.id } });
+        await database.snapshot.delete({ where: { id: snapshot.id } });
+      }
+      await database.corporateAction.deleteMany({ where: { id: ids.action } });
+      await database.instrument.deleteMany({ where: { id: ids.instrument } });
+      await database.wallet.deleteMany({ where: { id: ids.wallet } });
+      await database.investor.deleteMany({ where: { id: ids.investor } });
+      await database.issuer.deleteMany({ where: { id: ids.issuer } });
+      await database.user.deleteMany({ where: { id: ids.user } });
+      if (createdAsset && assetId) {
+        await database.settlementAsset.delete({ where: { id: assetId } });
+      }
     }
   } finally {
     await database.$disconnect();
