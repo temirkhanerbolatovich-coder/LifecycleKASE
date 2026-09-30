@@ -1,13 +1,13 @@
 # Implementation status
 
-Last verified: 2026-09-30 (local snapshot/API/web checks; public staging verification is separately recorded in the deployment log)
+Last verified: 2026-10-01 (local checks and public operator challenge boundary; real-wallet login and Devnet acceptance pending)
 
 This is a repository status, not a claim that the full MVP or a production financial workflow is operational.
 
 | Area | Current status | Evidence / limit |
 |---|---|---|
-| Web and HTTP service | Next.js dashboard with Wallet Standard login and administrator Devnet snapshot review/sign/send/confirm/recovery UI; NestJS health, rate-limited authentication, snapshot routes, and audited first-operator CLI | Authentication is disabled by default and no public operator is provisioned; limiter is process-local; real wallet acceptance and broader admin/auditor workflows remain pending |
-| Public staging | Render Blueprint deployed in separate Hobby workspace with two free Node services and disposable PostgreSQL | Prior deployment health verified on 2026-09-30 at `1984dc8`; this does not establish deployment of subsequent changes. Free DB is not durable and no real data is permitted. See [deployment record](deployment/render-staging.md) |
+| Web and HTTP service | Next.js dashboard with same-origin Wallet Standard login and administrator Devnet snapshot review/sign/send/confirm/recovery UI; NestJS health, rate-limited authentication, snapshot routes, and audited first-operator CLI | Authentication remains default-off; one operator was provisioned and login explicitly enabled in disposable staging. Real wallet acceptance is pending; limiter is process-local and proxy egress can group clients; broader admin/auditor workflows remain pending |
+| Public staging | Render Blueprint deployed in separate Hobby workspace with two free Node services and disposable PostgreSQL | Both services verified Live at `fd6cb81` on 2026-10-01; health and challenge/unauthenticated-denial boundaries passed, not real signed login. Free DB is not durable and no real data is permitted. See [deployment record](deployment/render-staging.md) |
 | Investor identity, wallet mapping, approvals, legs, receipts | Schema and PostgreSQL migration implemented | Database guards run locally; no domain API or UI flows yet |
 | Snapshot-v2, investor aggregation, eligibility and leg reconciliation | Pure TypeScript contracts plus authenticated prepare/finalized-confirm API and Devnet wallet UI implemented | Unit and fixture tests pass; local on-chain commitment instruction exists, but no real wallet/Devnet snapshot proof |
 | Token-2022 holder collection | RPC collector and investor grouping implemented | Used by internal API candidate service; no live mint yet |

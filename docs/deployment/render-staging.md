@@ -1,6 +1,6 @@
 # Disposable Render staging
 
-Status: disposable demo staging deployed and verified on 2026-09-30.
+Status: disposable demo staging and operator challenge boundary verified on 2026-10-01. Real wallet login remains unverified. The September entries below are historical; the October activation record is the latest verified state.
 
 The `lifecyclekase-staging` Blueprint in the separate `LifecycleKASE` Hobby workspace deployed commit `626cc326800e0c84eff1796088a735cdee6e14e3` from `master`. Its initial sync created the free `lifecyclekase-staging-db`, `lifecyclekase-api`, and `lifecyclekase-web` resources without changing the separate VKO workspace.
 
@@ -25,6 +25,18 @@ The root [`render.yaml`](../../render.yaml) defines two free Node web services a
 After explicit approval of the administrator-role grant, the existing controlled CLI was appended once to the API build command. Deployment `dep-daulg50u01pc7386nhi0` at source revision `8f34218` succeeded in 1m22s. Its build log reported `created: true` with the reviewed public wallet, ADMINISTRATOR role and SOLANA_DEVNET network. The CLI returns after its serializable user/wallet/audit transaction commits; no independent database read or real-wallet login was performed. Operator identifiers are intentionally not published in this repository.
 
 The original build command was restored and verified by reading the saved setting; the bootstrap command is not in the Blueprint or API start command. Restoration triggered deployment `dep-daulhn0jo6nc73dlm0og`, which succeeded in 1m20s at source revision `8f34218`. Public API readiness returned HTTP 200 with `ready`; challenge returned the expected HTTP 503 AUTH_NOT_CONFIGURED. Authentication remains disabled; enabling it and proving wallet possession are separate reviewed steps. See the [Free-environment provisioning procedure](../operations/operator-provisioning.md).
+
+## Operator login activation — 2026-10-01
+
+After explicit approval, only the API `AUTH_ENABLED` setting was changed to `true`; the reviewed domain, exact allowed web origin and secure-cookie setting were retained. Both services deployed source revision `fd6cb8155da4d30bf2802b5b83e53796da4188c3`: API `dep-daulq9c1nsns73eq10fg` was Live in 1m09s; web `dep-daulqhou01pc7387r3b0` was Live in 1m12s. The normal API build command remained in place and reported no pending migrations.
+
+The browser now uses fixed same-origin operator rewrites, preserving HttpOnly/Secure/SameSite=Strict cookies without weakening their policy. See [ADR-012](../decisions/ADR-012-same-origin-operator-api.md). Local validation passed 87 tests, schema/type/docs checks, a production web build and a synthetic production proxy smoke test. The synthetic fixture proves transport, not possession of the real operator wallet.
+
+Live requests through the **web origin** verified: registered-wallet challenge HTTP 201 with the expected domain/origin; unregistered wallet HTTP 403 `UNAUTHORIZED_WALLET`; untrusted origin HTTP 403 `ORIGIN_NOT_ALLOWED`; session and snapshot prepare without a cookie HTTP 401 `SESSION_REQUIRED`. Challenge/session responses carried `Cache-Control: no-store`. API readiness returned HTTP 200, and the dashboard rendered API/PostgreSQL ready and the Phantom login button. Challenge nonces/messages and operator identifiers were not published.
+
+Real-wallet signature verification, session persistence after refresh, logout and authenticated Devnet snapshot acceptance remain pending. The user must sign the login message in their own wallet; no transaction, payment or seed phrase is required for login.
+
+The Blueprint intentionally still defaults to `AUTH_ENABLED=false` for new disposable environments. The current enabled state is a reviewed live-service override: a future Blueprint sync can restore `false`. Re-check the setting after any sync; do not assume source defaults describe the live service. `NEXT_PUBLIC_API_URL` is a legacy public setting, unused by the operator browser flow; `API_SERVER_URL` is the fixed server-side upstream and requires a web rebuild when changed.
 
 ## Before creating the Blueprint
 
