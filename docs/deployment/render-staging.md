@@ -4,7 +4,9 @@ Status: disposable demo staging deployed and verified on 2026-09-30.
 
 The `lifecyclekase-staging` Blueprint in the separate `LifecycleKASE` Hobby workspace deployed commit `626cc326800e0c84eff1796088a735cdee6e14e3` from `master`. Its initial sync created the free `lifecyclekase-staging-db`, `lifecyclekase-api`, and `lifecyclekase-web` resources without changing the separate VKO workspace.
 
-The current web and API services run commit `1984dc81da90eff06d134e9bfd4585c965979d93`. The verified deployments are `dep-daukq28473hc73bklgfg` for the web service and `dep-daukq28473hc73bklgh0` for the API service. The API deployment includes the exact dashboard CORS origin, bounded single-instance auth/mutation limits and one trusted Render proxy hop while keeping operator authentication disabled.
+The last deployment whose revision was explicitly verified ran commit `1984dc81da90eff06d134e9bfd4585c965979d93`. Those verified deployments are `dep-daukq28473hc73bklgfg` for the web service and `dep-daukq28473hc73bklgh0` for the API service. That API deployment includes the exact dashboard CORS origin, bounded single-instance auth/mutation limits and one trusted Render proxy hop while keeping operator authentication disabled.
+
+The Devnet snapshot wallet UI was subsequently published in commit `dba8da2` on 2026-09-30. Local validation passed 85 tests, type/schema/docs checks, the production web build, and production HTTP smoke checks. The post-push public dashboard and API readiness requests each exceeded a 30-second timeout. This neither establishes the deployed revision nor diagnoses an outage; Render deployment status and new-version health still need verification. Authentication was not enabled, and no real wallet/Devnet acceptance was performed.
 
 - Dashboard: <https://lifecyclekase-web.onrender.com/dashboard>
 - Web liveness: <https://lifecyclekase-web.onrender.com/health/live>
