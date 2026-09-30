@@ -4,7 +4,7 @@ Status: disposable demo staging deployed and verified on 2026-09-30.
 
 The `lifecyclekase-staging` Blueprint in the separate `LifecycleKASE` Hobby workspace deployed commit `626cc326800e0c84eff1796088a735cdee6e14e3` from `master`. Its initial sync created the free `lifecyclekase-staging-db`, `lifecyclekase-api`, and `lifecyclekase-web` resources without changing the separate VKO workspace.
 
-The current web and API services run commit `86423a7c14c6fd49d5869dfa30a270f027d9f16f`. The verified deployments are `dep-daug62h7lnhs73b8amb0` for the web service and `dep-daugb9nlot8c73b1md3g` for the API service. The API deployment includes the exact dashboard CORS origin while keeping operator authentication disabled.
+The current web and API services run commit `1984dc81da90eff06d134e9bfd4585c965979d93`. The verified deployments are `dep-daukq28473hc73bklgfg` for the web service and `dep-daukq28473hc73bklgh0` for the API service. The API deployment includes the exact dashboard CORS origin, bounded single-instance auth/mutation limits and one trusted Render proxy hop while keeping operator authentication disabled.
 
 - Dashboard: <https://lifecyclekase-web.onrender.com/dashboard>
 - Web liveness: <https://lifecyclekase-web.onrender.com/health/live>
