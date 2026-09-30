@@ -20,6 +20,12 @@ At verification, both services were Live. The three health requests returned HTT
 
 The root [`render.yaml`](../../render.yaml) defines two free Node web services and one free PostgreSQL 17 database in Frankfurt. It is for the **disposable demo environment only**. It does not deploy the Solana program, create tokens, enable operator authentication or execute payments.
 
+## First operator provisioning — 2026-09-30
+
+After explicit approval of the administrator-role grant, the existing controlled CLI was appended once to the API build command. Deployment `dep-daulg50u01pc7386nhi0` at source revision `8f34218` succeeded in 1m22s. Its build log reported `created: true` with the reviewed public wallet, ADMINISTRATOR role and SOLANA_DEVNET network. The CLI returns after its serializable user/wallet/audit transaction commits; no independent database read or real-wallet login was performed. Operator identifiers are intentionally not published in this repository.
+
+The original build command was restored and verified by reading the saved setting; the bootstrap command is not in the Blueprint or API start command. Restoration triggered deployment `dep-daulhn0jo6nc73dlm0og`, which succeeded in 1m20s at source revision `8f34218`. Public API readiness returned HTTP 200 with `ready`; challenge returned the expected HTTP 503 AUTH_NOT_CONFIGURED. Authentication remains disabled; enabling it and proving wallet possession are separate reviewed steps. See the [Free-environment provisioning procedure](../operations/operator-provisioning.md).
+
 ## Before creating the Blueprint
 
 1. Review the current [Render free-plan limits](https://render.com/docs/free) and workspace billing settings. Free PostgreSQL expires after 30 days, has no backups, and must contain no real investor or financial data.
