@@ -1,6 +1,18 @@
 # Devnet snapshot acceptance
 
-Status: checklist only; real-wallet acceptance has not been performed.
+Status: staging login preparation completed; real-wallet login and Devnet snapshot acceptance have not been performed.
+
+## Preparation checkpoint — 2026-10-01
+
+- [x] Disposable staging selected and one reviewed operator provisioned through the controlled CLI.
+- [x] Web/API revision `fd6cb81` verified Live; exact domain/origin and secure-cookie settings reviewed before explicitly enabling authentication. See the [deployment evidence](../deployment/render-staging.md).
+- [x] Same-origin challenge and unauthenticated-denial boundaries checked; these are not signed-login evidence.
+- [x] Windows/Ubuntu development tool versions rechecked with `npm run check:toolchain` on 2026-10-01.
+- [ ] User signs the login message and checks the expected profile/address, session after refresh, and logout. Never record cookie values.
+- [ ] Move Devnet development to a non-root WSL user before creating deployment/upgrade-authority keys. `id -un` still returned `root` at this checkpoint; no keys were created.
+- [ ] Establish the reviewed Devnet program, authorities, RPC configuration, mint/distribution, synthetic investor mappings and scheduled action listed below.
+
+Do not submit a snapshot merely because the login panel is available. Preparation evidence does not close the remaining end-to-end prerequisites.
 
 ## Safe wallet setup
 
