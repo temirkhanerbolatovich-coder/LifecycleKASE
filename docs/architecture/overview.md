@@ -7,7 +7,7 @@ Last updated: 2026-09-30
 
 | Component | Responsibility | Trust boundary |
 |---|---|---|
-| Next.js web | Status dashboard, Wallet Standard operator login and administrator Devnet snapshot review/sign/send/finalized-check/recovery; broader administrator/auditor workflows pending | Untrusted client; no authoritative validation and no private-key custody; real wallet acceptance pending |
+| Next.js web | Status dashboard, Wallet Standard operator login and Devnet snapshot UI; six fixed same-origin rewrites transport operator requests/cookies to the API | Browser is untrusted; web server is a trusted cookie-transport boundary; no private-key custody; real wallet acceptance pending |
 | API package | Operator wallet authentication plus administrator-only snapshot capture, transaction preparation and finalized confirmation; NestJS health routes | Trusted application service when deployed; never holds administrator private keys |
 | Domain package | Deterministic calculations and state rules | Pure logic with no network or persistence side effects |
 | Solana client package | Token-2022 holder collection, instruction/transaction serialization, exact signed-message verification and Action PDA decoding | Converts finalized chain data into validated holder balances and confirmation evidence |

@@ -11,8 +11,6 @@ type LoginWallet = WalletWithFeatures<StandardConnectFeature & SolanaSignMessage
 type OperatorUser = { id: string; displayName: string; role: string };
 type Challenge = { challengeId: string; message: string; nonce: string; walletAddress: string };
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000").replace(/\/$/, "");
-
 function supportsOperatorLogin(wallet: Wallet): wallet is LoginWallet {
   const connect = wallet.features[StandardConnect] as { connect?: unknown } | undefined;
   const signMessage = wallet.features[SolanaSignMessage] as { signMessage?: unknown } | undefined;
@@ -54,9 +52,10 @@ function errorMessage(payload: Record<string, unknown>, fallback: string): strin
 }
 
 async function apiRequest(path: string, init?: RequestInit): Promise<Record<string, unknown>> {
-  const response = await fetch(API_BASE_URL + path, {
+  const response = await fetch(path, {
     ...init,
     credentials: "include",
+    cache: "no-store",
     headers: { "content-type": "application/json", ...init?.headers },
     signal: init?.signal ?? AbortSignal.timeout(15_000)
   });

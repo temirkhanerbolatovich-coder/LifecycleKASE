@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, HttpException, Post, Req, Res } from "@nestjs/common";
+import { Body, Controller, Get, Header, Headers, HttpException, Post, Req, Res } from "@nestjs/common";
 
 import {
   AUTH_COOKIE_NAME,
@@ -53,6 +53,7 @@ export class AuthController {
   ) {}
 
   @Post("challenge")
+  @Header("Cache-Control", "no-store")
   async challenge(
     @Body() body: { walletAddress?: unknown },
     @Headers("origin") origin: string | undefined,
@@ -73,6 +74,7 @@ export class AuthController {
   }
 
   @Post("verify")
+  @Header("Cache-Control", "no-store")
   async verify(
     @Body() body: { challengeId?: unknown; nonce?: unknown; signature?: unknown },
     @Headers("origin") origin: string | undefined,
@@ -98,6 +100,7 @@ export class AuthController {
   }
 
   @Get("session")
+  @Header("Cache-Control", "no-store")
   async session(@Req() request: CookieRequest) {
     try {
       requireAuthenticationEnabled();
@@ -110,6 +113,7 @@ export class AuthController {
   }
 
   @Post("logout")
+  @Header("Cache-Control", "no-store")
   async logout(@Req() request: CookieRequest, @Res({ passthrough: true }) response: CookieResponse) {
     try {
       requireAuthenticationEnabled();
