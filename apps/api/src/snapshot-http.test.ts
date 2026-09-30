@@ -69,6 +69,11 @@ function pendingFixture() {
       }
     }
   };
+  const auditEvents: unknown[] = [];
+  const transaction = {
+    blockchainTransaction: { create: async () => ({ id: CORRELATION_ID }) },
+    auditLog: { create: async (args: unknown) => { auditEvents.push(args); return { id: "audit" }; } }
+  };
   const database = {
     snapshot: { findUnique: async (args: any) => args.select ? {
       id: stored.id,
@@ -76,7 +81,8 @@ function pendingFixture() {
       recordAt: stored.recordAt,
       blockTime: stored.blockTime,
       solanaSlot: stored.solanaSlot
-    } : stored }
+    } : stored },
+    $transaction: async (callback: (tx: typeof transaction) => Promise<unknown>) => callback(transaction)
   } as unknown as PrismaClient;
   const methods: string[] = [];
   const rpc: SolanaRpc = {
@@ -89,7 +95,7 @@ function pendingFixture() {
       throw new Error("Unexpected RPC method " + method);
     }
   };
-  return { database, rpc, methods, commitment };
+  return { database, rpc, methods, commitment, auditEvents };
 }
 
 test("resumes a pending snapshot without recapturing holder balances", async () => {
@@ -111,6 +117,8 @@ test("resumes a pending snapshot without recapturing holder balances", async () 
   assert.equal(result.recordPointMode, "DEMO_CAPTURE_SLOT");
   assert.equal(result.transactionFormat, "SOLANA_V0_WIRE_TRANSACTION_BASE64");
   assert.equal(result.snapshotHash, setup.commitment.sha256);
+  assert.equal(result.operationId, CORRELATION_ID);
+  assert.equal(setup.auditEvents.length, 1);
   assert.deepEqual(setup.methods, ["getGenesisHash", "getSlot", "getBlockTime", "getLatestBlockhash"]);
 });
 

@@ -1,6 +1,6 @@
 # Architecture overview
 
-Status: Milestone 0 baseline with partial Milestone 1 program and Milestone 2 client implementation
+Status: Milestone 0 baseline with partial Milestone 1 program and Milestone 2 snapshot orchestration
 Last updated: 2026-09-30
 
 ## Components
@@ -8,9 +8,9 @@ Last updated: 2026-09-30
 | Component | Responsibility | Trust boundary |
 |---|---|---|
 | Next.js web | Read-only status dashboard implemented; administrator/auditor workflows and wallet interaction pending | Untrusted client; no authoritative validation |
-| API package | Internal snapshot candidate preparation and pending PostgreSQL persistence; NestJS liveness and PostgreSQL readiness routes implemented; authentication and on-chain transaction orchestration pending | Trusted application service when deployed; never holds administrator private keys |
+| API package | Operator wallet authentication plus administrator-only snapshot capture, transaction preparation and finalized confirmation; NestJS health routes | Trusted application service when deployed; never holds administrator private keys |
 | Domain package | Deterministic calculations and state rules | Pure logic with no network or persistence side effects |
-| Solana client package | Token-2022 holder collection and RPC boundary implemented; instructions and confirmation helpers pending | Converts finalized chain account data into validated holder balances |
+| Solana client package | Token-2022 holder collection, instruction/transaction serialization, exact signed-message verification and Action PDA decoding | Converts finalized chain data into validated holder balances and confirmation evidence |
 | Anchor program | Instrument initialization/activation, action scheduling/cancellation, and immutable snapshot hash/slot/count registration are locally implemented; entitlement calculation and execution are pending | Future authoritative execution boundary; not deployed |
 | Token-2022 | Bond ownership, transfers, burns, and total supply | Authoritative token ledger |
 | PostgreSQL | Identity links, workflow orchestration, immutable snapshot payloads and read projections | Recoverable projection; not authoritative for chain facts |
@@ -26,9 +26,9 @@ Last updated: 2026-09-30
 
 Snapshot construction is a special case: the API reads Token-2022 accounts at the current finalized slot, creates canonical JSON, computes SHA-256, persists the payload, and commits the hash and slot on-chain. Historical reconstruction is intentionally unsupported in the MVP.
 
-The implemented client collector reads all mint-filtered Token-2022 accounts at one returned finalized context slot, decodes the base token-account prefix even when extensions are present, and checks that positive balances sum to mint supply. It refuses inconsistent supply/slot responses. Internal API candidate preparation, persistence, unsigned registration planning, and an on-chain commitment instruction exist, but no authenticated transaction flow connects them; a fixture-tested collector is not a live snapshot proof.
+The implemented client collector reads all mint-filtered Token-2022 accounts at one returned finalized context slot, decodes the base token-account prefix even when extensions are present, and checks that positive balances sum to mint supply. It refuses inconsistent supply/slot responses. Authenticated API preparation and confirmation connect this data to the on-chain commitment instruction, but fixture tests are not a live Devnet snapshot proof.
 
-The internal API service joins that collector with Prisma action and wallet mappings, checks the configured genesis hash and record-date window, and computes canonical snapshot-v2 bytes. Its persistence step revalidates state, versions and wallet mappings in a serializable transaction, then writes the canonical payload and child rows as `PENDING_REGISTRATION`. A separate internal step rebuilds the stored hash, verifies finalized RPC context, and prepares exact on-chain instruction data and accounts for the issuer wallet. It does not serialize, sign, submit, or confirm a transaction or finalize the database row. The only HTTP entry points are liveness and PostgreSQL readiness checks. No authenticated domain HTTP entry point exists yet.
+The API joins that collector with Prisma action and wallet mappings, checks the configured genesis hash and record-date window, and computes canonical snapshot-v2 bytes. Persistence revalidates state, versions and wallet mappings in a serializable transaction, then writes the canonical payload and child rows as `PENDING_REGISTRATION`. Preparation rebuilds the stored commitment, creates an unsigned v0 transaction and records a blockhash-bound attempt. Confirmation fetches the supplied signature at `finalized`, compares its complete message to that attempt, reads back the program-owned Action PDA, and atomically finalizes the transaction, snapshot and action projection. The wallet remains responsible for signing and submission.
 
 ## Authority model
 

@@ -119,8 +119,40 @@ export async function prepareSnapshotRegistrationForAction(
     now: options.now,
     graceSeconds: options.graceSeconds
   });
+  const prepared = await database.$transaction(async (transaction) => {
+    const operation = await transaction.blockchainTransaction.create({
+      data: {
+        corporateActionId: actionId,
+        operationType: "REGISTER_SNAPSHOT",
+        status: "PREPARED",
+        recentBlockhash: registration.recentBlockhash,
+        lastValidBlockHeight: BigInt(registration.lastValidBlockHeight)
+      },
+      select: { id: true }
+    });
+    await transaction.auditLog.create({
+      data: {
+        actorId: actor.id,
+        actorWallet: actor.walletAddress,
+        event: "SNAPSHOT_REGISTRATION_PREPARED",
+        entityType: "BlockchainTransaction",
+        entityId: operation.id,
+        correlationId: actor.correlationId,
+        corporateActionId: actionId,
+        blockchainTransactionId: operation.id,
+        metadataJson: {
+          snapshotId,
+          snapshotHash: registration.snapshotHash,
+          recentBlockhash: registration.recentBlockhash,
+          lastValidBlockHeight: registration.lastValidBlockHeight
+        }
+      }
+    });
+    return operation;
+  });
   return {
     ...registration,
+    operationId: prepared.id,
     recordAt,
     effectiveBlockTime,
     effectiveSlot,

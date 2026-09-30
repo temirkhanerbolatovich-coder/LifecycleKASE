@@ -26,7 +26,7 @@ This creates a reproducible demo without adding container orchestration or a pai
 ## Consequences
 
 - A successful API build applies migrations to the disposable staging database; a failed migration fails the build.
-- The API is publicly reachable, but its only routes are health checks. Authentication must precede any domain HTTP route.
+- The API is publicly reachable. Health checks are unauthenticated; domain routes must refuse requests unless wallet authentication is explicitly enabled and succeeds.
 - The web-to-API request uses public HTTPS and may show `unavailable` during a free-instance cold start. A response must contain JSON `{ "status": "ready" }`; an HTML loading page cannot be mistaken for readiness.
 - The local workspace and the public deployment remain separate until the Blueprint is actually connected to a Render workspace and deployed from committed code.
 

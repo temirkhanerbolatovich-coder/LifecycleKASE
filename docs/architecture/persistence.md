@@ -1,7 +1,7 @@
 # Persistence architecture
 
-Status: schema foundation, four guarded migrations, and pending snapshot write implemented
-Last updated: 2026-09-29
+Status: schema foundation, four guarded migrations, and snapshot prepare/confirm persistence implemented
+Last updated: 2026-09-30
 
 ## Responsibility
 
@@ -25,7 +25,7 @@ It does not override Solana ownership, mint supply, program state, snapshot comm
 
 A snapshot and all investor/wallet/token-account rows are first written atomically in `PENDING_REGISTRATION`. After finalized on-chain commitment verification, the snapshot moves to `FINALIZED`. PostgreSQL triggers then reject mutation or deletion of the snapshot and its child rows, and reject new child rows.
 
-The internal API write uses a serializable Prisma transaction. It rechecks the action and instrument versions, wallet ownership and status, and the record-date window, then increments the action version with compare-and-set and creates all snapshot rows. The action remains `SCHEDULED` until a separate on-chain confirmation path is implemented. A failed transaction rolls back both the version increment and nested rows.
+The capture write uses a serializable Prisma transaction. It rechecks the action and instrument versions, wallet ownership and status, and the record-date window, then increments the action version with compare-and-set and creates all snapshot rows. Each prepared wire transaction gets a separate `BlockchainTransaction` row with its blockhash expiry. The action remains `SCHEDULED` until confirmation verifies the exact finalized message and Action PDA; finalization then compare-and-sets the attempt, snapshot, and action plus its audit event in one transaction. A failed or unknown chain result never marks the snapshot finalized.
 
 `canonical_json` is PostgreSQL `jsonb`: it preserves values, not original UTF-8 byte ordering. The SHA-256 is computed before storage from the domain's deterministic `snapshot-v2` serialization. A future canonical download/verification route must rebuild those bytes with the same versioned serializer and compare the stored hash; it must not hash an arbitrary `JSON.stringify` of the `jsonb` read result.
 
