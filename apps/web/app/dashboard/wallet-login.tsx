@@ -5,6 +5,7 @@ import { getWallets } from "@wallet-standard/app";
 import type { Wallet, WalletAccount, WalletWithFeatures } from "@wallet-standard/base";
 import { StandardConnect, type StandardConnectFeature } from "@wallet-standard/features";
 import { useEffect, useMemo, useState } from "react";
+import { SnapshotPanel } from "./snapshot-panel";
 
 type LoginWallet = WalletWithFeatures<StandardConnectFeature & SolanaSignMessageFeature>;
 type OperatorUser = { id: string; displayName: string; role: string };
@@ -43,6 +44,10 @@ function errorMessage(payload: Record<string, unknown>, fallback: string): strin
       return "Текущий адрес приложения не разрешён сервером.";
     case "INVALID_CHALLENGE":
       return "Запрос на вход истёк. Повторите подключение.";
+    case "TRANSACTION_NOT_FINALIZED":
+      return "Транзакция ещё не финализирована. Подождите и повторите только проверку.";
+    case "AUTH_RATE_LIMITED":
+      return "Слишком много запросов. Подождите перед следующей проверкой.";
     default:
       return typeof payload["message"] === "string" ? payload["message"] : fallback;
   }
@@ -170,7 +175,17 @@ export function WalletLogin() {
       {user ? (
         <div className="mt-5">
           <p className="font-semibold">{user.displayName || "Оператор"}</p>
-          <p className="mt-1 text-sm text-[#61746a]">{user.role} · {walletAddress ?? "кошелёк подтверждён"}</p>
+          <p className="mt-1 break-all text-sm text-[#61746a]">{user.role} · {walletAddress ?? "кошелёк подтверждён"}</p>
+          {wallets.length > 1 && (
+            <label className="mt-4 block text-sm">Кошелёк для транзакции
+              <select className="mt-2 w-full rounded-lg border px-3 py-2" disabled={busy} value={selectedIndex} onChange={(event) => setSelectedIndex(Number(event.target.value))}>
+                {wallets.map((wallet, index) => <option key={`${wallet.name}-${index}`} value={index}>{wallet.name}</option>)}
+              </select>
+            </label>
+          )}
+          {user.role === "ADMINISTRATOR" && walletAddress && (
+            <SnapshotPanel key={walletAddress} wallet={selectedWallet} walletAddress={walletAddress} request={apiRequest} onBusyChange={setBusy} />
+          )}
           <button className="mt-5 rounded-lg border border-[#cbd8d0] px-4 py-2 text-sm font-semibold disabled:opacity-50" disabled={busy} onClick={() => void logout()}>
             Выйти
           </button>

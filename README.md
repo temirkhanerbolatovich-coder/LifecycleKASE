@@ -1,6 +1,6 @@
 # LifecycleKASE
 
-Corporate Action Engine for tokenized securities on Solana. The repository has its **Milestone 0 foundation** and partial Milestone 1/2 work: requirements, architecture decisions, CI checks, local PostgreSQL migrations, checked financial calculations, approval state transitions, a fixture-tested Token-2022 holder collector, authenticated snapshot preparation/finalized confirmation, five locally built and validator-tested Anchor instructions (initialize/activate instrument, create/cancel action, register snapshot), and a minimal web/API slice with Wallet Standard login. Snapshot transaction signing/submission and the remaining corporate-action workflow are not implemented yet.
+Corporate Action Engine for tokenized securities on Solana. The repository has its **Milestone 0 foundation** and partial Milestone 1/2 work: requirements, architecture decisions, CI checks, local PostgreSQL migrations, checked financial calculations, approval state transitions, a fixture-tested Token-2022 holder collector, authenticated snapshot preparation/finalized confirmation, five locally built and validator-tested Anchor instructions (initialize/activate instrument, create/cancel action, register snapshot), and a web/API slice with Wallet Standard login and Devnet snapshot signing/submission/recovery UI. Live wallet/Devnet acceptance and the remaining corporate-action workflow are not completed yet.
 
 ## Scope
 
@@ -89,7 +89,7 @@ The smoke test starts an isolated validator on port `18899`, waits for a JSON-RP
 
 ## Current limitations
 
-- The API supports domain-bound operator wallet authentication and administrator-only snapshot preparation/confirmation routes. The dashboard now discovers Wallet Standard wallets and can complete the message-signing login flow when authentication and an operator wallet are provisioned. A controlled CLI can create the first operator from a public wallet address, and authentication challenge/verification requests are rate-limited per client. Snapshot transaction signing/submission is not yet wired into the UI. The confirmation path is fixture-tested but has no live Devnet-mint proof. Public authentication remains disabled until a real operator is deliberately provisioned and the deployment is reviewed.
+- The API supports domain-bound operator wallet authentication and administrator-only snapshot preparation/confirmation routes. The dashboard discovers Wallet Standard wallets and includes a Devnet-only snapshot review, explicit sign/send and finalized-confirm/recovery panel. A controlled CLI can create the first operator from a public wallet address, and authentication requests are rate-limited per client. See the [wallet workflow and recovery limits](apps/web/README.md). The confirmation path is fixture-tested but has no live operator-wallet/Devnet-mint proof. Public authentication remains disabled until a real operator is deliberately provisioned and the deployment is reviewed.
 - Four SQL migrations and database guard tests are implemented. The third migration requires an empty pre-MVP domain database; it stops when domain records exist.
 - The TypeScript domain contracts are implemented; matching Rust calculations are not yet available.
 - The validator smoke-test requires an external Solana CLI installation.

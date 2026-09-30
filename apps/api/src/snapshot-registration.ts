@@ -148,6 +148,7 @@ export async function preparePendingSnapshotRegistration(
   });
   return {
     corporateActionId: action.id,
+    cluster: payload.cluster,
     snapshotId,
     snapshotHash: commitment.sha256,
     requiredSigner: instrument.issuerAuthority,

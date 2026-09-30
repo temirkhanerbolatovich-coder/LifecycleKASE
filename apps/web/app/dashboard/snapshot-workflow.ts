@@ -1,0 +1,88 @@
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+export function isActionId(value: string): boolean { return UUID.test(value); }
+
+export function encodeBase58(bytes: Uint8Array): string {
+  let value = 0n;
+  for (const byte of bytes) value = value * 256n + BigInt(byte);
+  let result = "";
+  while (value > 0n) {
+    result = BASE58[Number(value % 58n)] + result;
+    value /= 58n;
+  }
+  for (const byte of bytes) {
+    if (byte !== 0) break;
+    result = "1" + result;
+  }
+  return result;
+}
+
+export function transactionSignature(bytes: Uint8Array): string {
+  if (bytes.length !== 64 || bytes.every((byte) => byte === 0)) {
+    throw new Error("Кошелёк не вернул корректную подпись транзакции.");
+  }
+  return encodeBase58(bytes);
+}
+
+export type PreparedSnapshot = {
+  corporateActionId: string;
+  operationId: string;
+  snapshotId: string;
+  cluster: "devnet";
+  requiredSigner: string;
+  snapshotHash: string;
+  programId: string;
+  actionAddress: string;
+  networkGenesisHash: string;
+  recordAt: string;
+  effectiveBlockTime: string;
+  effectiveSlot: string;
+  lastValidBlockHeight: number;
+  serializedTransactionBase64: string;
+};
+
+/** Validate the API boundary before asking a wallet to submit anything. */
+export function preparedSnapshot(payload: Record<string, unknown>, actionId: string, walletAddress: string): PreparedSnapshot {
+  const invalid = () => new Error("Некорректный план регистрации; подпись остановлена.");
+  if (!isActionId(actionId) || payload.corporateActionId !== actionId ||
+      typeof payload.operationId !== "string" || !UUID.test(payload.operationId) ||
+      typeof payload.snapshotId !== "string" || !UUID.test(payload.snapshotId) ||
+      payload.cluster !== "devnet" || payload.requiredSigner !== walletAddress ||
+      payload.transactionFormat !== "SOLANA_V0_WIRE_TRANSACTION_BASE64" ||
+      payload.recordPointMode !== "DEMO_CAPTURE_SLOT" ||
+      typeof payload.snapshotHash !== "string" || !/^[0-9a-f]{64}$/i.test(payload.snapshotHash) ||
+      !Number.isSafeInteger(payload.lastValidBlockHeight) || (payload.lastValidBlockHeight as number) < 0 ||
+      typeof payload.effectiveSlot !== "string" || !/^[1-9][0-9]*$/.test(payload.effectiveSlot)) throw invalid();
+  for (const field of ["programId", "actionAddress", "networkGenesisHash", "requiredSigner"] as const) {
+    if (typeof payload[field] !== "string" || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(payload[field])) throw invalid();
+  }
+  for (const field of ["recordAt", "effectiveBlockTime"] as const) {
+    if (typeof payload[field] !== "string" || !Number.isFinite(Date.parse(payload[field]))) throw invalid();
+  }
+  if (typeof payload.serializedTransactionBase64 !== "string") throw invalid();
+  const plan = payload as PreparedSnapshot;
+  const bytes = unsignedTransactionBytes(plan.serializedTransactionBase64);
+  // The backend serializer uses one zeroed signature, a v0 message and a single fee-payer signer.
+  if (bytes[66] !== 1 || encodeBase58(bytes.slice(70, 102)) !== walletAddress) throw invalid();
+  return plan;
+}
+
+export function unsignedTransactionBytes(base64: string): Uint8Array {
+  if (base64.length > 1644 || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) throw new Error("Некорректные байты транзакции.");
+  let binary: string;
+  try { binary = atob(base64); } catch { throw new Error("Некорректные байты транзакции."); }
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  if (btoa(binary) !== base64 || bytes.length < 102 || bytes.length > 1232 || bytes[0] !== 1 ||
+      bytes.slice(1, 65).some((byte) => byte !== 0) || bytes[65] !== 128 ||
+      bytes[69] === undefined || bytes[69] < 1 || bytes[69] > 127) {
+    throw new Error("Ожидалась неподписанная Solana v0 транзакция.");
+  }
+  return bytes;
+}
+
+export function requireFinalizedResponse(payload: Record<string, unknown>, operationId: string, signature: string): void {
+  if (payload.status !== "FINALIZED" || payload.operationId !== operationId || payload.signature !== signature) {
+    throw new Error("API не подтвердил финализацию этой операции.");
+  }
+}

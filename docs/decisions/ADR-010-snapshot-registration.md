@@ -38,4 +38,4 @@ The fixed on-chain bound prevents late direct calls without adding a bootstrap o
 
 ## Future work
 
-Add the wallet UI/submission flow for the serialized unsigned transaction, prove the confirmation path against a real Devnet mint/RPC, add a missed-window terminal transition, and consider governed configuration only if a different window becomes a demonstrated requirement.
+The Devnet wallet UI now reviews and submits the serialized unsigned transaction, with separate finalized confirmation and manual recovery after an ambiguous submission result. Prove that flow against a real operator wallet and Devnet mint/RPC, add a missed-window terminal transition, and consider governed configuration only if a different window becomes a demonstrated requirement.

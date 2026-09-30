@@ -6,7 +6,8 @@
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start --hostname 0.0.0.0",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "tsc -p tsconfig.test.json && node --test .test-dist/*.test.js"
   },
   "dependencies": {
     "@solana/wallet-standard-features": "^1.5.0",

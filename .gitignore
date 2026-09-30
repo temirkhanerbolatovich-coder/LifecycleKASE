@@ -5,6 +5,7 @@
 coverage/
 dist/
 .next/
+.test-dist/
 next-env.d.ts
 *.tsbuildinfo
 generated/
