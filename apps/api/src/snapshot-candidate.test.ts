@@ -157,6 +157,14 @@ test("builds a canonical investor-level candidate from DB mappings and finalized
 });
 
 test("stops before capture on wrong network or missed window", async () => {
+  const excessiveGrace = fixture();
+  excessiveGrace.options.graceSeconds = 301;
+  await assert.rejects(
+    prepareSnapshotCandidate(excessiveGrace.database, excessiveGrace.rpc, ACTION_ID, excessiveGrace.options),
+    (error: unknown) => error instanceof SnapshotPreparationError && error.code === "INVALID_GRACE_WINDOW"
+  );
+  assert.deepEqual(excessiveGrace.requestedMethods, []);
+
   const wrongNetwork = fixture({ wrongGenesis: true });
   await assert.rejects(
     prepareSnapshotCandidate(wrongNetwork.database, wrongNetwork.rpc, ACTION_ID, wrongNetwork.options),

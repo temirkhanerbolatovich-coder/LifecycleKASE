@@ -8,6 +8,7 @@ use anchor_spl::token_interface::{Mint, Token2022};
 declare_id!("6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo");
 
 const MAX_ACTIVATION_HOLDER_ACCOUNTS: usize = 64;
+const SNAPSHOT_GRACE_SECONDS: i64 = 300;
 
 #[program]
 pub mod lifecycle_kase {
@@ -193,6 +194,43 @@ pub mod lifecycle_kase {
         action.completed_at = Some(Clock::get()?.unix_timestamp);
         Ok(())
     }
+
+    pub fn register_snapshot(
+        ctx: Context<RegisterSnapshot>,
+        commitment: SnapshotCommitmentTerms,
+    ) -> Result<()> {
+        let bond_mint = &ctx.accounts.bond_mint;
+        require_keys_eq!(
+            *bond_mint.to_account_info().owner,
+            ctx.accounts.token_2022_program.key(),
+            ErrorCode::InvalidTokenProgram
+        );
+        require_eq!(bond_mint.decimals, 0, ErrorCode::InvalidTokenDecimals);
+        require!(
+            bond_mint.mint_authority.is_none(),
+            ErrorCode::MintAuthorityNotRevoked
+        );
+        require!(
+            bond_mint.freeze_authority.is_none(),
+            ErrorCode::FreezeAuthorityPresent
+        );
+        let clock = Clock::get()?;
+        let action = &mut ctx.accounts.corporate_action;
+        commitment.validate(
+            action,
+            &ctx.accounts.instrument,
+            bond_mint.supply,
+            clock.unix_timestamp,
+            clock.slot,
+        )?;
+        action.snapshot_hash = commitment.snapshot_hash;
+        action.snapshot_slot = commitment.snapshot_slot;
+        action.investor_count = commitment.investor_count;
+        action.wallet_count = commitment.wallet_count;
+        action.total_balance = commitment.total_balance;
+        action.status = CorporateActionStatus::SnapshotCreated;
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -281,6 +319,34 @@ pub struct CancelAction<'info> {
         bump = corporate_action.bump
     )]
     pub corporate_action: Account<'info, CorporateAction>,
+}
+
+#[derive(Accounts)]
+pub struct RegisterSnapshot<'info> {
+    pub issuer_authority: Signer<'info>,
+    #[account(
+        constraint = instrument.issuer_authority == issuer_authority.key()
+            @ ErrorCode::UnauthorizedIssuer,
+        constraint = instrument.bond_mint == bond_mint.key()
+            @ ErrorCode::InvalidMint
+    )]
+    pub instrument: Account<'info, Instrument>,
+    #[account(
+        mut,
+        has_one = instrument @ ErrorCode::InvalidActionInstrument,
+        seeds = [b"action", instrument.key().as_ref(), corporate_action.action_id.as_ref()],
+        bump = corporate_action.bump
+    )]
+    pub corporate_action: Account<'info, CorporateAction>,
+    /// CHECK: Only the PDA address is used to verify the permanent delegate.
+    #[account(
+        seeds = [b"instrument-authority", instrument.key().as_ref()],
+        bump = instrument.authority_bump
+    )]
+    pub instrument_authority: UncheckedAccount<'info>,
+    #[account(extensions::permanent_delegate::delegate = instrument_authority)]
+    pub bond_mint: InterfaceAccount<'info, Mint>,
+    pub token_2022_program: Program<'info, Token2022>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug)]
@@ -393,6 +459,68 @@ impl CorporateActionTerms {
     }
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug)]
+pub struct SnapshotCommitmentTerms {
+    pub snapshot_hash: [u8; 32],
+    pub snapshot_slot: u64,
+    pub investor_count: u32,
+    pub wallet_count: u32,
+    pub total_balance: u64,
+    pub mint_supply: u64,
+}
+
+impl SnapshotCommitmentTerms {
+    fn validate(
+        &self,
+        action: &CorporateAction,
+        instrument: &Instrument,
+        actual_mint_supply: u64,
+        now: i64,
+        current_slot: u64,
+    ) -> Result<()> {
+        require!(
+            instrument.status == InstrumentStatus::Active,
+            ErrorCode::InvalidInstrumentStatus
+        );
+        require!(
+            action.status == CorporateActionStatus::Scheduled
+                && action.snapshot_hash == [0; 32]
+                && action.snapshot_slot == 0,
+            ErrorCode::InvalidActionStatus
+        );
+        require!(
+            now >= action.record_at
+                && now
+                    <= action
+                        .record_at
+                        .checked_add(SNAPSHOT_GRACE_SECONDS)
+                        .ok_or(ErrorCode::SnapshotWindowMissed)?,
+            ErrorCode::SnapshotWindowMissed
+        );
+        require!(
+            self.snapshot_slot > 0 && self.snapshot_slot <= current_slot,
+            ErrorCode::InvalidSnapshotSlot
+        );
+        require!(
+            self.snapshot_hash != [0; 32],
+            ErrorCode::InvalidSnapshotHash
+        );
+        require!(
+            self.investor_count > 0
+                && self.wallet_count >= self.investor_count
+                && self.total_balance > 0,
+            ErrorCode::InvalidSnapshotCounts
+        );
+        require!(
+            self.total_balance == self.mint_supply
+                && self.mint_supply == actual_mint_supply
+                && self.mint_supply <= instrument.total_supply,
+            ErrorCode::InvalidMintSupply
+        );
+        Ok(())
+    }
+}
+
 #[account]
 #[derive(InitSpace)]
 pub struct Instrument {
@@ -450,6 +578,7 @@ pub enum CorporateActionType {
 pub enum CorporateActionStatus {
     Scheduled,
     Cancelled,
+    SnapshotCreated,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, PartialEq, Eq, InitSpace)]
@@ -510,6 +639,14 @@ pub enum ErrorCode {
     InvalidActionInstrument,
     #[msg("Corporate action must be scheduled to cancel")]
     InvalidActionStatus,
+    #[msg("Snapshot is outside the record-date window")]
+    SnapshotWindowMissed,
+    #[msg("Snapshot slot must be a past or current nonzero slot")]
+    InvalidSnapshotSlot,
+    #[msg("Snapshot hash must not be zero")]
+    InvalidSnapshotHash,
+    #[msg("Snapshot investor, wallet, or balance counts are invalid")]
+    InvalidSnapshotCounts,
 }
 
 #[cfg(test)]
@@ -562,6 +699,43 @@ mod tests {
             execute_at: TEST_NOW + 200,
             redemption_percentage_bps: None,
             redemption_price_minor: None,
+        }
+    }
+
+    fn scheduled_action() -> CorporateAction {
+        let terms = coupon_action();
+        CorporateAction {
+            version: 1,
+            action_id: terms.action_id,
+            instrument: Pubkey::new_unique(),
+            action_type: terms.action_type,
+            record_at: terms.record_at,
+            execute_at: terms.execute_at,
+            redemption_percentage_bps: None,
+            redemption_price_minor: None,
+            snapshot_hash: [0; 32],
+            snapshot_slot: 0,
+            investor_count: 0,
+            wallet_count: 0,
+            total_balance: 0,
+            total_amount_minor: 0,
+            registered_entitlements: 0,
+            processed_entitlements: 0,
+            status: CorporateActionStatus::Scheduled,
+            created_at: TEST_NOW,
+            completed_at: None,
+            bump: 1,
+        }
+    }
+
+    fn valid_snapshot_commitment() -> SnapshotCommitmentTerms {
+        SnapshotCommitmentTerms {
+            snapshot_hash: [1; 32],
+            snapshot_slot: 10,
+            investor_count: 3,
+            wallet_count: 3,
+            total_balance: 35,
+            mint_supply: 35,
         }
     }
 
@@ -672,5 +846,75 @@ mod tests {
         let mut redeemed = valid_instrument();
         redeemed.status = InstrumentStatus::Redeemed;
         assert!(coupon_action().validate(&redeemed, TEST_NOW).is_err());
+    }
+
+    #[test]
+    fn accepts_snapshot_only_in_the_record_date_window() {
+        let mut instrument = valid_instrument();
+        instrument.status = InstrumentStatus::Active;
+        let action = scheduled_action();
+        let commitment = valid_snapshot_commitment();
+        assert!(commitment
+            .validate(&action, &instrument, 35, action.record_at, 10)
+            .is_ok());
+        assert!(commitment
+            .validate(
+                &action,
+                &instrument,
+                35,
+                action.record_at + SNAPSHOT_GRACE_SECONDS,
+                11,
+            )
+            .is_ok());
+        assert!(commitment
+            .validate(&action, &instrument, 35, action.record_at - 1, 11)
+            .is_err());
+        assert!(commitment
+            .validate(
+                &action,
+                &instrument,
+                35,
+                action.record_at + SNAPSHOT_GRACE_SECONDS + 1,
+                11,
+            )
+            .is_err());
+    }
+
+    #[test]
+    fn rejects_invalid_snapshot_state_and_commitment() {
+        let mut instrument = valid_instrument();
+        let mut action = scheduled_action();
+        let now = action.record_at;
+        let commitment = valid_snapshot_commitment();
+        assert!(commitment
+            .validate(&action, &instrument, 35, now, 11)
+            .is_err());
+
+        instrument.status = InstrumentStatus::Active;
+        action.status = CorporateActionStatus::Cancelled;
+        assert!(commitment
+            .validate(&action, &instrument, 35, now, 11)
+            .is_err());
+        action.status = CorporateActionStatus::Scheduled;
+
+        let mut invalid = valid_snapshot_commitment();
+        invalid.snapshot_hash = [0; 32];
+        assert!(invalid.validate(&action, &instrument, 35, now, 11).is_err());
+
+        let mut invalid = valid_snapshot_commitment();
+        invalid.snapshot_slot = 12;
+        assert!(invalid.validate(&action, &instrument, 35, now, 11).is_err());
+
+        let mut invalid = valid_snapshot_commitment();
+        invalid.investor_count = 4;
+        assert!(invalid.validate(&action, &instrument, 35, now, 11).is_err());
+
+        let mut invalid = valid_snapshot_commitment();
+        invalid.total_balance = 34;
+        assert!(invalid.validate(&action, &instrument, 35, now, 11).is_err());
+
+        assert!(commitment
+            .validate(&action, &instrument, 34, now, 11)
+            .is_err());
     }
 }

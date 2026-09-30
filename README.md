@@ -1,6 +1,6 @@
 # LifecycleKASE
 
-Corporate Action Engine for tokenized securities on Solana. The repository has its **Milestone 0 foundation** and partial Milestone 1/2 work: requirements, architecture decisions, CI checks, local PostgreSQL migrations, checked financial calculations, approval state transitions, a fixture-tested Token-2022 holder collector, internal snapshot preparation, the first locally built and validator-tested Anchor instruction, and a minimal web/API status slice. The authenticated product API and end-to-end on-chain workflow are not implemented yet.
+Corporate Action Engine for tokenized securities on Solana. The repository has its **Milestone 0 foundation** and partial Milestone 1/2 work: requirements, architecture decisions, CI checks, local PostgreSQL migrations, checked financial calculations, approval state transitions, a fixture-tested Token-2022 holder collector, internal snapshot preparation, five locally built and validator-tested Anchor instructions (initialize/activate instrument, create/cancel action, register snapshot), and a minimal web/API status slice. The authenticated product API and end-to-end on-chain workflow are not implemented yet.
 
 ## Scope
 
@@ -27,7 +27,7 @@ The binding requirements are:
 ```text
 apps/                 Internal API preparation service, health HTTP layer, and status web app
 packages/             Shared domain contracts and Token-2022 holder collector
-programs/             Anchor instrument initialization (other instructions pending)
+programs/             Anchor instrument, action, and snapshot-commitment instructions
 prisma/               PostgreSQL schema and guarded migrations
 docs/architecture/    Current system boundaries
 docs/decisions/       Accepted architecture decisions
@@ -89,7 +89,7 @@ The smoke test starts an isolated validator on port `18899`, waits for a JSON-RP
 
 ## Current limitations
 
-- The internal API package prepares a snapshot candidate and persists it as `PENDING_REGISTRATION`; its only HTTP routes are health checks. The frontend is a read-only status page. Authentication, administrator workflows, transaction preparation, and on-chain registration are not implemented. The Anchor program only initializes an instrument; it has not been exercised against a live mint or deployed to Devnet.
+- The internal API package prepares a snapshot candidate and persists it as `PENDING_REGISTRATION`; its only HTTP routes are health checks. The frontend is a read-only status page. Authentication, administrator workflows, signed transaction preparation/confirmation, and the connection from the persisted candidate to on-chain registration are not implemented. The Anchor instructions have been tested only against disposable local-validator mints, not a Devnet mint.
 - Four SQL migrations and database guard tests are implemented. The third migration requires an empty pre-MVP domain database; it stops when domain records exist.
 - The TypeScript domain contracts are implemented; matching Rust calculations are not yet available.
 - The validator smoke-test requires an external Solana CLI installation.

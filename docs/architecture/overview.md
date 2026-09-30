@@ -1,7 +1,7 @@
 # Architecture overview
 
 Status: Milestone 0 baseline with partial Milestone 1 program and Milestone 2 client implementation
-Last updated: 2026-09-29
+Last updated: 2026-09-30
 
 ## Components
 
@@ -11,7 +11,7 @@ Last updated: 2026-09-29
 | API package | Internal snapshot candidate preparation and pending PostgreSQL persistence; NestJS liveness and PostgreSQL readiness routes implemented; authentication and on-chain transaction orchestration pending | Trusted application service when deployed; never holds administrator private keys |
 | Domain package | Deterministic calculations and state rules | Pure logic with no network or persistence side effects |
 | Solana client package | Token-2022 holder collection and RPC boundary implemented; instructions and confirmation helpers pending | Converts finalized chain account data into validated holder balances |
-| Anchor program | `initialize_instrument` creates a `Deploying` instrument PDA; `activate_instrument` reconciles bond token-account balances to supply before `Active`; `create_corporate_action` creates a `Scheduled` action PDA; `cancel_action` closes that pre-snapshot state; snapshots and execution are pending | Future authoritative execution boundary; not deployed |
+| Anchor program | Instrument initialization/activation, action scheduling/cancellation, and immutable snapshot hash/slot/count registration are locally implemented; entitlement calculation and execution are pending | Future authoritative execution boundary; not deployed |
 | Token-2022 | Bond ownership, transfers, burns, and total supply | Authoritative token ledger |
 | PostgreSQL | Identity links, workflow orchestration, immutable snapshot payloads and read projections | Recoverable projection; not authoritative for chain facts |
 
@@ -26,9 +26,9 @@ Last updated: 2026-09-29
 
 Snapshot construction is a special case: the API reads Token-2022 accounts at the current finalized slot, creates canonical JSON, computes SHA-256, persists the payload, and commits the hash and slot on-chain. Historical reconstruction is intentionally unsupported in the MVP.
 
-The implemented client collector reads all mint-filtered Token-2022 accounts at one returned finalized context slot, decodes the base token-account prefix even when extensions are present, and checks that positive balances sum to mint supply. It refuses inconsistent supply/slot responses. The API binding, canonical persistence, and on-chain snapshot registration are not yet implemented; a fixture-tested collector is not a live snapshot proof.
+The implemented client collector reads all mint-filtered Token-2022 accounts at one returned finalized context slot, decodes the base token-account prefix even when extensions are present, and checks that positive balances sum to mint supply. It refuses inconsistent supply/slot responses. Internal API candidate preparation and persistence plus an on-chain snapshot commitment instruction exist, but no authenticated transaction flow connects them; a fixture-tested collector is not a live snapshot proof.
 
-The internal API service joins that collector with Prisma action and wallet mappings, checks the configured genesis hash and record-date window, and computes canonical snapshot-v2 bytes. Its persistence step revalidates state, versions and wallet mappings in a serializable transaction, then writes the canonical payload and child rows as `PENDING_REGISTRATION`. It does not move the corporate action to `SNAPSHOT_CREATED`; that requires later signed on-chain registration and finalized confirmation. The only HTTP entry points are liveness and PostgreSQL readiness checks. No authenticated domain HTTP entry point exists yet.
+The internal API service joins that collector with Prisma action and wallet mappings, checks the configured genesis hash and record-date window, and computes canonical snapshot-v2 bytes. Its persistence step revalidates state, versions and wallet mappings in a serializable transaction, then writes the canonical payload and child rows as `PENDING_REGISTRATION`. The on-chain registration instruction exists locally, but no API transaction preparation or finalized confirmation connects it to this candidate. The only HTTP entry points are liveness and PostgreSQL readiness checks. No authenticated domain HTTP entry point exists yet.
 
 ## Authority model
 

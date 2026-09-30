@@ -470,14 +470,14 @@ bump
 
 Проверяет:
 
-- signer = instrument authority;
-- action = SCHEDULED;
-- Clock timestamp >= record_at;
-- snapshot ещё не зарегистрирован;
-- total balance = mint supply;
+- signer = `Instrument.issuer_authority`, instrument = `ACTIVE`, action = `SCHEDULED` и action PDA принадлежит этому instrument;
+- on-chain Clock в интервале `record_at..record_at + 300 секунд` (верхняя граница для demo); `SNAPSHOT_GRACE_SECONDS` backend не может быть больше 300;
+- snapshot ещё не зарегистрирован, slot ненулевой и не больше текущего on-chain slot;
+- investor count > 0, wallet count >= investor count, total balance > 0;
+- total balance = переданный mint supply = текущий supply Token-2022 bond mint, supply не больше исходного;
 - hash не равен нулю.
 
-После instruction action = `SNAPSHOT_CREATED`. Hash изменить нельзя.
+После instruction action = `SNAPSHOT_CREATED`. Hash изменить нельзя. Программа не доказывает `finalized` RPC context, block time, verified wallet mapping или preimage hash: backend проверяет их до подготовки transaction и после finalized confirmation сверяет PDA. См. [ADR-010](../decisions/ADR-010-snapshot-registration.md).
 
 #### `register_entitlement`
 

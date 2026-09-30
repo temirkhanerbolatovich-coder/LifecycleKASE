@@ -15,6 +15,8 @@ export class SnapshotPreparationError extends Error {
   }
 }
 
+export const MAX_SNAPSHOT_GRACE_SECONDS = 300;
+
 export type SnapshotCandidateOptions = {
   cluster: "localnet" | "devnet";
   expectedGenesisHash: string;
@@ -40,7 +42,8 @@ export async function prepareSnapshotCandidate(
   actionId: string,
   options: SnapshotCandidateOptions
 ) {
-  if (!Number.isSafeInteger(options.graceSeconds) || options.graceSeconds < 0) {
+  if (!Number.isSafeInteger(options.graceSeconds) || options.graceSeconds < 0 ||
+      options.graceSeconds > MAX_SNAPSHOT_GRACE_SECONDS) {
     throw new SnapshotPreparationError("INVALID_GRACE_WINDOW", "Snapshot grace window is invalid");
   }
   if (!Number.isFinite(options.now.getTime())) {

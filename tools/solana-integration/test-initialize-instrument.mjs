@@ -214,6 +214,25 @@ async function cancelAction(actionAddress, signer = administrator) {
   return sendWith(signer, instruction);
 }
 
+async function registerSnapshot(actionAddress, slot, hash, supply = 35, signer = administrator) {
+  const instruction = await program.methods.registerSnapshot({
+    snapshotHash: [...hash],
+    snapshotSlot: new BN(slot),
+    investorCount: 3,
+    walletCount: 3,
+    totalBalance: new BN(35),
+    mintSupply: new BN(supply),
+  }).accountsStrict({
+    issuerAuthority: signer.publicKey,
+    instrument: instrumentAddress,
+    corporateAction: actionAddress,
+    instrumentAuthority,
+    bondMint,
+    token2022Program: TOKEN_2022_PROGRAM_ID,
+  }).instruction();
+  return sendWith(signer, instruction);
+}
+
 const airdrop = await connection.requestAirdrop(administrator.publicKey, 10_000_000_000);
 await connection.confirmTransaction(airdrop, "finalized");
 const outsiderAirdrop = await connection.requestAirdrop(outsider.publicKey, 1_000_000_000);
@@ -404,6 +423,73 @@ await assert.rejects(
     .test(`${error.message} ${JSON.stringify(error.transactionLogs ?? [])}`),
 );
 console.log("PASS activate_instrument rejects replay");
+
+const snapshotActionId = Uint8Array.from({ length: 16 }, (_, index) => index + 145);
+const [snapshotActionAddress] = PublicKey.findProgramAddressSync(
+  [Buffer.from("action"), instrumentAddress.toBuffer(), snapshotActionId], programId,
+);
+const snapshotRecordAt = Math.floor(Date.now() / 1000) + 25;
+await createAction(snapshotActionId, { couponPayment: {} }, snapshotRecordAt, snapshotRecordAt + 3_600);
+const snapshotHash = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
+await assert.rejects(
+  registerSnapshot(snapshotActionAddress, await connection.getSlot("finalized"), snapshotHash),
+  (error) => /SnapshotWindowMissed|outside the record-date window/
+    .test(`${error.message} ${JSON.stringify(error.transactionLogs ?? [])}`),
+);
+console.log("PASS register_snapshot rejects capture before record date");
+
+const snapshotDeadline = Date.now() + 90_000;
+let snapshotSlot;
+while (snapshotSlot === undefined) {
+  const finalizedSlot = await connection.getSlot("finalized");
+  const blockTime = await connection.getBlockTime(finalizedSlot);
+  if (blockTime !== null && blockTime >= snapshotRecordAt + 1) {
+    snapshotSlot = finalizedSlot;
+    break;
+  }
+  if (Date.now() >= snapshotDeadline) {
+    throw new Error("Local validator did not reach the snapshot record date within 90 seconds");
+  }
+  await new Promise((resolve) => setTimeout(resolve, 1_000));
+}
+await assert.rejects(
+  registerSnapshot(snapshotActionAddress, snapshotSlot, snapshotHash, 35, outsider),
+  (error) => /UnauthorizedIssuer|Only the instrument issuer authority/
+    .test(`${error.message} ${JSON.stringify(error.transactionLogs ?? [])}`),
+);
+await assert.rejects(
+  registerSnapshot(snapshotActionAddress, snapshotSlot, new Uint8Array(32)),
+  (error) => /InvalidSnapshotHash|Snapshot hash must not be zero/
+    .test(`${error.message} ${JSON.stringify(error.transactionLogs ?? [])}`),
+);
+await assert.rejects(
+  registerSnapshot(snapshotActionAddress, snapshotSlot, snapshotHash, 34),
+  (error) => /InvalidMintSupply|Bond mint supply does not match/
+    .test(`${error.message} ${JSON.stringify(error.transactionLogs ?? [])}`),
+);
+console.log("PASS register_snapshot rejects wrong signer, zero hash, and supply mismatch");
+
+await registerSnapshot(snapshotActionAddress, snapshotSlot, snapshotHash);
+const snapshottedAction = await program.account.corporateAction.fetch(snapshotActionAddress);
+assert.deepEqual(Object.keys(snapshottedAction.status), ["snapshotCreated"]);
+assert.deepEqual([...snapshottedAction.snapshotHash], [...snapshotHash]);
+assert.equal(snapshottedAction.snapshotSlot.toString(), String(snapshotSlot));
+assert.equal(snapshottedAction.investorCount, 3);
+assert.equal(snapshottedAction.walletCount, 3);
+assert.equal(snapshottedAction.totalBalance.toString(), "35");
+console.log("PASS register_snapshot stores an immutable on-chain commitment");
+
+await assert.rejects(
+  registerSnapshot(snapshotActionAddress, snapshotSlot, new Uint8Array(32).fill(2)),
+  (error) => /InvalidActionStatus|Corporate action must be scheduled/
+    .test(`${error.message} ${JSON.stringify(error.transactionLogs ?? [])}`),
+);
+await assert.rejects(
+  cancelAction(snapshotActionAddress),
+  (error) => /InvalidActionStatus|Corporate action must be scheduled/
+    .test(`${error.message} ${JSON.stringify(error.transactionLogs ?? [])}`),
+);
+console.log("PASS registered snapshot cannot be replaced or cancelled");
 
 const outsiderId = Uint8Array.from({ length: 16 }, (_, index) => index + 49);
 const [outsiderAddress] = PublicKey.findProgramAddressSync(

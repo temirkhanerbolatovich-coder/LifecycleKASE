@@ -116,6 +116,14 @@ test("persists all snapshot rows atomically while action stays scheduled", async
 });
 
 test("rejects changed candidate, action, wallet, and compare-and-set conflict", async () => {
+  const excessiveGrace = fixture();
+  excessiveGrace.options.graceSeconds = 301;
+  await assert.rejects(
+    persistSnapshotCandidate(excessiveGrace.database, excessiveGrace.candidate, excessiveGrace.options),
+    (error: unknown) => error instanceof SnapshotPreparationError && error.code === "INVALID_PERSISTENCE_TIME"
+  );
+  assert.equal(excessiveGrace.calls.create, undefined);
+
   const changed = fixture();
   changed.candidate.snapshot.wallet_count = 99;
   await assert.rejects(

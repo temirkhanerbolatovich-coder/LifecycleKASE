@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import { Prisma, type PrismaClient } from "@prisma/client";
 
-import { prepareSnapshotCandidate, SnapshotPreparationError } from "./snapshot-candidate.js";
+import { MAX_SNAPSHOT_GRACE_SECONDS, prepareSnapshotCandidate, SnapshotPreparationError } from "./snapshot-candidate.js";
 
 type SnapshotCandidate = Awaited<ReturnType<typeof prepareSnapshotCandidate>>;
 
@@ -25,7 +25,8 @@ export async function persistSnapshotCandidate(
   ) {
     throw new SnapshotPreparationError("CANDIDATE_CHANGED", "Snapshot candidate changed after preparation");
   }
-  if (!Number.isFinite(options.now.getTime()) || !Number.isSafeInteger(options.graceSeconds) || options.graceSeconds < 0) {
+  if (!Number.isFinite(options.now.getTime()) || !Number.isSafeInteger(options.graceSeconds) ||
+      options.graceSeconds < 0 || options.graceSeconds > MAX_SNAPSHOT_GRACE_SECONDS) {
     throw new SnapshotPreparationError("INVALID_PERSISTENCE_TIME", "Snapshot persistence time or window is invalid");
   }
 
