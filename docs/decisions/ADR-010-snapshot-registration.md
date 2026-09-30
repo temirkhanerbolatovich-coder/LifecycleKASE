@@ -38,4 +38,4 @@ The fixed on-chain bound prevents late direct calls without adding a bootstrap o
 
 ## Future work
 
-Wire authenticated transaction preparation and finalized confirmation to the persisted `snapshot-v2` candidate, add a missed-window terminal transition, and consider governed configuration only if a different window becomes a demonstrated requirement.
+Extend the internal unsigned instruction plan into an authenticated wallet transaction, verify the finalized transaction and action PDA before database finalization, add a missed-window terminal transition, and consider governed configuration only if a different window becomes a demonstrated requirement.

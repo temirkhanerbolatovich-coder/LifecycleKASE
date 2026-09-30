@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { buildSnapshotRegistrationInstruction } from "../../packages/solana-client/dist/index.js";
 import anchor from "@anchor-lang/core";
 import {
   Connection,
@@ -431,6 +432,41 @@ const [snapshotActionAddress] = PublicKey.findProgramAddressSync(
 const snapshotRecordAt = Math.floor(Date.now() / 1000) + 25;
 await createAction(snapshotActionId, { couponPayment: {} }, snapshotRecordAt, snapshotRecordAt + 3_600);
 const snapshotHash = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
+const preparationSlot = await connection.getSlot("finalized");
+const preparedRegistration = await buildSnapshotRegistrationInstruction({
+  programId: programId.toBase58(),
+  instrumentId,
+  actionId: snapshotActionId,
+  issuerAuthority: administrator.publicKey.toBase58(),
+  bondMint: bondMint.toBase58(),
+  snapshotHash: Buffer.from(snapshotHash).toString("hex"),
+  snapshotSlot: BigInt(preparationSlot),
+  investorCount: 3,
+  walletCount: 3,
+  totalBalance: 35n,
+  mintSupply: 35n,
+});
+assert.equal(preparedRegistration.instrumentAddress, instrumentAddress.toBase58());
+assert.equal(preparedRegistration.actionAddress, snapshotActionAddress.toBase58());
+const anchorRegistration = await program.methods.registerSnapshot({
+  snapshotHash: [...snapshotHash],
+  snapshotSlot: new BN(preparationSlot),
+  investorCount: 3,
+  walletCount: 3,
+  totalBalance: new BN(35),
+  mintSupply: new BN(35),
+}).accountsStrict({
+  issuerAuthority: administrator.publicKey,
+  instrument: instrumentAddress,
+  corporateAction: snapshotActionAddress,
+  instrumentAuthority,
+  bondMint,
+  token2022Program: TOKEN_2022_PROGRAM_ID,
+}).instruction();
+assert.deepEqual(Buffer.from(preparedRegistration.data), anchorRegistration.data);
+assert.deepEqual(preparedRegistration.accounts.map((account) => account.address),
+  anchorRegistration.keys.map((account) => account.pubkey.toBase58()));
+console.log("PASS internal snapshot registration plan matches Anchor encoding and PDAs");
 await assert.rejects(
   registerSnapshot(snapshotActionAddress, await connection.getSlot("finalized"), snapshotHash),
   (error) => /SnapshotWindowMissed|outside the record-date window/

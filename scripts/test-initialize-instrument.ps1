@@ -5,6 +5,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+& npm run build --workspace @lifecycle-kase/solana-client
+if ($LASTEXITCODE -ne 0) {
+    throw "Solana client build failed before the integration test."
+}
+
 if ($null -eq (Get-Command "wsl" -ErrorAction SilentlyContinue)) {
     throw "WSL 2 is required for the on-chain integration test."
 }

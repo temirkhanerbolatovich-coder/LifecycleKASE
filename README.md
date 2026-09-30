@@ -89,7 +89,7 @@ The smoke test starts an isolated validator on port `18899`, waits for a JSON-RP
 
 ## Current limitations
 
-- The internal API package prepares a snapshot candidate and persists it as `PENDING_REGISTRATION`; its only HTTP routes are health checks. The frontend is a read-only status page. Authentication, administrator workflows, signed transaction preparation/confirmation, and the connection from the persisted candidate to on-chain registration are not implemented. The Anchor instructions have been tested only against disposable local-validator mints, not a Devnet mint.
+- The internal API package prepares a snapshot candidate, persists it as `PENDING_REGISTRATION`, and can produce an unsigned `register_snapshot` instruction plan from that saved snapshot; its only HTTP routes are health checks. The frontend is a read-only status page. Authentication, serialized wallet transaction signing/submission, finalized confirmation, and database finalization are not implemented. The Anchor instructions have been tested only against disposable local-validator mints, not a Devnet mint.
 - Four SQL migrations and database guard tests are implemented. The third migration requires an empty pre-MVP domain database; it stops when domain records exist.
 - The TypeScript domain contracts are implemented; matching Rust calculations are not yet available.
 - The validator smoke-test requires an external Solana CLI installation.
