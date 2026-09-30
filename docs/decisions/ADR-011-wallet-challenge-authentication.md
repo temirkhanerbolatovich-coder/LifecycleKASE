@@ -18,7 +18,9 @@ LifecycleKASE must authenticate operators without storing administrator private 
 
 Use option 3 for the MVP. A challenge is issued only to an active, verified wallet linked to an operational user role. Its message includes the configured domain, exact allowed origin, wallet address, challenge UUID, cryptographically random nonce, expiry, and a statement that signing does not authorize a transaction or payment.
 
-The database stores only SHA-256 of the nonce and session token. Verification checks the Ed25519 signature with the wallet public key and atomically consumes the unexpired challenge before creating a short-lived session. The plaintext session token exists only in an HttpOnly, Secure-in-production, SameSite=Strict cookie. CORS accepts only configured exact origins with credentials. Authentication routes are disabled unless `AUTH_ENABLED=true`.
+The database stores only SHA-256 of the nonce and session token. Verification checks the Ed25519 signature with the wallet public key and atomically consumes the unexpired challenge before creating a short-lived session. The plaintext session token exists only in an HttpOnly, Secure-in-production, SameSite=Strict cookie. CORS accepts only configured exact origins with credentials. Authentication routes are disabled unless `AUTH_ENABLED=true`. Challenge and verification requests use separate configurable per-client fixed-window limits; a limit response includes `Retry-After`.
+
+The first operator is created by a controlled CLI that accepts only a public wallet address, requires the address to be repeated as confirmation, writes the user, active verified wallet and audit event atomically, and refuses to alter a conflicting existing identity or lifecycle state.
 
 ## Reasoning
 
@@ -33,14 +35,14 @@ This design uses the same wallet control that later signs prepared Solana transa
 
 ## Risks
 
-- Application-level challenge rate limiting is not implemented; keep authentication disabled on public staging until an ingress or application limit is configured.
+- The implemented limiter is process-local. It is sufficient only for the current single-instance demo and must be replaced or supplemented by a shared ingress/distributed limit before horizontal scaling or production use.
 - A compromised authorized wallet can authenticate until the wallet mapping is revoked.
 - SameSite cookies are not a replacement for checking the exact Origin on every state-changing request.
-- The current slice does not yet write authentication audit events or provide an operator-provisioning UI.
+- The current slice records provisioning but does not yet write login success/failure audit events or provide an operator-administration UI.
 
 ## Future work
 
 - Extend the implemented Wallet Standard login panel with snapshot transaction signing/submission and explicit transaction review.
-- Add rate limiting, authentication audit events, session cleanup, and controlled operator provisioning.
+- Add authentication audit events, session/challenge cleanup, operator revocation/rotation, and a reviewed operator-administration flow.
 - Add reusable authorization guards for role- and issuer-scoped domain endpoints.
 - Implement the separate Investor ID wallet proof flow with genesis-hash binding.

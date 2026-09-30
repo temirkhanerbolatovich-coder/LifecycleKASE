@@ -11,16 +11,25 @@ import {
   revokeOperatorSession,
   verifyOperatorChallenge
 } from "./auth.js";
+import { AuthRateLimitError, AuthRateLimitService, authenticationClientKey } from "./auth-rate-limit.js";
 import { PrismaService } from "./prisma.service.js";
 
 type CookieResponse = {
   cookie(name: string, value: string, options: Record<string, unknown>): void;
   clearCookie(name: string, options: Record<string, unknown>): void;
+  setHeader(name: string, value: string): void;
 };
-type CookieRequest = { headers?: { cookie?: string } };
+type CookieRequest = {
+  headers?: { cookie?: string };
+  ip?: string;
+  socket?: { remoteAddress?: string };
+};
 
-function throwHttp(error: unknown): never {
+function throwHttp(error: unknown, response?: CookieResponse): never {
   if (error instanceof AuthFlowError) {
+    if (error instanceof AuthRateLimitError && response) {
+      response.setHeader("Retry-After", String(error.retryAfterSeconds));
+    }
     throw new HttpException({ code: error.code, message: error.message }, error.status);
   }
   throw error;
@@ -38,19 +47,28 @@ function cookieOptions(maxAge?: number): Record<string, unknown> {
 
 @Controller("auth")
 export class AuthController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly rateLimit: AuthRateLimitService
+  ) {}
 
   @Post("challenge")
-  async challenge(@Body() body: { walletAddress?: unknown }, @Headers("origin") origin?: string) {
+  async challenge(
+    @Body() body: { walletAddress?: unknown },
+    @Headers("origin") origin: string | undefined,
+    @Req() request: CookieRequest,
+    @Res({ passthrough: true }) response: CookieResponse
+  ) {
     try {
       requireAuthenticationEnabled();
+      this.rateLimit.consumeChallenge(authenticationClientKey(request));
       return await createOperatorChallenge(
         this.prisma,
         { walletAddress: body?.walletAddress, origin, now: new Date() },
         authOptionsFromEnvironment()
       );
     } catch (error) {
-      throwHttp(error);
+      throwHttp(error, response);
     }
   }
 
@@ -58,10 +76,12 @@ export class AuthController {
   async verify(
     @Body() body: { challengeId?: unknown; nonce?: unknown; signature?: unknown },
     @Headers("origin") origin: string | undefined,
+    @Req() request: CookieRequest,
     @Res({ passthrough: true }) response: CookieResponse
   ) {
     try {
       requireAuthenticationEnabled();
+      this.rateLimit.consumeVerification(authenticationClientKey(request));
       const options = authOptionsFromEnvironment();
       const result = await verifyOperatorChallenge(this.prisma, {
         challengeId: body?.challengeId,
@@ -73,7 +93,7 @@ export class AuthController {
       response.cookie(AUTH_COOKIE_NAME, result.sessionToken, cookieOptions(options.sessionTtlSeconds * 1000));
       return { sessionId: result.sessionId, expiresAt: result.expiresAt, user: result.user };
     } catch (error) {
-      throwHttp(error);
+      throwHttp(error, response);
     }
   }
 

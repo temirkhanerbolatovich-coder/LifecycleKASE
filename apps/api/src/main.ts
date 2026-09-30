@@ -3,6 +3,7 @@ import { NestFactory } from "@nestjs/core";
 import { isNativeError } from "node:util/types";
 import { AppModule } from "./app.module.js";
 import { authOptionsFromEnvironment } from "./auth.js";
+import { trustedProxyHopsFromEnvironment } from "./auth-rate-limit.js";
 
 try {
   process.loadEnvFile(new URL("../../../.env", import.meta.url));
@@ -22,6 +23,7 @@ function apiPort(value: string | undefined): number {
 }
 
 const app = await NestFactory.create(AppModule);
+app.getHttpAdapter().getInstance().set("trust proxy", trustedProxyHopsFromEnvironment());
 app.setGlobalPrefix("api/v1");
 app.enableCors({ origin: [...authOptionsFromEnvironment().allowedOrigins], credentials: true });
 app.enableShutdownHooks();

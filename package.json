@@ -23,6 +23,7 @@
     "prisma:generate": "node scripts/run-prisma.mjs generate",
     "prisma:migrate:deploy": "node scripts/run-prisma.mjs migrate-deploy",
     "prisma:validate": "node scripts/run-prisma.mjs validate",
+    "operator:provision": "npm run build --workspace @lifecycle-kase/api && node scripts/provision-operator.mjs",
     "test": "npm run test --workspaces --if-present && node --test \"test/**/*.test.mjs\"",
     "test:database": "node scripts/test-database.mjs",
     "test:api:database": "npm run build --workspace @lifecycle-kase/api && node scripts/test-api-persistence.mjs",

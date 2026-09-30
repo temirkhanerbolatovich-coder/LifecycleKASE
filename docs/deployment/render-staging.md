@@ -39,6 +39,6 @@ The database `ipAllowList: []` blocks external connections. The API gets its con
 
 The free API may sleep after inactivity. During wake-up, the dashboard may temporarily show `Недоступно`; refresh after the API has warmed. The dashboard validates the JSON status and will not treat a Render loading page as readiness.
 
-The Blueprint preconfigures the exact dashboard origin and secure-cookie setting for the wallet-login flow, but keeps `AUTH_ENABLED=false`. Do not enable authentication until an operator user and active verified wallet have been provisioned through a controlled process. The browser-facing `NEXT_PUBLIC_API_URL` contains only the public API origin; it is not a secret.
+The Blueprint preconfigures the exact dashboard origin, secure-cookie setting and single-instance authentication rate limits for the wallet-login flow, but keeps `AUTH_ENABLED=false`. Do not enable authentication until an operator user and active verified wallet have been provisioned through the [controlled runbook](../operations/operator-provisioning.md). The browser-facing `NEXT_PUBLIC_API_URL` contains only the public API origin; it is not a secret.
 
 For a persistent pilot, replace this temporary setup with paid/managed resources, backups, a dedicated migration gate, and a security review. See [ADR-007](../decisions/ADR-007-disposable-render-staging.md).

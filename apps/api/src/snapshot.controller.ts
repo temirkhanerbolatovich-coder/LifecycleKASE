@@ -11,17 +11,25 @@ import {
   requireRequestOrigin,
   sessionTokenFromCookieHeader
 } from "./auth.js";
+import { AuthRateLimitError, AuthRateLimitService, authenticationClientKey } from "./auth-rate-limit.js";
 import { PrismaService } from "./prisma.service.js";
 import { SnapshotPreparationError } from "./snapshot-candidate.js";
 import { confirmSnapshotRegistration } from "./snapshot-confirmation.js";
 import { prepareSnapshotRegistrationForAction, snapshotHttpOptionsFromEnvironment } from "./snapshot-http.js";
 
-type HttpRequest = { headers?: { cookie?: string } };
+type HttpRequest = {
+  headers?: { cookie?: string };
+  ip?: string;
+  socket?: { remoteAddress?: string };
+};
 type HttpResponse = { setHeader(name: string, value: string): void };
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-function httpError(error: unknown): never {
+function httpError(error: unknown, response?: HttpResponse): never {
   if (error instanceof AuthFlowError) {
+    if (error instanceof AuthRateLimitError && response) {
+      response.setHeader("Retry-After", String(error.retryAfterSeconds));
+    }
     throw new HttpException({ code: error.code, message: error.message }, error.status);
   }
   if (error instanceof SnapshotPreparationError) {
@@ -41,7 +49,10 @@ function httpError(error: unknown): never {
 
 @Controller("corporate-actions")
 export class SnapshotController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly rateLimit: AuthRateLimitService
+  ) {}
 
   @Post(":id/snapshot/prepare")
   async prepare(
@@ -58,6 +69,7 @@ export class SnapshotController {
       requireAuthenticationEnabled();
       const authOptions = authOptionsFromEnvironment();
       requireRequestOrigin(origin, authOptions);
+      this.rateLimit.consumeMutation(authenticationClientKey(request));
       const session = await readOperatorSession(
         this.prisma,
         sessionTokenFromCookieHeader(request.headers?.cookie),
@@ -76,7 +88,7 @@ export class SnapshotController {
         { ...options, now: new Date() }
       );
     } catch (error) {
-      httpError(error);
+      httpError(error, response);
     }
   }
 
@@ -96,6 +108,7 @@ export class SnapshotController {
       requireAuthenticationEnabled();
       const authOptions = authOptionsFromEnvironment();
       requireRequestOrigin(origin, authOptions);
+      this.rateLimit.consumeMutation(authenticationClientKey(request));
       const session = await readOperatorSession(
         this.prisma,
         sessionTokenFromCookieHeader(request.headers?.cookie),
@@ -125,7 +138,7 @@ export class SnapshotController {
         new Date()
       );
     } catch (error) {
-      httpError(error);
+      httpError(error, response);
     }
   }
 }
