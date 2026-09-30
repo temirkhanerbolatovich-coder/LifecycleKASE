@@ -10,3 +10,4 @@
 - [ADR-008: Program upgrade authority as MVP administrator](ADR-008-program-administrator.md)
 - [ADR-009: On-chain balance reconciliation for instrument activation](ADR-009-instrument-activation.md)
 - [ADR-010: Bounded on-chain snapshot registration](ADR-010-snapshot-registration.md)
+- [ADR-011: Domain-bound operator wallet authentication](ADR-011-wallet-challenge-authentication.md)
