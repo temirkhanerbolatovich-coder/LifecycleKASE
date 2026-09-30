@@ -40,6 +40,7 @@ This design uses the same wallet control that later signs prepared Solana transa
 
 ## Future work
 
+- Extend the implemented Wallet Standard login panel with snapshot transaction signing/submission and explicit transaction review.
 - Add rate limiting, authentication audit events, session cleanup, and controlled operator provisioning.
 - Add reusable authorization guards for role- and issuer-scoped domain endpoints.
 - Implement the separate Investor ID wallet proof flow with genesis-hash binding.

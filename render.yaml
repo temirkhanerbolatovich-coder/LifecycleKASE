@@ -11,6 +11,14 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 24.21.0
+      - key: AUTH_ENABLED
+        value: "false"
+      - key: AUTH_DOMAIN
+        value: lifecyclekase-web.onrender.com
+      - key: AUTH_ALLOWED_ORIGINS
+        value: https://lifecyclekase-web.onrender.com
+      - key: AUTH_COOKIE_SECURE
+        value: "true"
       - key: DATABASE_URL
         fromDatabase:
           name: lifecyclekase-staging-db
@@ -28,6 +36,11 @@ services:
       - key: NODE_VERSION
         value: 24.21.0
       - key: API_SERVER_URL
+        fromService:
+          type: web
+          name: lifecyclekase-api
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: NEXT_PUBLIC_API_URL
         fromService:
           type: web
           name: lifecyclekase-api

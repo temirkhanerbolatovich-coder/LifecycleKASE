@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { WalletLogin } from "./wallet-login";
 
 type ApiState = "ready" | "unavailable";
 
@@ -57,10 +58,19 @@ export default async function Dashboard() {
           </div>
         </section>
 
+        <section className="grid gap-5 border-t border-[#dbe5df] py-10 lg:grid-cols-[1fr_1.25fr] lg:items-start">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#28744a]">Безопасный вход</p>
+            <h2 className="mt-2 text-2xl font-semibold">Кошелёк остаётся у оператора</h2>
+            <p className="mt-4 max-w-lg text-sm leading-6 text-[#61746a]">Приложение использует Solana Wallet Standard и просит подписать одноразовое domain-bound сообщение. Private key, seed phrase и session token не доступны JavaScript-коду приложения.</p>
+          </div>
+          <WalletLogin />
+        </section>
+
         <section className="border-t border-[#dbe5df] py-10">
           <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
             <div><p className="text-xs font-bold uppercase tracking-[0.22em] text-[#28744a]">Дорожная карта</p><h2 className="mt-2 text-2xl font-semibold">Что будет доступно дальше</h2></div>
-            <span className="text-sm text-[#718279]">Функции пока не активны</span>
+            <span className="text-sm text-[#718279]">Вход реализован; рабочие операции добавляются поэтапно</span>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             {[

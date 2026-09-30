@@ -89,7 +89,7 @@ The smoke test starts an isolated validator on port `18899`, waits for a JSON-RP
 
 ## Current limitations
 
-- The API supports domain-bound operator wallet authentication and administrator-only snapshot preparation/confirmation routes. It persists `PENDING_REGISTRATION`, audits capture and each prepared attempt, returns a serialized unsigned Solana v0 transaction, and finalizes the database projection only after the exact transaction and Action PDA are verified at `finalized`. The frontend is still a read-only status page, so wallet signing/submission is not wired into the product UI. The confirmation path is fixture-tested but has no live Devnet-mint proof. Public authentication remains disabled until explicitly configured.
+- The API supports domain-bound operator wallet authentication and administrator-only snapshot preparation/confirmation routes. The dashboard now discovers Wallet Standard wallets and can complete the message-signing login flow when authentication and an operator wallet are provisioned. Snapshot transaction signing/submission is not yet wired into the UI. The confirmation path is fixture-tested but has no live Devnet-mint proof. Public authentication remains disabled until explicitly configured.
 - Four SQL migrations and database guard tests are implemented. The third migration requires an empty pre-MVP domain database; it stops when domain records exist.
 - The TypeScript domain contracts are implemented; matching Rust calculations are not yet available.
 - The validator smoke-test requires an external Solana CLI installation.

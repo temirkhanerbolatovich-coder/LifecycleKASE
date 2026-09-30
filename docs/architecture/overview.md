@@ -7,7 +7,7 @@ Last updated: 2026-09-30
 
 | Component | Responsibility | Trust boundary |
 |---|---|---|
-| Next.js web | Read-only status dashboard implemented; administrator/auditor workflows and wallet interaction pending | Untrusted client; no authoritative validation |
+| Next.js web | Status dashboard and Wallet Standard operator message-signing login; transaction submission and administrator/auditor workflows pending | Untrusted client; no authoritative validation and no private-key custody |
 | API package | Operator wallet authentication plus administrator-only snapshot capture, transaction preparation and finalized confirmation; NestJS health routes | Trusted application service when deployed; never holds administrator private keys |
 | Domain package | Deterministic calculations and state rules | Pure logic with no network or persistence side effects |
 | Solana client package | Token-2022 holder collection, instruction/transaction serialization, exact signed-message verification and Action PDA decoding | Converts finalized chain data into validated holder balances and confirmation evidence |

@@ -6,7 +6,7 @@ This is a repository status, not a claim that the full MVP or a production finan
 
 | Area | Current status | Evidence / limit |
 |---|---|---|
-| Web and HTTP service | Read-only Next.js status dashboard; NestJS health, operator wallet authentication, and administrator snapshot prepare/confirm routes | Wallet authentication is disabled by default and fixture-tested locally; no wallet UI, controlled operator provisioning, public-domain rate limiting, or broader admin/auditor workflows yet |
+| Web and HTTP service | Next.js status dashboard with Wallet Standard operator login; NestJS health, authentication, and administrator snapshot prepare/confirm routes | Authentication is disabled by default and no public operator is provisioned; no snapshot transaction submission UI, controlled provisioning interface, public-domain rate limiting, or broader admin/auditor workflows yet |
 | Public staging | Render Blueprint deployed in separate Hobby workspace with two free Node services and disposable PostgreSQL | Health and dashboard verified on 2026-09-29 at commit `626cc32`; free DB is not durable and no real data is permitted. See [deployment record](deployment/render-staging.md) |
 | Investor identity, wallet mapping, approvals, legs, receipts | Schema and PostgreSQL migration implemented | Database guards run locally; no domain API or UI flows yet |
 | Snapshot-v2, investor aggregation, eligibility and leg reconciliation | Pure TypeScript contracts plus authenticated prepare/finalized-confirm API flow implemented | Unit and fixture tests pass; local on-chain commitment instruction exists, but no wallet UI/submission or real snapshot proof |
@@ -19,4 +19,4 @@ This is a repository status, not a claim that the full MVP or a production finan
 | Transfer Hook, whitelist, freeze, role separation | Post-MVP options | Schema flags and role names do not enforce direct token transfers or permissions; after-snapshot transfers can make a redemption burn fail and must not be hidden by a payout. |
 | Real KYC, bank settlement, digital tenge, KASE/CSD integration | Out of scope | No external integration or real-money claim |
 
-The next product gate is wallet UI/submission plus a real Devnet snapshot proof, followed by authenticated Investor Registry management and a reviewed coupon execution vertical slice. The full MVP Definition of Done is in the [product requirements](requirements/PRODUCT_REQUIREMENTS.md).
+The next product gate is snapshot transaction signing/submission in the authenticated wallet UI plus a real Devnet snapshot proof, followed by authenticated Investor Registry management and a reviewed coupon execution vertical slice. The full MVP Definition of Done is in the [product requirements](requirements/PRODUCT_REQUIREMENTS.md).
