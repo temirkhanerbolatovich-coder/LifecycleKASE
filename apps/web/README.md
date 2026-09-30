@@ -23,3 +23,5 @@ There is no automatic resend or confirmation polling. After invoking the wallet,
 DEMO_CAPTURE_SLOT refers to ownership at the effective capture slot, not historical ownership at the earlier planned record date. Registration spends test SOL, not a coupon/payment/burn. Public staging authentication remains disabled; no real operator-wallet or Devnet end-to-end acceptance has been performed.
 
 Run `npm run test --workspace @lifecycle-kase/web` for boundary/encoding/finalization checks. `npm test` also checks compatibility with the actual backend transaction serializer. These tests do not replace wallet-extension and live Devnet acceptance.
+
+Follow the [Devnet acceptance checklist](../../docs/testing/devnet-snapshot-acceptance.md) for user-controlled wallet setup, prerequisite gates and required evidence.
