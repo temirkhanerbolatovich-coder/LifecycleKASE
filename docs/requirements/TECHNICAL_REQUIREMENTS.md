@@ -1,9 +1,11 @@
 # LifecycleKASE — технические требования к разработке MVP
 
-Версия: 1.1
-Дата: 28 сентября 2026
+Версия: 1.2
+Дата: 30 сентября 2026
 Статус: обязательная техническая спецификация
 Продуктовые требования: [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md)
+
+Сравнительное основание версии 1.2: [исследование платформ и блокчейнов](../research/tokenized-securities-landscape-2026-09-30.md). Это целевая спецификация; наличие пункта здесь не означает его реализацию в текущем repository.
 
 ## 1. Цель и инженерные принципы
 
@@ -90,7 +92,7 @@ Ephemeral local keypairs разрешены только в automated tests и s
 
 ### 2.6. Snapshot policy
 
-Snapshot создаётся на актуальном finalized context slot. Ретроактивный snapshot по произвольному прошлому slot не поддерживается.
+Snapshot создаётся на актуальном finalized context slot. Ретроактивный snapshot по произвольному прошлому slot не поддерживается. В Devnet demo `record_at` открывает окно capture, а `snapshot.solana_slot` и `snapshot.block_time` задают **effective record point** для entitlement. Эти два времени не отождествляются. Строгое право на заранее заданную секунду `record_at` требует отдельного checkpoint/transfer control/исторического индексера и не заявляется в MVP. Обычный `getProgramAccounts` с `finalized` не является запросом состояния на произвольный прошлый slot. См. [ADR-002](../decisions/ADR-002-record-date-snapshot.md).
 
 ## 3. Технологический стек
 
@@ -262,6 +264,8 @@ mint_supply: bigint
 status: PENDING_REGISTRATION | FINALIZED
 ```
 
+Для `snapshot-v2` `record_at` — начало разрешённого demo-окна, `solana_slot`/`block_time` — effective record point. Договорный/legal record date для реальной бумаги не выводится автоматически из этих полей. Изменение смысла canonical полей требует новой версии схемы, а не тихой переинтерпретации старых hash.
+
 ### 5.4. Entitlement
 
 ```text
@@ -289,7 +293,9 @@ Unique constraint: `(corporate_action_id, investor_id)`. Snapshot rows: Snapshot
 
 `Investor` хранит стабильный ID, display name, `INDIVIDUAL|INSTITUTIONAL`, ISO country code, KYC status, eligibility status и lifecycle status. `Wallet` хранит address, network, owner Investor ID, `PENDING|ACTIVE|BLOCKED|REVOKED`, verified/revoked timestamps. Admin auth wallets могут иметь User ID без Investor ID; для holder registry требуется именно Investor ID.
 
-Eligibility Engine принимает snapshot investor row, статус инвестора на record date, статус его wallets и параметры инструмента. Он возвращает decision, reason и версию правила. Только `ELIGIBLE` допускается к исполнению; `PENDING_REVIEW` и `SUSPENDED` требуют ручного разрешения или нового action. Проверка receiver wallet выполняется непосредственно перед payout, чтобы отзыв кошелька после snapshot не приводил к выплате на него. Это не меняет исторический snapshot.
+Eligibility Engine принимает snapshot investor row, статус инвестора на effective finalized snapshot slot, статус его wallets и параметры инструмента. Он возвращает decision, reason и версию правила. Только `ELIGIBLE` допускается к исполнению; `PENDING_REVIEW` и `SUSPENDED` требуют ручного разрешения или нового action. Проверка receiver wallet выполняется непосредственно перед payout, чтобы отзыв кошелька после snapshot не приводил к выплате на него. Это не меняет уже зафиксированный snapshot.
+
+В demo дата eligibility трактуется как effective finalized snapshot slot/time (§2.6). Текущий mutable `Investor`/`Wallet` row не доказывает прошлый статус: до snapshot изменения registry замораживаются либо сохраняются append-only версии с effective time и actor. Wallet verification требует nonce-based доказательства контроля адреса; администраторский ввод адреса без подписи не делает его `verified`.
 
 ### 5.6. Settlement Legs и Action Receipt
 
@@ -479,6 +485,8 @@ bump
 
 После instruction action = `SNAPSHOT_CREATED`. Hash изменить нельзя. Программа не доказывает `finalized` RPC context, block time, verified wallet mapping или preimage hash: backend проверяет их до подготовки transaction и после finalized confirmation сверяет PDA. См. [ADR-010](../decisions/ADR-010-snapshot-registration.md).
 
+`record_at + 300` — только временная граница регистрации, **не** доказательство баланса ровно на `record_at`. Transaction preparation передаёт effective slot/time пользователю. До публичного API подтверждение обязано проверить подписанную transaction (program ID, discriminator, data, accounts, signer), finalized status и read-back PDA; одна signature без этих проверок не меняет статус БД.
+
 #### `register_entitlement`
 
 Создаёт entitlement PDA для инвестора.
@@ -524,6 +532,8 @@ bump
 4. создаёт Redemption Record PDA;
 5. устанавливает entitlement `REDEEMED`;
 6. обновляет counters.
+
+Если snapshot balance и текущие source token accounts разошлись из-за transfer, on-chain исполнение должно fail-closed до payment; permanent delegate не вправе подменять source accounts на токены иного инвестора. Для нескольких wallets одного Investor ID transaction включает все выбранные token accounts и проверяет суммарный burn; превышение account/compute/size limits блокирует один атомарный entitlement и требует отдельного redesign, а не частичного pay/burn.
 
 #### `execute_early_redemption`
 
@@ -648,6 +658,8 @@ MVP использует wallet challenge flow:
 
 Authorized administrator wallets задаются конфигурацией или seed data. Mutation endpoint повторно проверяет role.
 
+Investor wallet verification использует отдельный challenge, связанный с Investor ID, wallet address, chain genesis hash, origin, nonce и expiry. Подпись проверяется до установки `verified_at`; nonce одноразовый. Admin может начать привязку, но не может объявить произвольный чужой wallet подтверждённым без доказательства контроля или документированной ручной процедуры с audit evidence.
+
 ### 9.3. Holder service
 
 Holder service:
@@ -660,6 +672,8 @@ Holder service:
 6. агрегирует balances по owner wallet;
 7. связывает только verified wallets с investors и агрегирует по Investor ID;
 8. сверяет сумму с mint supply.
+
+Collector фиксирует effective slot и block time. `withContext` обеспечивает контекст ответа, но не запрос к произвольному историческому slot; `minContextSlot` не используется как подмена historical checkpoint. Если RPC не даёт полный согласованный набор accounts, операция fail-closed и не создаёт entitlement.
 
 Запрещено использовать только `getTokenLargestAccounts`, потому что он не гарантирует полный registry.
 
@@ -680,6 +694,8 @@ Holder service:
 
 Окно snapshot задаётся `SNAPSHOT_GRACE_SECONDS`; default для demo — 300 секунд. Пропущенное окно не восстанавливается автоматически.
 
+Для Devnet сначала сохраняется `PENDING_REGISTRATION`, затем из **этой же** canonical записи готовится unsigned instruction. Повторная попытка использует pending запись и новый blockhash, не перечитывает holders и не изменяет hash. В read-only audit выводятся оба времени: planned `record_at` и effective `block_time`; `snapshot-v2` не расширяется без новой версии canonical формата. Пока отдельная instruction для `SNAPSHOT_MISSED` не реализована, backend/UI фиксируют блокирующий missed-state только в orchestration и не имитируют on-chain terminal transition.
+
 ### 9.5. Transaction preparation
 
 Backend возвращает:
@@ -694,6 +710,8 @@ Backend возвращает:
 
 Frontend проверяет network и connected wallet перед подписью.
 
+Для `register_snapshot` исходный результат внутреннего сервиса сегодня является **unsigned instruction plan**, а не сериализованной транзакцией. Требование на serialized signable message остаётся невыполненным до auth/wallet flow. Клиент обязан показать hash, action, effective slot, issuer signer, program/mint, blockhash expiry и предупреждение о тестовом активе; stale plan нельзя молча переподписать после expiry или record window.
+
 ### 9.6. Confirmation and reconciliation
 
 - signature сохраняется сразу после отправки;
@@ -704,6 +722,8 @@ Frontend проверяет network и connected wallet перед подпис�
 - confirm endpoint принимает signature только после проверки program ID, instruction data, signer, accounts и ожидаемого изменения PDA/token balances;
 - reconciliation job сравнивает database projection с chain state;
 - подтверждённое on-chain исполнение восстанавливает projection после backend crash.
+
+Snapshot confirmation переводит DB row в `FINALIZED` только после сопоставления finalized transaction с сохранённым hash/counts/slot и read-back action PDA. При timeout или RPC расхождении остаётся `PENDING_REGISTRATION`/`UNKNOWN_CONFIRMATION`, а повторная проверка не создаёт новый snapshot. Для redemption дополнительно сопоставляются source token accounts, burn, recipient settlement и отсутствие payout при failed burn.
 
 ## 10. REST API
 
@@ -779,6 +799,8 @@ GET  /corporate-actions/:id/reconciliation
 
 `POST /corporate-actions` создаёт database draft с intent и source provenance. `schedule/prepare` создаёт on-chain action. `calculate` выполняет pure off-chain расчёт и сохраняет draft entitlements. `calculation/prepare` формирует transaction с `register_entitlement` instructions и `finalize_calculation`; при превышении transaction limits создаётся упорядоченная последовательность transactions. `calculation/confirm` проверяет entitlement PDAs и action counters до перехода database projection в `UNDER_REVIEW`. `review/approve`, `review/reject` и `review/return` требуют authenticated operator и сохраняют audit event. `execute` отклоняет action без approval.
 
+`snapshot/prepare` возвращает planned `record_at` **и** effective slot/time, а также признак `DEMO_CAPTURE_SLOT`; `snapshot/confirm` принимает signature, но не доверяет ей без finalized transaction/PDA verification. Ошибка вне окна не запускает повторный capture в будущем. `execute/prepare` для redemption проверяет текущие bond source accounts, границы одной transaction и бюджет; mismatch даёт блокирующий conflict/exception, а не новый entitlement на свежих balances.
+
 ### 10.5. Entitlements
 
 ```text
@@ -800,6 +822,8 @@ GET /operations/:id
 GET /health/live
 GET /health/ready
 ```
+
+`GET /snapshots/:id/canonical`, investor-level receipts и связь Investor ID ↔ wallet требуют authenticated Administrator/Auditor, проверки issuer scope и audit события скачивания. Публичные evidence endpoints могут отдавать только hash, slot, program ID и signatures без идентичности держателя.
 
 ### 10.7. Status codes
 
@@ -857,6 +881,7 @@ audit_logs
 - nonnegative balance/amount/supply checks;
 - `record_at <= execute_at`;
 - immutable finalized snapshot fields;
+- запрет неаудированного изменения registry mappings/eligibility в окне capture; для будущих версий — append-only effective-time history;
 - enum/check constraints aligned with domain states.
 
 ### 11.3. Indexes
@@ -937,6 +962,8 @@ UNKNOWN_CONFIRMATION
 ```
 
 Закрытие страницы не должно терять operation; восстановление идёт по operation ID/signature.
+
+На snapshot и receipt экранах различаются planned `record_at` и effective finalized slot/block time; `DEMO_CAPTURE_SLOT` и отсутствие строгого юридического cut-off видимы. При transfer между этими точками UI не утверждает, что новый holder владел токеном на `record_at`. Full canonical dataset и eligibility скрыты от публичного просмотра.
 
 ### 12.3. Calculation presentation
 
@@ -1053,6 +1080,9 @@ Meaningful failures не проглатываются. Logs содержат cor
 - supply mismatch rejection;
 - hash reproduction from downloaded canonical JSON;
 - snapshot window missed.
+- transfer между `record_at` и capture: entitlement относится к effective slot, не подменяется историческим состоянием;
+- registry edit во время capture блокируется/версионируется; unauthorized canonical download запрещён;
+- подмена canonical JSON при прежнем hash, несовпадение finalized slot/block time и неподтверждённая signature отклоняются.
 
 ### 15.3. Anchor tests
 
@@ -1069,6 +1099,8 @@ Meaningful failures не проглатываются. Logs содержат cor
 - atomic redemption payment and burn;
 - partial early redemption;
 - insufficient treasury rollback;
+- redemption after post-snapshot transfer не выплачивает и не сжигает чужие tokens;
+- проверка нескольких wallets/token accounts одного инвестора и fail-closed при превышении transaction limits;
 - wrong signer rejection;
 - finalization only after all entitlements.
 
@@ -1084,6 +1116,8 @@ Meaningful failures не проглатываются. Logs содержат cor
 - confirmation unknown then reconciliation success;
 - worker restart safety;
 - audit creation for every transition.
+- snapshot confirmation требует finalized transaction + matching instruction + read-back PDA; timeout сохраняет unknown/pending;
+- полный бюджет action проверяется до approval, а каждая выплата повторно защищена on-chain балансом;
 
 ### 15.5. Frontend tests
 
@@ -1096,6 +1130,8 @@ Meaningful failures не проглатываются. Logs содержат cor
 - partially completed action;
 - Explorer link cluster;
 - refresh/resume by operation ID.
+- раздельное отображение planned/effective record point и блокирующего redemption exception;
+- canonical snapshot нельзя скачать без нужной роли и issuer scope.
 
 ### 15.6. End-to-end acceptance
 
@@ -1173,6 +1209,9 @@ secret scan
 - SQL выполняется через Prisma parameterization;
 - dependency и secret scans входят в CI;
 - upgrade authority program и mint authorities перечисляются в Technical Overview;
+- threat model отдельно покрывает право permanent delegate на burn/transfer из любого bond account, смену delegate, program upgrade, ошибочный snapshot hash и злоупотребление issuer signer;
+- Investor ID, wallet mapping, KYC/eligibility и canonical dataset не публикуются без role/issuer-scope authorization; на chain не записываются имена, документы, KYC evidence и иной PII;
+- администраторский UI не вправе объявлять direct Token-2022 transfer запрещённым, пока действующий on-chain контроль и его тесты не представлены;
 - mainnet, реальные деньги и production custody блокируются отдельным release gate.
 
 ## 18. Документация
@@ -1210,19 +1249,19 @@ Acceptance: Token-2022 bond/KZT-Test, Instrument PDA, Action PDA и authority te
 ### Milestone 2 — Registry and snapshot
 
 Owner: Backend + Blockchain.
-Acceptance: Investor Registry связывает verified wallets, агрегирует 10/20/5 по Investor ID, supply reconciles to 35, canonical snapshot-v2 hash воспроизводится и регистрируется on-chain.
+Acceptance: Investor Registry связывает wallets после proof-of-control, агрегирует 10/20/5 по Investor ID, supply reconciles to 35, canonical snapshot-v2 hash воспроизводится и регистрируется on-chain. UI/API показывают `record_at` как начало demo-окна и effective finalized slot/time как источник прав; finalized transaction и PDA проверены, а приватный dataset не открыт публично.
 
 ### Milestone 3 — Coupon vertical slice
 
 Owner: Full team.
-Acceptance: API и минимальный UI проводят review/approval, затем 500/1,000/250 KZT-Test payments, показывают Cash/Asset Legs, Action Receipt и proofs, отвергают duplicate execution.
+Acceptance: API и минимальный UI проводят review/approval после проверки полного бюджета action, затем 500/1,000/250 KZT-Test payments, показывают Cash/Asset Legs, Action Receipt и proofs, отвергают duplicate execution. Нехватка treasury не выдаётся за успешный settlement.
 
 Это первый обязательный demo gate. До него не выполняется broad UI polishing.
 
 ### Milestone 4 — Maturity redemption
 
 Owner: Backend + Blockchain.
-Acceptance: atomic payment + burn + record; maturity and replay checks проходят.
+Acceptance: atomic payment + burn + record; maturity and replay checks проходят. Transfer после snapshot, недостаток текущих source tokens или превышение transaction limits блокируют весь entitlement без payout.
 
 ### Milestone 5 — Early redemption
 
@@ -1248,6 +1287,7 @@ Acceptance: full CI, clean setup, Devnet evidence, demo video и Technical Overv
 - Anchor program deployed to Devnet;
 - bond и settlement mints проверяемы;
 - snapshot hash воспроизводится из API artifact;
+- planned `record_at` и effective finalized slot/time видимы и не смешиваются;
 - coupon, redemption и early redemption имеют finalized signatures;
 - approval обязателен перед execution и фиксируется в audit/on-chain state;
 - Cash/Asset Legs подтверждены; reconciliation = MATCHED; финальный Action Receipt доступен в JSON;
@@ -1266,6 +1306,10 @@ Acceptance: full CI, clean setup, Devnet evidence, demo video и Technical Overv
 - per-holder transaction не оптимизирована для большого registry;
 - Devnet не предоставляет production SLA;
 - KZT-Test — SIMULATED ASSET без денежной стоимости; «Not issued by the National Bank of Kazakhstan»;
+- текущий RPC capture не доказывает ownership ровно на заранее назначенную секунду `record_at`; права demo относятся к effective finalized slot;
+- прямые transfers не ограничены on-chain и могут сделать redemption неисполнимым; такой entitlement блокируется, а не оплачивается частично;
+- on-chain snapshot hash не доказывает идентичность investor и корректность off-chain preimage;
+- Devnet demo не создаёт юридически действующую облигацию, KASE-аффилиацию или реальные платежи;
 - fixed-period coupon formula не является полной bond-calculation library.
 
 ## 22. Post-MVP gates
@@ -1273,6 +1317,10 @@ Acceptance: full CI, clean setup, Devnet evidence, demo video и Technical Overv
 Перед pilot/mainnet необходимы:
 
 - legal/compliance review;
+- назначение юридически авторитетного реестра, operator/transfer agent и paying agent для конкретного выпуска;
+- строгий record-date checkpoint или доказуемый transfer-control/indexer механизм;
+- защищённое хранение и выдача investor-level данных, сроки retention и процедура исправления споров;
+- escrow/резервирование средств либо эквивалентный механизм гарантированного финансирования;
 - external security audit Anchor program;
 - multisig и upgrade governance;
 - production custody design;
@@ -1285,7 +1333,7 @@ Acceptance: full CI, clean setup, Devnet evidence, demo video и Technical Overv
 
 ## 23. Технические источники
 
-Проверено 28 сентября 2026:
+Основные технические ссылки проверены 30 сентября 2026:
 
 - [Solana tokenization and RWA workflow](https://solana.com/docs/tokenization)
 - [Token Extensions](https://solana.com/docs/tokens/extensions)
@@ -1297,3 +1345,7 @@ Acceptance: full CI, clean setup, Devnet evidence, demo video и Technical Overv
 - [Anchor PDA constraints](https://www.anchor-lang.com/docs/basics/pda)
 - [Anchor account constraints](https://www.anchor-lang.com/docs/references/account-constraints)
 - [Solana frontend guide](https://solana.com/docs/frontend)
+- `getProgramAccounts` с finalized context не предоставляет произвольный historical slot (ссылка выше)
+- [Solana Token ACL](https://solana.com/docs/tokenization/token-acl) и [Permanent Delegate](https://solana.com/docs/tokens/extensions/permanent-delegate) — transfer control и authority boundaries
+- [Polymesh Corporate Actions](https://developers.polymesh.network/corporate-actions/) и [Distributions](https://developers.polymesh.network/corporate-actions/distributions/) — checkpoint, funding и exception-сравнение
+- [ERC-3643 Identity Registry](https://docs.erc3643.org/erc-3643/smart-contracts-library/onchain-identities/identity-registry) — идентичность отдельно от wallet

@@ -1,7 +1,7 @@
 # LifecycleKASE — окончательное техническое задание на MVP
 
-Версия: 1.1
-Дата: 28 сентября 2026
+Версия: 1.2
+Дата: 30 сентября 2026
 Статус: утверждённая основа для разработки MVP
 Контекст: KASE Side Track / Superteam Kazakhstan
 
@@ -11,9 +11,11 @@
 
 Подробная реализация, интерфейсы, модель данных, Solana accounts, безопасность и тестирование описаны в [TECHNICAL_REQUIREMENTS.md](TECHNICAL_REQUIREMENTS.md).
 
+Основание уточнений версии 1.2 — [сравнение блокчейнов и платформ обслуживания токенизированных бумаг](../research/tokenized-securities-landscape-2026-09-30.md). Требования описывают целевое поведение, а не перечень уже реализованных функций; фактический статус ведётся отдельно в [Implemented vs Simulated](../IMPLEMENTED_VS_SIMULATED.md).
+
 ## 2. Продукт и цель MVP
 
-LifecycleKASE — B2B-платформа для управления корпоративными действиями после выпуска токенизированной ценной бумаги.
+LifecycleKASE — B2B-прототип для управления корпоративными действиями после выпуска токенизированного demo-инструмента.
 
 Основной инструмент MVP — токенизированная облигация. Основной пользователь — администратор инструмента: биржа, эмитент, депозитарий, transfer agent или оператор токенизированной инфраструктуры.
 
@@ -36,6 +38,8 @@ Reconciliation → Action Receipt → verifiable corporate action record
 ```
 
 Ключевой результат MVP: администратор может воспроизводимо провести coupon payment, maturity redemption и early redemption, а независимый проверяющий может подтвердить исходные данные, расчёт и результат через интерфейс, API и Solana Explorer.
+
+MVP работает с **фиктивной облигацией и тестовым расчётным токеном на Devnet**. Он не выпускает юридически действующую ценную бумагу и не предоставляет инвестиционную услугу. Документы проекта не заявляют партнёрство, одобрение или интеграцию с KASE; их нельзя подразумевать из названия проекта. В реальном проекте правовой реестр, оператор, paying agent и ответственные за спорные права определяются отдельно.
 
 ## 3. Пользователи и роли
 
@@ -74,6 +78,7 @@ Investor — отдельная юридическая или физическа
 - holder registry из on-chain token accounts;
 - record date как UTC timestamp;
 - snapshot на finalized Solana slot;
+- явное различение запланированного `record_at` и фактического `snapshot_effective_slot` для demo;
 - canonical snapshot и SHA-256 hash;
 - review, approve, reject и return for revision для corporate action;
 - coupon entitlement calculation;
@@ -124,7 +129,7 @@ Investor — отдельная юридическая или физическа
 | Network | Solana Devnet |
 | Initial Status | ACTIVE |
 
-`Total Supply = 35` является обязательным значением canonical demo. Это устраняет расхождение между supply, распределением и ожидаемым coupon. Другие значения допускаются вне canonical acceptance scenario.
+`Total Supply = 35` является обязательным значением canonical demo. Это устраняет расхождение между supply, распределением и ожидаемым coupon. Другие значения допускаются вне canonical acceptance scenario. Название KASE Demo Bond — только имя фиктивного тестового набора, не одобрение и не выпуск KASE.
 
 ### 5.2. Распределение
 
@@ -150,7 +155,7 @@ UI, API и receipt обязаны обозначать KZT-Test как **SIMULAT
 
 ## 6. Источники истины
 
-### 6.1. Solana является источником истины для
+### 6.1. Solana является источником истины внутри demo для
 
 - bond mint и total supply;
 - token accounts и balances;
@@ -174,6 +179,8 @@ UI, API и receipt обязаны обозначать KZT-Test как **SIMULAT
 - кэшированных blockchain projections.
 
 База данных не может объявить action или entitlement завершёнными, если соответствующее on-chain состояние не подтверждено.
+
+Это распределение ответственности относится к **demo-token**, а не к юридическому реестру реальных ценных бумаг. До пилота оператор и юристы определяют правовой источник владения, связь с депозитарием/transfer agent и приоритет записей при расхождении.
 
 ## 7. Инструменты
 
@@ -238,13 +245,15 @@ Holder Registry строится из всех token accounts bond mint: token a
 - сумма balances должна совпадать с mint supply;
 - неизвестный wallet отображается как `UNREGISTERED`;
 - наличие `UNREGISTERED` holder блокирует финализацию snapshot;
-- eligibility фиксируется на record date; transfer controls в модели не считаются действующими on-chain ограничениями без Transfer Hook.
+- eligibility для demo фиксируется на effective finalized snapshot slot, определённом в §9.1; transfer controls в модели не считаются действующими on-chain ограничениями без Transfer Hook.
+
+До снимка требуется доказательство владения wallet (подписанный challenge), а не только ввод адреса администратором. Изменения wallet mapping и eligibility во время окна снимка блокируются либо версионируются так, чтобы можно было восстановить решение на фактический slot. Полный canonical snapshot доступен только авторизованному Administrator/Auditor: связь Investor ID ↔ wallet и eligibility не публикуется вместе с открытым blockchain evidence.
 
 ## 9. Record Date и Snapshot
 
 ### 9.1. Record Date
 
-Record date хранится как UTC timestamp `record_at`, а не как локальная календарная дата.
+Для Devnet MVP `record_at` хранится как UTC timestamp и означает **начало разрешённого окна capture**, а не доказанный юридический cut-off. Фактическая точка определения demo-прав — `snapshot_effective_slot = solana_slot` и соответствующий `block_time` из `snapshot-v2` после `finalized`. UI и receipt показывают оба значения раздельно; фраза «баланс ровно на `record_at`» запрещена, если `block_time` позже него. Это уточнение сохраняет текущий формат `snapshot-v2`: новые поля в canonical JSON не добавляются.
 
 Snapshot разрешено создавать только когда:
 
@@ -255,7 +264,9 @@ Snapshot разрешено создавать только когда:
 - все holders зарегистрированы;
 - on-chain balances согласованы с mint supply.
 
-MVP не поддерживает ретроактивное восстановление snapshot. Если snapshot не создан в допустимом временном окне, action получает `SNAPSHOT_MISSED` и требует создания нового action.
+Нельзя подставлять более поздние balances как исторические на `record_at`: обычный RPC-запрос текущих token accounts не восстанавливает произвольное прошлое состояние. При transfer между `record_at` и effective slot получателем demo-права становится держатель на effective slot; этот факт и разница во времени отображаются явно. Если для инструмента требуется строгий юридический cut-off в назначенное время, этот demo-режим непригоден: action не запускают без отдельно спроектированного checkpoint/transfer control/полного индексера и правового согласования.
+
+MVP не поддерживает ретроактивное восстановление snapshot. Если окно пропущено, action должен перейти в `SNAPSHOT_MISSED` и потребовать нового action; пока terminal transition не реализован, UI/API показывает блокирующее «окно пропущено», а не `FINALIZED` или автоматически восстановленный snapshot.
 
 ### 9.2. Snapshot content
 
@@ -286,9 +297,9 @@ Canonical snapshot version `snapshot-v2` должен:
 - запрещать необязательные поля и локализованные числа;
 - хэшироваться как `SHA-256(canonical_bytes)`.
 
-Canonical JSON доступен через API и скачивание из UI. Hash, slot, investor count, wallet count и total balance фиксируются в CorporateAction PDA. `snapshot-v1` остаётся только историческим форматом, если такие records существуют.
+Canonical JSON доступен через API и скачивание из UI **только авторизованным ролям**. Hash, slot, investor count, wallet count и total balance фиксируются в CorporateAction PDA. `snapshot-v1` остаётся только историческим форматом, если такие records существуют.
 
-После on-chain регистрации snapshot становится `FINALIZED` и не изменяется. Любая корректировка создаёт новый action и новый snapshot.
+После wallet-signed регистрации, finalized confirmation **и** проверки on-chain PDA snapshot становится `FINALIZED` и не изменяется. Непроверенный hash в PDA либо одна подпись транзакции сами по себе недостаточны. Любая корректировка создаёт новый action и новый snapshot.
 
 ## 10. Corporate Actions
 
@@ -399,7 +410,9 @@ amount_minor = tokens_to_redeem × redemption_price_minor
 
 ## 12. Entitlements и исполнение
 
-На каждого eligible инвестора создаётся один entitlement с уникальным ключом `(action_id, investor_id)`. Балансы всех его wallet суммируются. Eligibility Engine фиксирует решение и причину по состоянию на record date; Entitlement Engine использует эту зафиксированную базу.
+На каждого eligible инвестора создаётся один entitlement с уникальным ключом `(action_id, investor_id)`. Балансы всех его wallet суммируются. Eligibility Engine фиксирует решение и причину по состоянию на effective finalized snapshot slot; Entitlement Engine использует эту зафиксированную базу.
+
+В demo расчётная база определяется **effective finalized snapshot slot** из §9.1, а не более ранним planned `record_at`. Eligibility, payout destination и исключения имеют разные проверки: зафиксированное demo-право не переписывается отзывом wallet, но выплата на отозванный wallet запрещена.
 
 Entitlement содержит:
 
@@ -422,6 +435,8 @@ Entitlement содержит:
 
 Неуспешная transaction не изменяет on-chain state. Backend фиксирует ошибку и разрешает безопасный retry с тем же entitlement PDA.
 
+Для redemption перед каждой подписью и в on-chain instruction проверяются текущие source token accounts и право burn ровно рассчитанного количества. Если после snapshot токены ушли либо нужные accounts не помещаются в одну transaction, система блокирует payment **и** burn этого entitlement и создаёт exception для оператора; нельзя тихо сжигать токены другого владельца, переписывать snapshot или объявлять частичную неатомарную выплату. Coupon после transfer использует историческое entitlement, но требует актуального проверенного payout wallet.
+
 ### 12.2. Idempotency
 
 - entitlement PDA уникален для action и Investor ID;
@@ -438,6 +453,8 @@ Entitlement содержит:
 Основной acceptance mode. Выплаты производятся KZT-Test с administrator-controlled treasury на активный проверенный wallet инвестора. CASH leg обязателен для coupon и redemption; ASSET leg для coupon имеет `NOT_APPLICABLE`, для redemption требует подтверждённый burn. Оба обязательных leg одного entitlement подтверждаются одной атомарной транзакцией.
 
 Перед execution система показывает treasury balance, required amount, recipients, network и test-token warning.
+
+До approval проверяется бюджет **всего** action: сумма исполнимых entitlements плюс network/rent reserve. Недостаток treasury блокирует старт. Preflight не является escrow: если средства уйдут до исполнения, отдельная on-chain transaction должна отклониться без ложного `PAID`; операция остаётся открытой для восполнения и повторной сверки. Реальное резервирование средств — отдельное решение до пилота.
 
 ### 13.2. SIMULATED_FIAT
 
@@ -481,6 +498,8 @@ UI должен отвечать на шесть вопросов:
 
 Dashboard показывает upcoming actions, attention required, частично исполненные действия и расхождения reconciliation. Instrument detail содержит lifecycle timeline. UI не показывает `FINALIZED`, пока подтверждения legs, reconciliation и Action Receipt не завершены.
 
+На snapshot-экране отдельно показаны `record_at` («начало окна demo»), effective finalized slot/block time и разница между ними. Если strict record-date не доказан, интерфейс не пишет «держатели на точную дату `record_at`». При redemption mismatch или нехватке средств показывается блокирующее exception с ответственным и безопасным следующим действием.
+
 ## 15. Audit и доказательства
 
 Для каждого завершённого действия доступны:
@@ -488,7 +507,7 @@ Dashboard показывает upcoming actions, attention required, части�
 - action ID;
 - instrument и action type;
 - record timestamp;
-- snapshot ID, slot, hash и downloadable canonical JSON;
+- snapshot ID, slot, hash и downloadable canonical JSON для авторизованных ролей;
 - entitlement list и calculation explanation;
 - settlement type;
 - transaction signatures;
@@ -502,10 +521,14 @@ Dashboard показывает upcoming actions, attention required, части�
 
 Audit log append-only на уровне приложения. Каждая смена этапа, согласование, отклонение, попытка исполнения, reconciliation и финализация создают событие. Исправление ошибочной metadata создаёт новое audit event, а не перезаписывает историю. Provenance позволяет пройти transaction → action → entitlement → investor.
 
+Публичная версия evidence не содержит имя инвестора, KYC, Investor ID ↔ wallet mapping или полный `snapshot-v2`. Полный canonical JSON и investor-level receipt доступны только уполномоченным ролям с журналом доступа; публично можно проверить hash, slot, program ID и signature. В demo используются только фиктивные профили.
+
 ## 16. Безопасность
 
 - mutation endpoints доступны только Administrator;
 - on-chain instructions проверяют instrument authority PDA;
+- direct transfers не считаются ограниченными, пока это не доказано отдельным on-chain transfer-control механизмом;
+- permanent delegate может воздействовать на **любой** bond token account этого mint; функции burn/transfer, upgrade authority и порядок их одобрения входят в threat model;
 - mint, token program, token accounts, holder, amount и action type проверяются явно;
 - unknown holder блокирует snapshot;
 - private keys, seed phrases и raw secret values не попадают в Git, UI, API responses и logs;
@@ -513,6 +536,7 @@ Audit log append-only на уровне приложения. Каждая см�
 - production custody и mainnet требуют отдельного security review;
 - все external input проверяются по type, format, range и allowed values;
 - error messages не раскрывают secrets или внутренние stack traces.
+- Devnet demo, название KASE и тестовый актив не представляются как лицензия, партнёрство, реальный выпуск или цифровой тенге.
 
 ## 17. Нефункциональные требования
 
@@ -541,8 +565,8 @@ Audit log append-only на уровне приложения. Каждая см�
 2. Открыть KDB26 и показать mint, supply 35, authority и Devnet.
 3. Показать holders 10/20/5 и supply reconciliation.
 4. Создать Coupon Action.
-5. Дождаться record time и создать finalized snapshot.
-6. Показать canonical JSON, slot и hash.
+5. Дождаться начала окна `record_at`, снять finalized snapshot и назвать его фактический effective slot/time.
+6. Показать авторизованному Auditor canonical JSON, slot и hash; публично — только безличное доказательство.
 7. Рассчитать entitlements 500/1,000/250.
 8. Выполнить три KZT-Test выплаты после review и approval.
 9. Сверить Cash Legs, отметить coupon Asset Legs как `NOT_APPLICABLE` и показать Action Receipt, action `FINALIZED` и Explorer links.
@@ -567,6 +591,7 @@ Audit log append-only на уровне приложения. Каждая см�
 
 - snapshot создан на finalized slot;
 - canonical JSON воспроизводит on-chain hash;
+- effective slot/time и запланированный `record_at` различаются в UI/receipt; transfer между ними не выдаётся за историческое владение на `record_at`;
 - holder balances равны 10/20/5;
 - entitlements равны 500/1,000/250 KZT-Test;
 - total равен 1,750 KZT-Test;
@@ -579,6 +604,7 @@ Audit log append-only на уровне приложения. Каждая см�
 - maturity проверяется по on-chain time;
 - principal и final coupon рассчитаны integer arithmetic;
 - payment, burn и redemption record атомарны для holder;
+- при transfer после snapshot и нехватке исходных bond tokens выплата и burn не происходят, entitlement переходит в блокирующее exception;
 - повторное погашение невозможно;
 - mint supply уменьшается на точное количество redeemed bonds;
 - при нулевом supply instrument становится `REDEEMED`.
@@ -592,6 +618,7 @@ Audit log append-only на уровне приложения. Каждая см�
 - остаток продолжает существовать;
 - повторное исполнение невозможно;
 - результат фиксируется on-chain.
+- при нехватке treasury или невозможности атомарного burn платёж не отправляется и статус не становится `PAID`.
 
 ## 20. Submission package
 
@@ -615,7 +642,7 @@ Create or load bond
 → distribute 35 bond tokens
 → reconcile holders and supply
 → create action
-→ finalize snapshot at record time
+→ finalize snapshot at the effective finalized slot within the record window
 → reproduce snapshot hash
 → calculate entitlements
 → review and approve action
@@ -632,6 +659,8 @@ Create or load bond
 
 Наличие только UI, моков или заранее подготовленных transaction signatures не удовлетворяет Definition of Done.
 
+Devnet Definition of Done подтверждает только поведение фиктивного инструмента. Он не доказывает юридический record date, соблюдение правил выпуска ценных бумаг, KASE-интеграцию, production custody или реальный денежный settlement.
+
 ## 22. Развитие после MVP
 
 - transfer restrictions и on-chain allowlist;
@@ -647,11 +676,13 @@ Create or load bond
 - production KASE integration;
 - mainnet security audit и operational controls.
 
+Перед любым реальным выпуском дополнительно требуются назначенный юридический оператор реестра и paying agent, подтверждённый строгий cut-off/checkpoint, enforceable transfer policy, правила обработки потерянных/заблокированных кошельков, защита персональных данных и независимое правовое заключение по применимой юрисдикции. Существующие demo-флаги в БД эти требования не выполняют.
+
 Для MVP эти пункты не считаются выполненными из-за наличия полей в модели. `transfers_enabled` и другие transfer flags — только подготовка будущего контроля; без Transfer Hook они не блокируют прямой Token-2022 transfer.
 
 ## 23. Внешние технические ссылки
 
-Проверено 28 сентября 2026:
+Основные технические ссылки проверены 30 сентября 2026:
 
 - [Solana tokenization](https://solana.com/docs/tokenization)
 - [Token Extensions](https://solana.com/docs/tokens/extensions)
