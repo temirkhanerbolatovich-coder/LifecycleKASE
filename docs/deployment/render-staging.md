@@ -1,8 +1,10 @@
 # Disposable Render staging
 
-Status: status-only staging deployed and verified on 2026-09-29.
+Status: disposable demo staging deployed and verified on 2026-09-30.
 
 The `lifecyclekase-staging` Blueprint in the separate `LifecycleKASE` Hobby workspace deployed commit `626cc326800e0c84eff1796088a735cdee6e14e3` from `master`. Its initial sync created the free `lifecyclekase-staging-db`, `lifecyclekase-api`, and `lifecyclekase-web` resources without changing the separate VKO workspace.
+
+The current web and API services run commit `86423a7c14c6fd49d5869dfa30a270f027d9f16f`. The verified deployments are `dep-daug62h7lnhs73b8amb0` for the web service and `dep-daugb9nlot8c73b1md3g` for the API service. The API deployment includes the exact dashboard CORS origin while keeping operator authentication disabled.
 
 - Dashboard: <https://lifecyclekase-web.onrender.com/dashboard>
 - Web liveness: <https://lifecyclekase-web.onrender.com/health/live>
@@ -10,9 +12,9 @@ The `lifecyclekase-staging` Blueprint in the separate `LifecycleKASE` Hobby work
 - API readiness: <https://lifecyclekase-api.onrender.com/api/v1/health/ready>
 - [Blueprint sync](https://dashboard.render.com/blueprint/exs-datqao8u01pc73a5afl0/sync/exe-datqaogu01pc73a5ag0g)
 
-At verification, both services were Live. The three health requests returned HTTP 200 with `live`/`ready` JSON; `/dashboard` returned HTTP 200 and visibly showed web available, API/PostgreSQL ready, and Solana Devnet unconnected. The unavailable investor domain route returned HTTP 404. This verifies only the status slice, not the corporate-action MVP.
+At verification, both services were Live. The three health requests returned HTTP 200 with `live`/`ready` JSON; `/dashboard` returned HTTP 200 and visibly showed web available, API/PostgreSQL ready, Solana Devnet unconnected, and the Wallet Standard login surface. A challenge request from the exact dashboard origin returned the expected HTTP 503 `AUTH_NOT_CONFIGURED` response together with `Access-Control-Allow-Origin: https://lifecyclekase-web.onrender.com` and credentials support. This verifies service wiring and the disabled-authentication boundary, not an authenticated operator session or the corporate-action MVP.
 
-The root [`render.yaml`](../../render.yaml) defines two free Node web services and one free PostgreSQL 17 database in Frankfurt. It is for the **read-only status page only**. It does not deploy the Solana program, create tokens, enable investors or execute payments.
+The root [`render.yaml`](../../render.yaml) defines two free Node web services and one free PostgreSQL 17 database in Frankfurt. It is for the **disposable demo environment only**. It does not deploy the Solana program, create tokens, enable operator authentication or execute payments.
 
 ## Before creating the Blueprint
 
