@@ -2,6 +2,7 @@
 
 Status: Accepted
 Date: 2026-09-28
+Amended: 2026-09-30
 
 ## Context
 
@@ -15,7 +16,7 @@ The additional MVP requirements distinguish investors from wallets, require appr
 
 ## Decision
 
-Use stable Investor UUID as the entitlement identity and PDA seed. Snapshot-v2 records investor → wallet → token account, eligibility at record date, balances, slot, and supply. Payout still targets a separately verified active wallet, checked again at execution. The immutable finalized snapshot never changes during review; return for revision recalculates against the same snapshot.
+Use stable Investor UUID as the entitlement identity and PDA seed. Snapshot-v2 records investor → wallet → token account, eligibility at the effective finalized capture slot, balances, slot, and supply. The planned `record_at` only opens the demo capture window, as clarified in ADR-002. Wallet proof must predate the effective slot; a finalized slot before `record_at` is rejected. Payout still targets a separately verified active wallet, checked again at execution. The immutable finalized snapshot never changes during review; return for revision recalculates against the same snapshot.
 
 Execution requires an approved action. Each entitlement has Cash and Asset Legs; coupon Asset Leg is not applicable. The existing atomic per-entitlement transaction remains the settlement boundary. Action finalization requires confirmed required legs, matched reconciliation, and a final JSON Action Receipt with on-chain commitment.
 
@@ -33,6 +34,7 @@ One entitlement per investor avoids double payment across wallets and keeps owne
 ## Risks
 
 - Investor-to-wallet mapping can be wrong or stale. Wallet verification and snapshot reconciliation are required.
+- Current registry rows have no effective-time history. Until mutations are frozen or versioned around capture, their status at the historical finalized slot cannot be independently reconstructed; the demo must not claim otherwise.
 - An eligibility change after record date does not rewrite history; it may block payout and require an explicit operational decision.
 - Database transfer flags do not enforce direct Token-2022 transfers. Transfer Hook and freeze authority need a separate security design.
 

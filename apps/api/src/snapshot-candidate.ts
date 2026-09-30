@@ -78,6 +78,20 @@ export async function prepareSnapshotCandidate(
   if (capture.supply !== action.instrument.circulatingSupply) {
     throw new SnapshotPreparationError("INSTRUMENT_SUPPLY_STALE", "Instrument supply differs from finalized mint supply");
   }
+  const blockTimeSeconds = await rpc.request("getBlockTime", [capture.slot]);
+  if (!Number.isSafeInteger(blockTimeSeconds) || (blockTimeSeconds as number) < 0) {
+    throw new SnapshotPreparationError("BLOCK_TIME_UNAVAILABLE", "Finalized slot block time is unavailable");
+  }
+  const blockTime = new Date((blockTimeSeconds as number) * 1000);
+  if (!Number.isFinite(blockTime.getTime())) {
+    throw new SnapshotPreparationError("BLOCK_TIME_UNAVAILABLE", "Finalized slot block time is invalid");
+  }
+  if (blockTime < action.recordAt || blockTime > options.now) {
+    throw new SnapshotPreparationError(
+      "SNAPSHOT_SLOT_OUTSIDE_WINDOW",
+      "Finalized capture slot is outside the elapsed record-date window"
+    );
+  }
   const walletRows = await database.wallet.findMany({
     where: { address: { in: capture.wallets.map((wallet) => wallet.address) } },
     include: { investor: true }
@@ -90,7 +104,7 @@ export async function prepareSnapshotCandidate(
       address: wallet.address,
       status: wallet.status,
       verified: wallet.verifiedAt !== null &&
-        wallet.verifiedAt <= action.recordAt &&
+        wallet.verifiedAt <= blockTime &&
         wallet.network === options.walletNetwork
     }));
   const registry = groupHoldersByInvestor(capture, mappings);
@@ -103,14 +117,6 @@ export async function prepareSnapshotCandidate(
   const investorById = new Map(walletRows
     .filter((wallet) => wallet.investor !== null)
     .map((wallet) => [wallet.investor!.id, wallet.investor!]));
-  const blockTimeSeconds = await rpc.request("getBlockTime", [capture.slot]);
-  if (!Number.isSafeInteger(blockTimeSeconds) || (blockTimeSeconds as number) < 0) {
-    throw new SnapshotPreparationError("BLOCK_TIME_UNAVAILABLE", "Finalized slot block time is unavailable");
-  }
-  const blockTime = new Date((blockTimeSeconds as number) * 1000);
-  if (!Number.isFinite(blockTime.getTime())) {
-    throw new SnapshotPreparationError("BLOCK_TIME_UNAVAILABLE", "Finalized slot block time is invalid");
-  }
   const candidate = createSnapshotV2Commitment({
     actionId: action.id,
     instrumentId: action.instrumentId,

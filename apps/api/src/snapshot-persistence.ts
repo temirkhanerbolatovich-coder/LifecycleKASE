@@ -55,6 +55,7 @@ export async function persistSnapshotCandidate(
     const candidateWallets = payload.investors.flatMap((investor) =>
       investor.wallets.map((wallet) => ({ investor, wallet }))
     );
+    const effectiveAt = new Date(payload.block_time);
     const walletRows = await tx.wallet.findMany({
       where: { address: { in: candidateWallets.map(({ wallet }) => wallet.wallet_address) } },
       include: { investor: true }
@@ -69,7 +70,7 @@ export async function persistSnapshotCandidate(
         !current || current.id !== wallet.wallet_id ||
         current.investorId !== investor.investor_id ||
         current.investor?.eligibilityStatus !== investor.eligibility_status ||
-        current.verifiedAt === null || current.verifiedAt > action.recordAt ||
+        current.verifiedAt === null || current.verifiedAt > effectiveAt ||
         current.network !== options.walletNetwork ||
         current.status !== wallet.wallet_status
       ) {

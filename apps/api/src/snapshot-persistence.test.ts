@@ -135,7 +135,7 @@ test("rejects changed candidate, action, wallet, and compare-and-set conflict", 
   for (const [setup, code] of [
     [fixture({ actionVersion: 4 }), "CANDIDATE_STALE"],
     [fixture({ walletStatus: "REVOKED" }), "REGISTRY_CHANGED"],
-    [fixture({ verifiedAt: new Date("2026-09-29T00:00:30.000Z") }), "REGISTRY_CHANGED"],
+    [fixture({ verifiedAt: new Date("2026-09-29T00:01:30.000Z") }), "REGISTRY_CHANGED"],
     [fixture({ lockCount: 0 }), "CANDIDATE_STALE"],
     [fixture({ now: new Date("2026-09-29T00:06:00.000Z") }), "SNAPSHOT_WINDOW_MISSED"]
   ] as const) {
@@ -145,4 +145,10 @@ test("rejects changed candidate, action, wallet, and compare-and-set conflict", 
     );
     assert.equal(setup.calls.create, undefined);
   }
+});
+
+test("accepts wallet verification between planned record time and effective finalized slot", async () => {
+  const setup = fixture({ verifiedAt: new Date("2026-09-29T00:00:30.000Z") });
+  const result = await persistSnapshotCandidate(setup.database, setup.candidate, setup.options);
+  assert.equal(result.status, "PENDING_REGISTRATION");
 });

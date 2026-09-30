@@ -18,7 +18,7 @@ The database can prepare canonical `snapshot-v2` bytes from a finalized Token-20
 
 `register_snapshot` requires an active instrument, its issuer signer, a scheduled action without a prior commitment, a nonzero hash, a nonzero past-or-current slot, positive investor/wallet/balance counts, and a supplied balance and mint supply matching the live Token-2022 mint. It accepts transactions only from `record_at` through `record_at + 300` seconds by the on-chain Clock. It writes the commitment and moves the action to `SnapshotCreated`; subsequent registration or cancellation is rejected.
 
-The backend's `SNAPSHOT_GRACE_SECONDS` must not exceed 300. Before preparing the transaction, the backend must independently verify the RPC slot at `finalized`, its block time within the record-date window, complete verified-wallet mapping, canonical bytes and SHA-256. After submission it must wait for finalized confirmation and read back the PDA. The on-chain program does not attest those off-chain facts.
+The backend's `SNAPSHOT_GRACE_SECONDS` must not exceed 300. Before preparing the transaction, the backend must independently verify the RPC slot at `finalized`, its block time between planned `record_at` and capture time, wallet verification by that effective slot, complete holder mapping, canonical bytes and SHA-256. After submission it must wait for finalized confirmation and read back the PDA. The on-chain program does not attest those off-chain facts.
 
 ## Reasoning
 

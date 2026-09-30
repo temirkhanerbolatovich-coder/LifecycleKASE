@@ -35,6 +35,7 @@ function fixture(overrides: {
   missingWallet?: boolean;
   unverifiedWallet?: boolean;
   lateVerifiedWallet?: boolean;
+  verifiedAfterRecord?: boolean;
   wrongGenesis?: boolean;
   supply?: bigint;
   blockTime?: number | null;
@@ -56,6 +57,9 @@ function fixture(overrides: {
       circulatingSupply: overrides.supply ?? 35n
     }
   };
+  let secondWalletVerifiedAt = "2026-09-28T00:00:00.000Z";
+  if (overrides.verifiedAfterRecord) secondWalletVerifiedAt = "2026-09-29T00:00:30.000Z";
+  if (overrides.lateVerifiedWallet) secondWalletVerifiedAt = "2026-09-29T00:01:30.000Z";
   const wallets = [
     {
       id: "00000000-0000-4000-8000-000000000021",
@@ -71,9 +75,7 @@ function fixture(overrides: {
       investorId: INVESTOR_ONE,
       address: ASSOCIATED,
       status: "ACTIVE",
-      verifiedAt: overrides.unverifiedWallet
-        ? null
-        : new Date(overrides.lateVerifiedWallet ? "2026-09-29T00:00:30.000Z" : "2026-09-28T00:00:00.000Z"),
+      verifiedAt: overrides.unverifiedWallet ? null : new Date(secondWalletVerifiedAt),
       network: "SOLANA_DEVNET",
       investor: { id: INVESTOR_ONE, eligibilityStatus: "ELIGIBLE" }
     },
@@ -156,6 +158,13 @@ test("builds a canonical investor-level candidate from DB mappings and finalized
   assert.equal(setup.walletQueryCount, 1);
 });
 
+test("uses the finalized slot for wallet verification after the planned record time", async () => {
+  const setup = fixture({ verifiedAfterRecord: true });
+  const candidate = await prepareSnapshotCandidate(setup.database, setup.rpc, ACTION_ID, setup.options);
+  assert.equal(candidate.snapshot.block_time, "2026-09-29T00:01:00.000Z");
+  assert.equal(candidate.snapshot.wallet_count, 3);
+});
+
 test("stops before capture on wrong network or missed window", async () => {
   const excessiveGrace = fixture();
   excessiveGrace.options.graceSeconds = 301;
@@ -199,7 +208,7 @@ test("refuses unknown or unverified holder wallets and stale DB supply", async (
       prepareSnapshotCandidate(setup.database, setup.rpc, ACTION_ID, setup.options),
       (error: unknown) => error instanceof SnapshotPreparationError && error.code === "HOLDER_REGISTRY_INCOMPLETE"
     );
-    assert.equal(setup.requestedMethods.includes("getBlockTime"), false);
+    assert.equal(setup.requestedMethods.includes("getBlockTime"), true);
   }
   const stale = fixture({ supply: 34n });
   await assert.rejects(
@@ -215,4 +224,19 @@ test("refuses unavailable block time", async () => {
     prepareSnapshotCandidate(setup.database, setup.rpc, ACTION_ID, setup.options),
     (error: unknown) => error instanceof SnapshotPreparationError && error.code === "BLOCK_TIME_UNAVAILABLE"
   );
+});
+
+test("refuses a finalized slot before the planned record time or after capture", async () => {
+  for (const blockTime of [
+    Date.parse("2026-09-28T23:59:59.000Z") / 1000,
+    Date.parse("2026-09-29T00:02:01.000Z") / 1000
+  ]) {
+    const setup = fixture({ blockTime });
+    await assert.rejects(
+      prepareSnapshotCandidate(setup.database, setup.rpc, ACTION_ID, setup.options),
+      (error: unknown) => error instanceof SnapshotPreparationError &&
+        error.code === "SNAPSHOT_SLOT_OUTSIDE_WINDOW"
+    );
+    assert.equal(setup.walletQueryCount, 0);
+  }
 });

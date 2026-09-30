@@ -673,7 +673,7 @@ Holder service:
 7. связывает только verified wallets с investors и агрегирует по Investor ID;
 8. сверяет сумму с mint supply.
 
-Collector фиксирует effective slot и block time. `withContext` обеспечивает контекст ответа, но не запрос к произвольному историческому slot; `minContextSlot` не используется как подмена historical checkpoint. Если RPC не даёт полный согласованный набор accounts, операция fail-closed и не создаёт entitlement.
+Collector фиксирует effective slot и block time. `withContext` обеспечивает контекст ответа, но не запрос к произвольному историческому slot; `minContextSlot` не используется как подмена historical checkpoint. `block_time` должен быть не раньше planned `record_at` и не позже времени capture; verified wallet должен быть подтверждён не позже этого effective point. Иначе snapshot отклоняется. Текущие registry rows сами по себе не доказывают исторический статус на slot: до публичных mutation routes изменение registry в окне capture должно блокироваться или версионироваться. Если RPC не даёт полный согласованный набор accounts, операция fail-closed и не создаёт entitlement.
 
 Запрещено использовать только `getTokenLargestAccounts`, потому что он не гарантирует полный registry.
 
