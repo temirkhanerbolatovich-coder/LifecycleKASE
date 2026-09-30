@@ -109,7 +109,7 @@ test("resumes a pending snapshot without recapturing holder balances", async () 
   );
   assert.equal(result.resumed, true);
   assert.equal(result.recordPointMode, "DEMO_CAPTURE_SLOT");
-  assert.equal(result.transactionFormat, "UNSIGNED_INSTRUCTION_PLAN");
+  assert.equal(result.transactionFormat, "SOLANA_V0_WIRE_TRANSACTION_BASE64");
   assert.equal(result.snapshotHash, setup.commitment.sha256);
   assert.deepEqual(setup.methods, ["getGenesisHash", "getSlot", "getBlockTime", "getLatestBlockhash"]);
 });

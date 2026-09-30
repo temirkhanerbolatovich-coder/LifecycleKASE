@@ -125,7 +125,7 @@ export async function prepareSnapshotRegistrationForAction(
     effectiveBlockTime,
     effectiveSlot,
     recordPointMode: "DEMO_CAPTURE_SLOT" as const,
-    transactionFormat: "UNSIGNED_INSTRUCTION_PLAN" as const,
+    transactionFormat: "SOLANA_V0_WIRE_TRANSACTION_BASE64" as const,
     resumed
   };
 }

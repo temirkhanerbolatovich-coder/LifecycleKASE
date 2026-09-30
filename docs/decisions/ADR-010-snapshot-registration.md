@@ -38,4 +38,4 @@ The fixed on-chain bound prevents late direct calls without adding a bootstrap o
 
 ## Future work
 
-Extend the internal unsigned instruction plan into an authenticated wallet transaction, verify the finalized transaction and action PDA before database finalization, add a missed-window terminal transition, and consider governed configuration only if a different window becomes a demonstrated requirement.
+Add the wallet UI/submission flow for the serialized unsigned transaction, verify the finalized transaction and action PDA before database finalization, add a missed-window terminal transition, and consider governed configuration only if a different window becomes a demonstrated requirement.

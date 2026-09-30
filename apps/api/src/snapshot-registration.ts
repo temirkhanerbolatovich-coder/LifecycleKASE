@@ -2,7 +2,12 @@ import { isDeepStrictEqual } from "node:util";
 
 import type { PrismaClient } from "@prisma/client";
 import { createSnapshotV2Commitment, type CanonicalSnapshotV2 } from "@lifecycle-kase/domain";
-import { buildSnapshotRegistrationInstruction, decodePublicKey, type SolanaRpc } from "@lifecycle-kase/solana-client";
+import {
+  buildSnapshotRegistrationInstruction,
+  decodePublicKey,
+  serializeUnsignedSnapshotRegistrationTransaction,
+  type SolanaRpc
+} from "@lifecycle-kase/solana-client";
 
 import { MAX_SNAPSHOT_GRACE_SECONDS, SnapshotPreparationError } from "./snapshot-candidate.js";
 
@@ -135,6 +140,12 @@ export async function preparePendingSnapshotRegistration(
   } catch {
     throw new SnapshotPreparationError("INVALID_BLOCKHASH", "RPC returned an invalid finalized blockhash");
   }
+  const serializedTransactionBase64 = serializeUnsignedSnapshotRegistrationTransaction({
+    instruction,
+    feePayer: instrument.issuerAuthority,
+    recentBlockhash: value.blockhash,
+    lastValidBlockHeight: value.lastValidBlockHeight as number
+  });
   return {
     snapshotId,
     snapshotHash: commitment.sha256,
@@ -147,6 +158,7 @@ export async function preparePendingSnapshotRegistration(
     actionAddress: instruction.actionAddress,
     accounts: instruction.accounts,
     instructionDataBase64: Buffer.from(instruction.data).toString("base64"),
+    serializedTransactionBase64,
     effect: "Register immutable snapshot commitment for corporate action " + action.id
   };
 }

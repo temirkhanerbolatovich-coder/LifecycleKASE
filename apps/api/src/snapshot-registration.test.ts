@@ -95,6 +95,7 @@ test("prepares a deterministic unsigned registration from a persisted snapshot",
   assert.equal(result.accounts.length, 6);
   assert.equal(result.accounts[2]?.address, result.actionAddress);
   assert.equal(Buffer.from(result.instructionDataBase64, "base64").length, 72);
+  assert.equal(Buffer.from(result.serializedTransactionBase64, "base64").length > 200, true);
   assert.deepEqual(setup.methods, ["getGenesisHash", "getSlot", "getBlockTime", "getLatestBlockhash"]);
 });
 

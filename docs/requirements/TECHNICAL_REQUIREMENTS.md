@@ -710,7 +710,7 @@ Backend возвращает:
 
 Frontend проверяет network и connected wallet перед подписью.
 
-Для `register_snapshot` исходный результат внутреннего сервиса сегодня является **unsigned instruction plan**, а не сериализованной транзакцией. Требование на serialized signable message остаётся невыполненным до auth/wallet flow. Клиент обязан показать hash, action, effective slot, issuer signer, program/mint, blockhash expiry и предупреждение о тестовом активе; stale plan нельзя молча переподписать после expiry или record window.
+Для `register_snapshot` backend возвращает проверенный instruction plan и сериализованную Solana v0 wire transaction с пустым signature slot issuer wallet. Это не означает submission или confirmation. Клиент обязан повторно показать hash, action, effective slot, issuer signer, program/mint, blockhash expiry и предупреждение о тестовом активе; stale transaction нельзя молча переподписать после expiry или record window.
 
 ### 9.6. Confirmation and reconciliation
 

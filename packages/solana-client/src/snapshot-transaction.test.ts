@@ -1,0 +1,60 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { decodePublicKey } from "./base58.js";
+import { getTransactionDecoder } from "@solana/kit";
+
+import { buildSnapshotRegistrationInstruction } from "./snapshot-registration.js";
+import { serializeUnsignedSnapshotRegistrationTransaction } from "./snapshot-transaction.js";
+
+const FEE_PAYER = "11111111111111111111111111111111";
+const MINT = "So11111111111111111111111111111111111111112";
+const PROGRAM = "6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo";
+
+test("serializes a wallet-signable v0 snapshot registration transaction", async () => {
+  const instruction = await buildSnapshotRegistrationInstruction({
+    programId: PROGRAM,
+    instrumentId: Uint8Array.from({ length: 16 }, (_, index) => index + 1),
+    actionId: Uint8Array.from({ length: 16 }, (_, index) => index + 17),
+    issuerAuthority: FEE_PAYER,
+    bondMint: MINT,
+    snapshotHash: "11".repeat(32),
+    snapshotSlot: 101n,
+    investorCount: 2,
+    walletCount: 3,
+    totalBalance: 35n,
+    mintSupply: 35n
+  });
+  const encoded = serializeUnsignedSnapshotRegistrationTransaction({
+    instruction,
+    feePayer: FEE_PAYER,
+    recentBlockhash: MINT,
+    lastValidBlockHeight: 200
+  });
+  const decoded = getTransactionDecoder().decode(Buffer.from(encoded, "base64"));
+  assert.deepEqual(Object.values(decoded.signatures), [null]);
+  assert.notEqual(Buffer.from(decoded.messageBytes).indexOf(Buffer.from(decodePublicKey(MINT))), -1);
+  assert.equal(decoded.messageBytes.length > instruction.data.length, true);
+});
+
+test("rejects a different fee payer or invalid block height", async () => {
+  const instruction = await buildSnapshotRegistrationInstruction({
+    programId: PROGRAM,
+    instrumentId: new Uint8Array(16).fill(1),
+    actionId: new Uint8Array(16).fill(2),
+    issuerAuthority: FEE_PAYER,
+    bondMint: MINT,
+    snapshotHash: "22".repeat(32),
+    snapshotSlot: 1n,
+    investorCount: 1,
+    walletCount: 1,
+    totalBalance: 1n,
+    mintSupply: 1n
+  });
+  assert.throws(() => serializeUnsignedSnapshotRegistrationTransaction({
+    instruction, feePayer: MINT, recentBlockhash: MINT, lastValidBlockHeight: 200
+  }));
+  assert.throws(() => serializeUnsignedSnapshotRegistrationTransaction({
+    instruction, feePayer: FEE_PAYER, recentBlockhash: MINT, lastValidBlockHeight: -1
+  }));
+});
