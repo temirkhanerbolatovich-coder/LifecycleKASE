@@ -12,9 +12,16 @@ export function operatorApiRewrites(environment = process.env) {
     "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/snapshot/prepare",
     "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/snapshot/confirm",
     "/api/v1/investors",
-    "/api/v1/investors/:id([0-9a-fA-F-]{36})/wallets"
+    "/api/v1/investors/:id([0-9a-fA-F-]{36})/wallets",
+    "/api/v1/investors/:id([0-9a-fA-F-]{36})/wallets/:walletId([0-9a-fA-F-]{36})/verification/challenge",
+    "/api/v1/investors/:id([0-9a-fA-F-]{36})/wallets/:walletId([0-9a-fA-F-]{36})/verification/verify"
   ];
-  return sources.map((source) => ({ source, destination: origin.origin + source.replace(":id([0-9a-fA-F-]{36})", ":id") }));
+  return sources.map((source) => ({
+    source,
+    destination: origin.origin + source
+      .replace(":id([0-9a-fA-F-]{36})", ":id")
+      .replace(":walletId([0-9a-fA-F-]{36})", ":walletId")
+  }));
 }
 
 export default { async rewrites() { return operatorApiRewrites(); } };

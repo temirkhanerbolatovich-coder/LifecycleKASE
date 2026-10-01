@@ -7,8 +7,15 @@ type Investor = {
   wallets: { id: string; address: string; status: string; network: string }[];
 };
 type Request = (path: string, init?: RequestInit) => Promise<Record<string, unknown>>;
+type VerificationChallenge = {
+  challengeId: string; walletId: string; walletAddress: string; message: string; nonce: string;
+};
 
-export function InvestorPanel({ role, request }: { role: string; request: Request }) {
+export function InvestorPanel({ role, request, signWalletMessage }: {
+  role: string;
+  request: Request;
+  signWalletMessage?: ((address: string, message: string) => Promise<string>) | undefined;
+}) {
   const [items, setItems] = useState<Investor[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -72,6 +79,34 @@ export function InvestorPanel({ role, request }: { role: string; request: Reques
     catch (error) { setMessage(error instanceof Error ? error.message : "Не удалось загрузить реестр."); }
     finally { setBusy(false); }
   }
+  async function verifyWallet(investorId: string, wallet: Investor["wallets"][number]) {
+    if (!signWalletMessage) return;
+    setBusy(true);
+    try {
+      const raw = await request(`/api/v1/investors/${investorId}/wallets/${wallet.id}/verification/challenge`, {
+        method: "POST", body: "{}"
+      });
+      const challenge = raw as VerificationChallenge;
+      if (typeof challenge.challengeId !== "string" || typeof challenge.nonce !== "string" ||
+          typeof challenge.message !== "string" || challenge.walletId !== wallet.id ||
+          challenge.walletAddress !== wallet.address) {
+        throw new Error("Сервер вернул некорректный запрос подтверждения.");
+      }
+      setMessage("Подпишите сообщение указанным инвесторским кошельком. Это не транзакция и не допуск к выплате.");
+      const signature = await signWalletMessage(wallet.address, challenge.message);
+      await request(`/api/v1/investors/${investorId}/wallets/${wallet.id}/verification/verify`, {
+        method: "POST", body: JSON.stringify({ challengeId: challenge.challengeId, nonce: challenge.nonce, signature })
+      });
+      try {
+        await load();
+        setMessage("Владение кошельком подтверждено. Eligibility остаётся PENDING_REVIEW.");
+      } catch {
+        setMessage("Сервер подтвердил владение, но список не обновился. Нажмите «Обновить»; не подписывайте повторно.");
+      }
+    } catch (error) {
+      setMessage(`${error instanceof Error ? error.message : "Не удалось подтвердить владение кошельком."} При потере ответа обновите список перед повтором.`);
+    } finally { setBusy(false); }
+  }
   const inputClass = "mt-1 w-full rounded-lg border border-[#cbd8d0] px-3 py-2 text-sm";
   const buttonClass = "rounded-lg border px-3 py-2 text-sm font-semibold disabled:opacity-50";
   return <section className="mt-6 border-t pt-5">
@@ -83,7 +118,12 @@ export function InvestorPanel({ role, request }: { role: string; request: Reques
         <p className="font-semibold">{investor.displayName} · {investor.externalReference ?? "без кода"}</p>
         <p className="mt-1 text-xs">{investor.countryCode} · KYC: {investor.kycStatus} · Допуск: {investor.eligibilityStatus}</p>
         <p className="mt-1 text-xs">Кошельков: {investor._count.wallets} {investor._count.wallets > 20 ? "(показаны первые 20)" : ""}</p>
-        {investor.wallets.map(wallet => <p className="mt-1 break-all text-xs" key={wallet.id}>{wallet.address} · {wallet.network} · {wallet.status}</p>)}
+        {investor.wallets.map(wallet => <div className="mt-2" key={wallet.id}>
+          <p className="break-all text-xs">{wallet.address} · {wallet.network} · {wallet.status}</p>
+          {role === "ADMINISTRATOR" && wallet.status === "PENDING" && signWalletMessage &&
+            <button type="button" className={`${buttonClass} mt-2`} disabled={busy}
+              onClick={() => void verifyWallet(investor.id, wallet)}>Подтвердить владение подписью</button>}
+        </div>)}
       </li>)}
     </ul>
     {nextCursor && <button type="button" className={`${buttonClass} mt-3`} disabled={busy} onClick={() => void refresh(nextCursor)}>Следующая страница</button>}

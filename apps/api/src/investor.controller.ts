@@ -5,6 +5,7 @@ import { AuthFlowError, authOptionsFromEnvironment, readOperatorSession, require
 import { AuthRateLimitError, AuthRateLimitService, authenticationClientKey } from "./auth-rate-limit.js";
 import { attachPendingWallet, createInvestor, InvestorRegistryError, listInvestors } from "./investor-registry.js";
 import { PrismaService } from "./prisma.service.js";
+import { createWalletVerificationChallenge, verifyWalletOwnership } from "./wallet-verification.js";
 
 type Request = { headers?: { cookie?: string }; ip?: string; socket?: { remoteAddress?: string } };
 type Response = { setHeader(name: string, value: string): void };
@@ -62,6 +63,29 @@ export class InvestorController {
     try {
       const actor = await this.actor(request, response, true, origin);
       return await attachPendingWallet(this.prisma, investorId, body, actor);
+    } catch (error) { this.httpError(error, response); }
+  }
+
+  @Post(":id/wallets/:walletId/verification/challenge")
+  @Header("Cache-Control", "no-store")
+  async verificationChallenge(@Param("id") investorId: string, @Param("walletId") walletId: string,
+    @Req() request: Request, @Res({ passthrough: true }) response: Response, @Headers("origin") origin?: string) {
+    try {
+      const options = authOptionsFromEnvironment();
+      const actor = await this.actor(request, response, true, origin);
+      return await createWalletVerificationChallenge(this.prisma, investorId, walletId, actor, origin!, new Date(), options);
+    } catch (error) { this.httpError(error, response); }
+  }
+
+  @Post(":id/wallets/:walletId/verification/verify")
+  @Header("Cache-Control", "no-store")
+  async verificationVerify(@Param("id") investorId: string, @Param("walletId") walletId: string,
+    @Body() body: unknown, @Req() request: Request, @Res({ passthrough: true }) response: Response,
+    @Headers("origin") origin?: string) {
+    try {
+      const options = authOptionsFromEnvironment();
+      const actor = await this.actor(request, response, true, origin);
+      return await verifyWalletOwnership(this.prisma, investorId, walletId, body, actor, origin!, new Date(), options);
     } catch (error) { this.httpError(error, response); }
   }
 }

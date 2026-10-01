@@ -174,6 +174,8 @@ export async function createOperatorChallenge(
     data: {
       id: challengeId,
       userId: wallet.user.id,
+      walletId: null,
+      purpose: "OPERATOR_LOGIN",
       walletAddress,
       nonceHash: digest(nonce),
       domain: options.domain,
@@ -214,7 +216,8 @@ export async function verifyOperatorChallenge(
   }
   const signature = decodeCanonicalBase64(input.signature);
   const challenge = await database.authChallenge.findUnique({ where: { id: input.challengeId } });
-  if (!challenge || !challenge.userId || challenge.usedAt !== null || challenge.expiresAt <= input.now ||
+  if (!challenge || challenge.purpose !== "OPERATOR_LOGIN" || !challenge.userId || challenge.walletId !== null ||
+      challenge.usedAt !== null || challenge.expiresAt <= input.now ||
       challenge.domain !== options.domain || challenge.origin !== origin) {
     throw new AuthFlowError("INVALID_CHALLENGE", "Authentication challenge is invalid or expired", 401);
   }

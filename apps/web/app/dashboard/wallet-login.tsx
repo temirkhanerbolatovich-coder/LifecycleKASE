@@ -169,6 +169,23 @@ export function WalletLogin() {
     }
   }
 
+  async function signInvestorWalletMessage(address: string, message: string): Promise<string> {
+    if (!selectedWallet) throw new Error("Совместимый Solana-кошелёк не найден.");
+    const connected = await selectedWallet.features[StandardConnect].connect();
+    const account = [...connected.accounts, ...selectedWallet.accounts]
+      .find(candidate => candidate.address === address && candidate.features.includes(SolanaSignMessage));
+    if (!account) {
+      throw new Error("Переключите активный аккаунт Phantom на указанный PENDING-кошелёк и повторите подтверждение.");
+    }
+    const messageBytes = new TextEncoder().encode(message);
+    const [signed] = await selectedWallet.features[SolanaSignMessage].signMessage({ account, message: messageBytes });
+    if (!signed || signed.signedMessage.length !== messageBytes.length ||
+        !Uint8Array.from(signed.signedMessage).every((byte, index) => byte === messageBytes[index])) {
+      throw new Error("Кошелёк изменил подписываемое сообщение; подтверждение остановлено.");
+    }
+    return canonicalBase64(Uint8Array.from(signed.signature));
+  }
+
   return (
     <div className="rounded-2xl border border-[#dbe5df] bg-white p-7 shadow-[0_14px_50px_-30px_rgba(16,35,28,0.3)]">
       <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#28744a]">Доступ оператора</p>
@@ -187,7 +204,8 @@ export function WalletLogin() {
             <SnapshotPanel key={walletAddress} wallet={selectedWallet} walletAddress={walletAddress} request={apiRequest} onBusyChange={setBusy} />
           )}
           {["ADMINISTRATOR", "AUDITOR"].includes(user.role) && (
-            <InvestorPanel key={user.id} role={user.role} request={apiRequest} />
+            <InvestorPanel key={user.id} role={user.role} request={apiRequest}
+              signWalletMessage={user.role === "ADMINISTRATOR" ? signInvestorWalletMessage : undefined} />
           )}
           <button className="mt-5 rounded-lg border border-[#cbd8d0] px-4 py-2 text-sm font-semibold disabled:opacity-50" disabled={busy} onClick={() => void logout()}>
             Выйти

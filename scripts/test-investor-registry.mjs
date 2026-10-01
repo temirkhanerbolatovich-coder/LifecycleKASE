@@ -65,7 +65,7 @@ try {
     const record = await provisionOperator(database, { walletAddress: address, displayName: `Synthetic ${role}`,
       role, network: "SOLANA_LOCALNET", now: new Date() });
     const challenge = await request("/auth/challenge", { method: "POST", body: { walletAddress: address } });
-    assert.equal(challenge.status, 201);
+    assert.equal(challenge.status, 201, JSON.stringify(challenge.payload));
     const signature = sign(null, Buffer.from(challenge.payload.message), keypair.privateKey).toString("base64");
     const verified = await request("/auth/verify", { method: "POST", body: {
       challengeId: challenge.payload.challengeId, nonce: challenge.payload.nonce, signature
@@ -98,8 +98,11 @@ try {
   assert.equal(created.payload.eligibilityStatus, "PENDING_REVIEW");
   assert.equal(created.headers.get("cache-control"), "no-store");
   const investorId = created.payload.id;
+  const investorKeypair = generateKeyPairSync("ed25519");
+  const investorPublicDer = investorKeypair.publicKey.export({ type: "spki", format: "der" });
+  const investorWalletAddress = encodePublicKey(investorPublicDer.subarray(-32));
   const attached = await request(`/investors/${investorId}/wallets`, { cookie: administrator.cookie,
-    method: "POST", body: { address: publicAddress() } });
+    method: "POST", body: { address: investorWalletAddress } });
   assert.equal(attached.status, 201);
   assert.equal(attached.payload.network, "SOLANA_LOCALNET");
   assert.equal(attached.payload.status, "PENDING");
@@ -114,6 +117,59 @@ try {
   assert.equal(audit[0].correlationId, created.headers.get("x-correlation-id"));
   assert.equal(audit[1].correlationId, attached.headers.get("x-correlation-id"));
   console.log("PASS HTTP create/pending wallet, real PostgreSQL projection and actor/correlation audit");
+
+  const verificationPath = `/investors/${investorId}/wallets/${attached.payload.id}/verification`;
+  assert.equal((await request(`${verificationPath}/challenge`, {
+    cookie: auditor.cookie, method: "POST", body: {}
+  })).status, 403);
+  assert.equal((await request(`${verificationPath}/challenge`, {
+    cookie: administrator.cookie, method: "POST", body: {}, requestOrigin: "https://untrusted.example"
+  })).status, 403);
+  const walletChallenge = await request(`${verificationPath}/challenge`, {
+    cookie: administrator.cookie, method: "POST", body: {}
+  });
+  assert.equal(walletChallenge.status, 201);
+  assert.equal(walletChallenge.payload.walletAddress, investorWalletAddress);
+  assert.match(walletChallenge.payload.message, /does not submit a transaction, approve eligibility, or authorize a payment/);
+  assert.equal((await request(`${verificationPath}/verify`, { cookie: administrator.cookie, method: "POST", body: {
+    challengeId: walletChallenge.payload.challengeId,
+    nonce: walletChallenge.payload.nonce,
+    signature: Buffer.alloc(64).toString("base64")
+  } })).status, 401);
+  const investorSignature = sign(null, Buffer.from(walletChallenge.payload.message), investorKeypair.privateKey).toString("base64");
+  const walletVerified = await request(`${verificationPath}/verify`, { cookie: administrator.cookie, method: "POST", body: {
+    challengeId: walletChallenge.payload.challengeId,
+    nonce: walletChallenge.payload.nonce,
+    signature: investorSignature
+  } });
+  assert.equal(walletVerified.status, 201);
+  assert.equal(walletVerified.payload.status, "ACTIVE");
+  assert.ok(walletVerified.payload.verifiedAt);
+  assert.equal((await request(`${verificationPath}/verify`, { cookie: administrator.cookie, method: "POST", body: {
+    challengeId: walletChallenge.payload.challengeId,
+    nonce: walletChallenge.payload.nonce,
+    signature: investorSignature
+  } })).status, 401);
+  const walletAudit = await database.auditLog.findMany({ where: { entityId: attached.payload.id } });
+  assert.equal(walletAudit.length, 1);
+  assert.equal(walletAudit[0].event, "INVESTOR_WALLET_OWNERSHIP_VERIFIED");
+  assert.equal(walletAudit[0].actorId, administrator.userId);
+  assert.equal(walletAudit[0].correlationId, walletVerified.headers.get("x-correlation-id"));
+  for (const data of [
+    { purpose: "INVESTOR_WALLET_VERIFICATION", walletId: null },
+    { purpose: "OPERATOR_LOGIN", walletId: attached.payload.id }
+  ]) {
+    await assert.rejects(database.authChallenge.create({ data: {
+      userId: administrator.userId,
+      walletAddress: investorWalletAddress,
+      nonceHash: randomBytes(32),
+      domain: "localhost:3000",
+      origin,
+      expiresAt: new Date(Date.now() + 60_000),
+      ...data
+    } }), error => error instanceof Error && /auth_challenges_purpose_wallet_check/.test(error.message));
+  }
+  console.log("PASS exact investor-wallet signature activates mapping once with atomic administrator audit");
 
   for (const address of [attached.payload.address, administrator.walletAddress]) {
     assert.equal((await request(`/investors/${investorId}/wallets`, { cookie: administrator.cookie,

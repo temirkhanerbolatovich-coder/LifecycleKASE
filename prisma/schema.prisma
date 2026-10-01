@@ -49,6 +49,11 @@ enum WalletStatus {
   REVOKED
 }
 
+enum AuthChallengePurpose {
+  OPERATOR_LOGIN
+  INVESTOR_WALLET_VERIFICATION
+}
+
 enum InstrumentStatus {
   DRAFT
   DEPLOYING
@@ -182,6 +187,8 @@ model User {
 model AuthChallenge {
   id            String    @id @default(uuid()) @db.Uuid
   userId        String?   @map("user_id") @db.Uuid
+  walletId      String?   @map("wallet_id") @db.Uuid
+  purpose       AuthChallengePurpose @default(OPERATOR_LOGIN)
   walletAddress String    @map("wallet_address") @db.VarChar(44)
   nonceHash     Bytes     @unique @map("nonce_hash") @db.ByteA
   domain        String    @db.VarChar(255)
@@ -190,8 +197,10 @@ model AuthChallenge {
   usedAt        DateTime? @map("used_at") @db.Timestamptz(6)
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   user          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  wallet        Wallet?   @relation(fields: [walletId], references: [id], onDelete: Cascade)
 
   @@index([walletAddress, expiresAt])
+  @@index([walletId, expiresAt])
   @@map("auth_challenges")
 }
 
@@ -242,6 +251,7 @@ model Wallet {
   user            User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
   investor        Investor?        @relation(fields: [investorId], references: [id], onDelete: Restrict)
   snapshotWallets SnapshotWallet[]
+  verificationChallenges AuthChallenge[]
 
   @@index([investorId])
   @@map("wallets")
