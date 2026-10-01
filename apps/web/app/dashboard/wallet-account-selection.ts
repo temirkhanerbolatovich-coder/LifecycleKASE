@@ -31,6 +31,10 @@ export function reconcileAccountSelection(
 }
 
 export function accountOptionLabel(account: WalletAccount): string {
-  const abbreviatedAddress = `${account.address.slice(0, 6)}…${account.address.slice(-6)}`;
+  const abbreviatedAddress = shortWalletAddress(account.address);
   return account.label ? `${account.label} · ${abbreviatedAddress}` : abbreviatedAddress;
+}
+
+export function shortWalletAddress(address: string): string {
+  return address.length > 15 ? `${address.slice(0, 6)}…${address.slice(-6)}` : address;
 }

@@ -7,7 +7,7 @@ import { StandardConnect, StandardEvents, type StandardConnectFeature, type Stan
 import { useEffect, useMemo, useState } from "react";
 import { SnapshotPanel } from "./snapshot-panel";
 import { InvestorPanel } from "./investor-panel";
-import { accountForAddress, accountOptionLabel, messageAccounts, reconcileAccountSelection } from "./wallet-account-selection";
+import { accountForAddress, accountOptionLabel, messageAccounts, reconcileAccountSelection, shortWalletAddress } from "./wallet-account-selection";
 
 type LoginWallet = WalletWithFeatures<StandardConnectFeature & SolanaSignMessageFeature>;
 type OperatorUser = { id: string; displayName: string; role: string };
@@ -223,8 +223,25 @@ export function WalletLogin() {
       <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#28744a]">Доступ оператора</p>
       {user ? (
         <div className="mt-5">
-          <p className="font-semibold">{user.displayName || "Оператор"}</p>
-          <p className="mt-1 break-all text-sm text-[#61746a]">{user.role} · {walletAddress ?? "кошелёк подтверждён"}</p>
+          <div className="rounded-xl border border-[#b9dec8] bg-[#eff9f2] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#28744a]">Сессия оператора активна</p>
+                <p className="mt-1 font-semibold">{user.displayName || "Оператор"}</p>
+              </div>
+              <span className="status-ready">{user.role === "ADMINISTRATOR" ? "Администратор" : "Аудитор"}</span>
+            </div>
+            <p className="mt-3 text-xs text-[#53695d]">Вход выполнен адресом <span className="font-mono font-semibold" title={walletAddress ?? undefined}>{walletAddress ? shortWalletAddress(walletAddress) : "подтверждённый кошелёк"}</span></p>
+          </div>
+          {selectedAccountAddress && (
+            <div className={`mt-3 rounded-xl border p-4 ${selectedAccountAddress === walletAddress ? "border-[#dbe5df] bg-[#f7faf8]" : "border-[#efd29d] bg-[#fff8eb]"}`}>
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#61746a]">Сейчас выбран в Phantom</p>
+              <p className="mt-1 font-mono text-sm font-semibold" title={selectedAccountAddress}>{shortWalletAddress(selectedAccountAddress)}</p>
+              <p className="mt-2 text-xs leading-5 text-[#61746a]">{selectedAccountAddress === walletAddress
+                ? "Это кошелёк оператора. Переключите аккаунт только когда нужно подтвердить кошелёк инвестора."
+                : "Выбран другой аккаунт. Сессия оператора сохранена — теперь им можно подтвердить соответствующий кошелёк инвестора."}</p>
+            </div>
+          )}
           {wallets.length > 1 && (
             <label className="mt-4 block text-sm">Провайдер кошелька
               <select className="mt-2 w-full rounded-lg border px-3 py-2" disabled={busy} value={selectedIndex} onChange={(event) => {
@@ -236,12 +253,17 @@ export function WalletLogin() {
               </select>
             </label>
           )}
-          {user.role === "ADMINISTRATOR" && walletAddress && (
-            <SnapshotPanel key={walletAddress} wallet={selectedWallet} walletAddress={walletAddress} request={apiRequest} onBusyChange={setBusy} />
-          )}
           {["ADMINISTRATOR", "AUDITOR"].includes(user.role) && (
             <InvestorPanel key={user.id} role={user.role} request={apiRequest}
+              activeWalletAddress={selectedAccountAddress}
               signWalletMessage={user.role === "ADMINISTRATOR" ? signInvestorWalletMessage : undefined} />
+          )}
+          {user.role === "ADMINISTRATOR" && walletAddress && (
+            <details className="mt-6 rounded-xl border border-[#dbe5df] bg-[#f8faf9] px-4">
+              <summary className="cursor-pointer py-4 text-sm font-semibold">Расширенные операции · Snapshot Devnet</summary>
+              <p className="text-xs leading-5 text-[#61746a]">Откройте этот раздел только для подготовленного корпоративного действия с известным UUID.</p>
+              <SnapshotPanel key={walletAddress} wallet={selectedWallet} walletAddress={walletAddress} request={apiRequest} onBusyChange={setBusy} />
+            </details>
           )}
           <button className="mt-5 rounded-lg border border-[#cbd8d0] px-4 py-2 text-sm font-semibold disabled:opacity-50" disabled={busy} onClick={() => void logout()}>
             Выйти
@@ -249,6 +271,10 @@ export function WalletLogin() {
         </div>
       ) : (
         <div className="mt-5">
+          <div className="rounded-xl border border-[#dbe5df] bg-[#f7faf8] p-4 text-sm leading-6 text-[#53695d]">
+            <p className="font-semibold text-[#163f2b]">1. Выберите кошелёк оператора</p>
+            <p className="mt-1">Для входа нужен заранее зарегистрированный адрес администратора. Кошелёк инвестора используется позже и не сможет войти как оператор.</p>
+          </div>
           {wallets.length > 1 && (
             <label className="block text-sm font-medium">
               Провайдер кошелька
@@ -271,6 +297,7 @@ export function WalletLogin() {
                   <option key={account.address} value={account.address}>{accountOptionLabel(account)}</option>
                 ))}
               </select>
+              <span className="mt-2 block text-xs leading-5 text-[#61746a]">Проверьте окончание адреса. Имя профиля Phantom может быть одинаковым у нескольких аккаунтов.</span>
             </label>
           )}
           <button className="mt-5 rounded-lg bg-[#163f2b] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
@@ -279,7 +306,7 @@ export function WalletLogin() {
           </button>
         </div>
       )}
-      <p aria-live="polite" className="mt-4 text-xs leading-5 text-[#708278]">{message}</p>
+      <p aria-live="polite" className="mt-4 rounded-lg bg-[#f4f7f5] px-3 py-2 text-xs leading-5 text-[#52675b]">{message}</p>
       <p className="mt-3 text-xs leading-5 text-[#8a5b18]">Подпись входа не отправляет транзакцию и не разрешает выплату.</p>
     </div>
   );

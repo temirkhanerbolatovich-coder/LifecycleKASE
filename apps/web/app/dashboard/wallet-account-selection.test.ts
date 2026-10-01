@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { SolanaSignMessage } from "@solana/wallet-standard-features";
 import type { WalletAccount } from "@wallet-standard/base";
-import { accountForAddress, accountOptionLabel, messageAccounts, reconcileAccountSelection } from "./wallet-account-selection.js";
+import { accountForAddress, accountOptionLabel, messageAccounts, reconcileAccountSelection, shortWalletAddress } from "./wallet-account-selection.js";
 
 function account(address: string, label?: string, features = [SolanaSignMessage]): WalletAccount {
   return {
@@ -49,4 +49,5 @@ test("combines connected and registered accounts without duplicates or unsupport
 test("labels expose both the Phantom label and an address fingerprint", () => {
   const labeled = account("1234567890abcdefghijklmnopqrstuv", "Account 2");
   assert.equal(accountOptionLabel(labeled), "Account 2 · 123456…qrstuv");
+  assert.equal(shortWalletAddress("short-address"), "short-address");
 });
