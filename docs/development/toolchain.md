@@ -24,7 +24,15 @@ wsl -d Ubuntu -u lifecycle-dev -- bash -lc 'id; rustc --version; cargo --version
 wsl -d Ubuntu -u lifecycle-dev -- bash -lc 'bash /mnt/c/Users/Админ/Documents/ChatGPT/LifecycleKASE/scripts/test-solana-validator.sh 18899 30'
 ```
 
-This is a developer-machine checkpoint, not an automated installation runbook or Devnet deployment. Adapt the checkout path if it changes. Under `lifecycle-dev`, `cargo test --workspace --locked --offline` passed all 7 Rust unit tests and the empty doc-test suite on 2026-10-01. A full Anchor/SBF program build under this account has not yet been verified; host Rust tests and tool installation do not prove that build. Review signer/upgrade-authority custody before the next Devnet step.
+This is a developer-machine checkpoint, not an automated installation runbook or Devnet deployment. Adapt the checkout path if it changes. Under `lifecycle-dev`, `cargo test --workspace --locked --offline` passed all 7 Rust unit tests and the empty doc-test suite on 2026-10-01. Full Anchor/SBF compilation and IDL generation subsequently passed under that account with `anchor build --tools-version v1.57` and explicit Linux-owned output directories. Review signer/upgrade-authority custody before the next Devnet step.
+
+### Non-root build output — 2026-10-01
+
+The initial build compiled Rust successfully but failed when LLVM tried to replace the existing root-owned `.so` on the Windows/DrvFS checkout (`Operation not permitted`). No source change or broad permission change was used to bypass this. A guarded temporary `/tmp/lifecycle-kase-non-root-build.*` directory held SBF and IDL outputs. `SBF_OUT_PATH` selected the SBF directory, and Anchor's `--idl`/`--idl-ts` selected the IDL outputs. Passing `--sbf-out-dir` as a forwarded Cargo argument failed because Anchor also forwarded it to the IDL test command; the environment variable avoids that conflict.
+
+The existing compromised **localnet-only** program keypair was temporarily copied to the output directory solely to prevent build tooling from generating a new identity. Its bytes were compared locally without printing them; the original was unchanged. The temporary directory, including that copy, was removed on exit. No user wallet or Devnet key was created. The successful non-secret artifacts were copied to ignored `generated/non-root-build/`; old `target/deploy` artifacts were preserved. The IDL address matches `Anchor.toml`/`declare_id!` and contains the five expected instructions. These artifacts have not been deployed or integration-tested on Devnet.
+
+Artifact evidence: `lifecycle_kase.so` is 290136 bytes, SHA-256 `cd502cfd217036548700c334b472b544ee7275ef1585870e4268bb34492e049b`. This is an observed build hash, not a reproducible/verifiable-build certification.
 
 ## Supported environment
 
@@ -71,6 +79,7 @@ For the on-chain instructions, run `anchor build` from Ubuntu WSL, `npm ci --pre
 
 ## Security boundaries
 
+- On 2026-10-01, a failed PowerShell-to-WSL quoting diagnostic exposed the existing localnet program keypair in tool output. Treat that key as compromised and disposable/local-only. Do not reuse it for Devnet, mainnet, upgrade authority or a funded wallet. No key material is recorded here; the operator's Phantom key was not involved. Before Devnet, approve a fresh program identity and update/check all relevant program-ID projections. The existing localnet artifact is retained for compatibility, not trusted custody.
 - Local validator and seed keypairs must be disposable and excluded from Git.
 - Devnet keys must not be reused for mainnet or personal wallets.
 - Installer output, logs, CI artifacts, and test evidence must never include seed phrases or private-key bytes.
