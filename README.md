@@ -21,6 +21,7 @@ The binding requirements are:
 - [Persistence architecture](docs/architecture/persistence.md)
 - [Implemented, simulated, and pending scope](docs/IMPLEMENTED_VS_SIMULATED.md)
 - [Disposable Render staging deployment](docs/deployment/render-staging.md)
+- [Ordered Devnet-to-MVP checklist and read-only preflight](docs/deployment/DEVNET_TO_MVP_CHECKLIST.md)
 
 ## Repository layout
 

@@ -16,6 +16,7 @@ Status: staging login and session persistence after refresh reported working by 
 - [ ] Use a newly reviewed Devnet program identity, never the compromised disposable localnet keypair described in the [toolchain security note](../development/toolchain.md#security-boundaries).
 - [x] Fresh Devnet-only candidate deployment wallet and separate program keypair generated after explicit approval; permissions and local signing checks passed. See [key custody limitations](../development/toolchain.md#devnet-key-preparation--2026-10-01).
 - [ ] Owner confirms reviewed offline backup and deployment/upgrade-authority plan; new public program ID integrated and rebuilt. Generating keys does not close this gate or authorize a network deployment.
+- [x] User approved CLI fee payer and Phantom upgrade authority/issuer; recorded in [ADR-013](../decisions/ADR-013-devnet-demo-authorities.md). Actual assignment and backup remain pending. Follow the [ordered delivery checklist](../deployment/DEVNET_TO_MVP_CHECKLIST.md).
 
 Do not submit a snapshot merely because the login panel is available. Preparation evidence does not close the remaining end-to-end prerequisites.
 

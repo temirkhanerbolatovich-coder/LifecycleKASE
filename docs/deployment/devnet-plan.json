@@ -1,0 +1,7 @@
+{
+  "rpcUrl": "https://api.devnet.solana.com",
+  "expectedGenesisHash": "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG",
+  "programId": "7HC52Y6GC7GEdfHQozHscFxrir8AGBfHUcWhKiJVw7jC",
+  "feePayer": "C8LAzJwa6XyecAnjC9XkSHNm28M242qBSmacamfhbuCi",
+  "upgradeAuthority": "5Nn5WtR1dzVamAJYAheUBucFu6wUuJLbCUr2VwTTJzMM"
+}
