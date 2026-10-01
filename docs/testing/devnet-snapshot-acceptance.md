@@ -19,6 +19,14 @@ Status: staging login and session persistence after refresh reported working by 
 
 Do not submit a snapshot merely because the login panel is available. Preparation evidence does not close the remaining end-to-end prerequisites.
 
+## Read-only network and authority review — 2026-10-01
+
+Explicit public Devnet CLI checks returned genesis hash `EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG`, a finalized deployment-wallet balance of `0 SOL`, and `AccountNotFound` for the fresh candidate program identity. No funding, transaction, authority assignment, backup or deployment was performed. These observations are time-specific; re-check immediately before a transaction. They do not verify the API's configured RPC.
+
+The current `initialize_instrument` implementation requires the signing administrator to equal the program's upgrade authority and stores that address as `instrument.issuer_authority`. Activation/action/snapshot instructions then require that issuer; the API additionally requires the session wallet to match the issuer. Consequently, appointing the CLI deployment wallet as upgrade authority would prevent the existing Phantom operator from managing instruments initialized by that wallet. Deployment fee payer, program keypair and upgrade authority are different concepts; possessing a new program keypair does not grant issuer access.
+
+Before changing public program-ID projections or deploying, explicitly choose either (a) Phantom as upgrade authority/initial issuer, with wallet-signed initialization prepared separately, or (b) a reviewed contract change separating bootstrap administrator from instrument issuer. Option (b) needs new authorization tests and is not implemented. Never import the Phantom seed into the CLI as a workaround. The current UI supports snapshot registration, not instrument initialization. Owner-controlled offline backup remains pending.
+
 ## Safe wallet setup
 
 The operator creates a separate test wallet on their own computer. One supported route is the browser extension downloaded from [Phantom's official site](https://phantom.com/download), following its [wallet creation guide](https://help.phantom.com/articles/how-to-create-a-new-wallet-in-phantom-8071074929043). Enable Settings → Developer Settings → Testnet Mode → Solana Devnet using the [official testnet instructions](https://help.phantom.com/articles/5997313271699).
