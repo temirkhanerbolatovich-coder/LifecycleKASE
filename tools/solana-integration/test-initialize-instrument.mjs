@@ -37,7 +37,8 @@ if (!administratorKeyPath) {
   throw new Error("A disposable local administrator keypair path is required");
 }
 
-const idlPath = fileURLToPath(new URL("../../target/idl/lifecycle_kase.json", import.meta.url));
+const idlPath = process.argv[4]
+  ?? fileURLToPath(new URL("../../target/idl/lifecycle_kase.json", import.meta.url));
 const idl = JSON.parse(await readFile(idlPath, "utf8"));
 const programId = new PublicKey(idl.address);
 const connection = new Connection(rpcUrl, "finalized");

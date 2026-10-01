@@ -14,7 +14,7 @@ The [implementation status](../IMPLEMENTED_VS_SIMULATED.md) and [requirements](.
 2. **Program identity and build**
    - [x] Separate Devnet Cargo profile, Anchor mapping, isolated SBF/IDL build and public artifact hash/identity gate implemented and locally verified. See [build procedure](devnet-build.md).
    - [x] Both Rust profiles select the expected ID and pass their unit tests; default localnet ID and artifacts preserved.
-   - [ ] Re-run local-validator end-to-end integration with reviewed current artifacts. Host tests are not runtime/Devnet acceptance.
+   - [x] Re-run local-validator end-to-end integration with the reviewed Devnet-profile artifacts: all 25 reported scenario groups passed on 2026-10-01. This is local runtime acceptance, not public Devnet/deployment acceptance.
 3. **Devnet deployment** — obtain explicit transaction approval, deploy with the CLI payer and Phantom upgrade authority, verify loader/ProgramData/current authority and finalized signature. Do not confuse the program keypair with upgrade authority.
 4. **Investor Registry** — authenticated administrator CRUD, eligibility and wallet verification/revocation, immutable audit, auditor read-only views and negative authorization tests. No real personal/KYC data.
 5. **Instrument setup** — create test Token-2022 bond and KZT-Test mints, approved authority/PDA settings, synthetic wallet distribution 10/20/5 and wallet-signed instrument initialization/activation. Verify finalized chain/database projections. The current UI does not initialize instruments.
@@ -28,7 +28,7 @@ The [implementation status](../IMPLEMENTED_VS_SIMULATED.md) and [requirements](.
 
 ## Current next action
 
-Stage 1 is partially complete: backup, funding and actual authority assignment are not complete. Stage 2's isolated Devnet build is implemented; local-validator end-to-end rerun remains pending. No network deployment has been performed. Login/profile/session refresh are operator-reported successes; logout and authenticated API acceptance remain pending.
+Stage 1 is partially complete: backup, funding and actual authority assignment are not complete. Stage 2's isolated Devnet build and local runtime acceptance are complete. No network deployment has been performed. Next: owner-reviewed offline backup, test SOL and renewed read-only preflight, then separate deployment approval. Login/profile/session refresh are operator-reported successes; logout and authenticated API acceptance remain pending.
 
 ## Preflight usage and limits
 

@@ -26,8 +26,20 @@ node scripts/check-program-identity.mjs generated/devnet-build/lifecycle_kase.js
 
 Observed artifact: 290136 bytes, SHA-256 `896de8f92a9be7082f54fce84bdf81d9ea41477dc7976797a3c224c84a14f429`. IDL address: `7HC52Y6GC7GEdfHQozHscFxrir8AGBfHUcWhKiJVw7jC`.
 
+## Local runtime acceptance
+
+After installing the isolated integration dependencies, run from PowerShell:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-initialize-instrument.ps1 -WslUser lifecycle-dev -Profile devnet
+```
+
+This builds the production Solana client and verifies the retained Devnet artifact's identity/hash before starting an isolated local validator. `devnet` selects the **artifact**, not the RPC network. The validator loads the program into genesis as upgradeable at its public ID with a newly generated disposable administrator; no persistent localnet or Devnet program keypair is read. The temporary administrator and ledger are owner-only and removed on exit. The Node client rejects public RPC URLs. Use `-Profile localnet` (the default) to test the preserved `target/deploy` and `target/idl` artifacts instead. Run these profiles sequentially: changing `-RpcPort` alone does not isolate the validator's default faucet port (`9900`). Startup failures report both stdout and stderr before temporary logs are removed.
+
+The test covers the five implemented instructions, all three scheduled action types, 10/20/5 activation, synthetic snapshot commitment, unauthorized signers and replay rejection. It does not test a deployment transaction, Phantom signing, canonical snapshot content/eligibility, payment/burn, API/database confirmation or a public Devnet transaction. The legacy integration dependencies have known advisories and remain restricted to a trusted local validator; see [toolchain notes](../development/toolchain.md).
+
 ## Validation and remaining gates
 
-Both host Rust profiles passed 8 unit tests each, including the actual compiled `id()` selection. Rustfmt and Devnet Clippy passed; repository tests cover mismatched source/plan/IDL and binary hash pins. CI now tests both host Rust profiles. SBF/IDL build and retained-artifact identity/hash checks passed locally. The existing local-validator end-to-end integration test was not rerun during this change; Devnet runtime/finalized acceptance also remains pending. These checks do not prove issuance, transaction authority or settlement.
+Both host Rust profiles previously passed 8 unit tests each, including the actual compiled `id()` selection. Rustfmt and Devnet Clippy passed during build preparation; repository tests cover mismatched source/plan/IDL and binary hash pins. CI now tests both host Rust profiles. SBF/IDL build and retained-artifact identity/hash checks passed locally. On 2026-10-01 the retained Devnet-profile binary and the preserved localnet binary each passed all 25 reported local-validator scenario groups, using finalized transaction/account checks and a disposable local administrator. The first concurrent localnet attempt failed during validator startup; sequential runs passed, and the shared-port limitation is documented above. `npm run check` also passed all 96 repository tests, schema validation and type checks. Negative manual checks rejected an unknown profile, root execution of the Devnet-profile test, and a public Devnet RPC URL. Public Devnet runtime/finalized acceptance remains pending. These checks do not prove real investor issuance, Phantom authorization or settlement.
 
 Backup, test funding, separate deployment approval, final genesis/ProgramData/upgrade-authority verification, wallet-signed initialization and chain/database reconciliation remain required. Never invoke `anchor deploy` against the default checkout keypair, never use `anchor keys sync` blindly across these conditional identities, and never put Devnet keys into `target/deploy` or Render to simplify tooling.

@@ -1,6 +1,8 @@
 param(
-    [int]$RpcPort = 18898,
-    [string]$WslDistribution = "Ubuntu"
+    [ValidateRange(1, 65535)][int]$RpcPort = 18898,
+    [string]$WslDistribution = "Ubuntu",
+    [string]$WslUser = "",
+    [ValidateSet("localnet", "devnet")][string]$Profile = "localnet"
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,12 +17,16 @@ if ($null -eq (Get-Command "wsl" -ErrorAction SilentlyContinue)) {
 }
 
 $scriptPath = (Join-Path $PSScriptRoot "test-initialize-instrument.sh").Replace('\', '/')
-$linuxScriptPath = & wsl -d $WslDistribution -- wslpath -a $scriptPath
+$wslArguments = @("-d", $WslDistribution)
+if (-not [string]::IsNullOrWhiteSpace($WslUser)) {
+    $wslArguments += @("-u", $WslUser)
+}
+$linuxScriptPath = & wsl @wslArguments -- wslpath -a $scriptPath
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($linuxScriptPath)) {
     throw "Could not resolve the integration test path inside WSL/$WslDistribution."
 }
 
-& wsl -d $WslDistribution -- bash $linuxScriptPath $RpcPort
+& wsl @wslArguments -- bash $linuxScriptPath $RpcPort $Profile
 if ($LASTEXITCODE -ne 0) {
     throw "Local-validator integration test failed in WSL/$WslDistribution."
 }
