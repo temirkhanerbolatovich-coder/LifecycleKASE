@@ -1,5 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "outDir": ".test-dist", "rootDir": "app/dashboard", "lib": ["esnext", "dom"] },
-  "include": ["app/dashboard/snapshot-workflow.ts", "app/dashboard/snapshot-workflow.test.ts"]
+  "include": [
+    "app/dashboard/snapshot-workflow.ts",
+    "app/dashboard/snapshot-workflow.test.ts",
+    "app/dashboard/wallet-account-selection.ts",
+    "app/dashboard/wallet-account-selection.test.ts"
+  ]
 }

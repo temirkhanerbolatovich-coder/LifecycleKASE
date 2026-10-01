@@ -3,10 +3,11 @@
 import { SolanaSignMessage, type SolanaSignMessageFeature } from "@solana/wallet-standard-features";
 import { getWallets } from "@wallet-standard/app";
 import type { Wallet, WalletAccount, WalletWithFeatures } from "@wallet-standard/base";
-import { StandardConnect, type StandardConnectFeature } from "@wallet-standard/features";
+import { StandardConnect, StandardEvents, type StandardConnectFeature, type StandardEventsFeature } from "@wallet-standard/features";
 import { useEffect, useMemo, useState } from "react";
 import { SnapshotPanel } from "./snapshot-panel";
 import { InvestorPanel } from "./investor-panel";
+import { accountForAddress, accountOptionLabel, messageAccounts, reconcileAccountSelection } from "./wallet-account-selection";
 
 type LoginWallet = WalletWithFeatures<StandardConnectFeature & SolanaSignMessageFeature>;
 type OperatorUser = { id: string; displayName: string; role: string };
@@ -43,6 +44,8 @@ function errorMessage(payload: Record<string, unknown>, fallback: string): strin
       return "Текущий адрес приложения не разрешён сервером.";
     case "INVALID_CHALLENGE":
       return "Запрос на вход истёк. Повторите подключение.";
+    case "INVALID_SIGNATURE":
+      return "Подпись не соответствует выбранному адресу. Выберите нужный аккаунт Phantom и повторите.";
     case "TRANSACTION_NOT_FINALIZED":
       return "Транзакция ещё не финализирована. Подождите и повторите только проверку.";
     case "AUTH_RATE_LIMITED":
@@ -65,16 +68,13 @@ async function apiRequest(path: string, init?: RequestInit): Promise<Record<stri
   return payload;
 }
 
-function accountForMessage(wallet: LoginWallet, accounts: readonly WalletAccount[]): WalletAccount | undefined {
-  return accounts.find((account) => account.features.includes(SolanaSignMessage)) ??
-    wallet.accounts.find((account) => account.features.includes(SolanaSignMessage));
-}
-
 export function WalletLogin() {
   const [wallets, setWallets] = useState<readonly LoginWallet[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [user, setUser] = useState<OperatorUser | null>(null);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [availableAccounts, setAvailableAccounts] = useState<readonly WalletAccount[]>([]);
+  const [selectedAccountAddress, setSelectedAccountAddress] = useState("");
   const [message, setMessage] = useState("Проверяем активную сессию…");
   const [busy, setBusy] = useState(true);
   const selectedWallet = useMemo(() => wallets[selectedIndex], [wallets, selectedIndex]);
@@ -106,6 +106,27 @@ export function WalletLogin() {
     return () => { stopRegister(); stopUnregister(); };
   }, []);
 
+  useEffect(() => {
+    if (!selectedWallet) {
+      setAvailableAccounts([]);
+      setSelectedAccountAddress("");
+      return;
+    }
+
+    const updateAccounts = (accounts: readonly WalletAccount[]) => {
+      const signingAccounts = messageAccounts(accounts, []);
+      setAvailableAccounts(signingAccounts);
+      setSelectedAccountAddress((current) => reconcileAccountSelection(signingAccounts, current));
+    };
+
+    updateAccounts(selectedWallet.accounts);
+    const events = (selectedWallet as Wallet).features[StandardEvents] as StandardEventsFeature[typeof StandardEvents] | undefined;
+    if (!events) return;
+    return events.on("change", ({ accounts }) => {
+      if (accounts) updateAccounts(accounts);
+    });
+  }, [selectedWallet]);
+
   async function login(): Promise<void> {
     if (!selectedWallet) {
       setMessage("Совместимый Solana Wallet Standard кошелёк не найден.");
@@ -115,7 +136,16 @@ export function WalletLogin() {
     setMessage("Ожидаем разрешение кошелька…");
     try {
       const connected = await selectedWallet.features[StandardConnect].connect();
-      const account = accountForMessage(selectedWallet, connected.accounts);
+      const accounts = messageAccounts(availableAccounts, [...connected.accounts, ...selectedWallet.accounts]);
+      setAvailableAccounts(accounts);
+      const nextSelection = reconcileAccountSelection(accounts, selectedAccountAddress);
+      setSelectedAccountAddress(nextSelection);
+      const account = accountForAddress(accounts, nextSelection);
+      if (!account && accounts.length > 1) {
+        setSelectedAccountAddress("");
+        setMessage("Phantom подключил несколько аккаунтов. Выберите адрес оператора и нажмите вход ещё раз.");
+        return;
+      }
       if (!account) throw new Error("Кошелёк не поддерживает подпись сообщений выбранным аккаунтом.");
       const challengePayload = await apiRequest("/api/v1/auth/challenge", {
         method: "POST", body: JSON.stringify({ walletAddress: account.address })
@@ -147,6 +177,7 @@ export function WalletLogin() {
       }
       setUser(verified["user"] as OperatorUser);
       setWalletAddress(account.address);
+      setSelectedAccountAddress(account.address);
       setMessage("Вход выполнен.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось выполнить вход через кошелёк.");
@@ -172,8 +203,9 @@ export function WalletLogin() {
   async function signInvestorWalletMessage(address: string, message: string): Promise<string> {
     if (!selectedWallet) throw new Error("Совместимый Solana-кошелёк не найден.");
     const connected = await selectedWallet.features[StandardConnect].connect();
-    const account = [...connected.accounts, ...selectedWallet.accounts]
-      .find(candidate => candidate.address === address && candidate.features.includes(SolanaSignMessage));
+    const accounts = messageAccounts(availableAccounts, [...connected.accounts, ...selectedWallet.accounts]);
+    setAvailableAccounts(accounts);
+    const account = accountForAddress(accounts, address);
     if (!account) {
       throw new Error("Переключите активный аккаунт Phantom на указанный PENDING-кошелёк и повторите подтверждение.");
     }
@@ -194,8 +226,12 @@ export function WalletLogin() {
           <p className="font-semibold">{user.displayName || "Оператор"}</p>
           <p className="mt-1 break-all text-sm text-[#61746a]">{user.role} · {walletAddress ?? "кошелёк подтверждён"}</p>
           {wallets.length > 1 && (
-            <label className="mt-4 block text-sm">Кошелёк для транзакции
-              <select className="mt-2 w-full rounded-lg border px-3 py-2" disabled={busy} value={selectedIndex} onChange={(event) => setSelectedIndex(Number(event.target.value))}>
+            <label className="mt-4 block text-sm">Провайдер кошелька
+              <select className="mt-2 w-full rounded-lg border px-3 py-2" disabled={busy} value={selectedIndex} onChange={(event) => {
+                setSelectedIndex(Number(event.target.value));
+                setAvailableAccounts([]);
+                setSelectedAccountAddress("");
+              }}>
                 {wallets.map((wallet, index) => <option key={`${wallet.name}-${index}`} value={index}>{wallet.name}</option>)}
               </select>
             </label>
@@ -215,13 +251,30 @@ export function WalletLogin() {
         <div className="mt-5">
           {wallets.length > 1 && (
             <label className="block text-sm font-medium">
-              Кошелёк
-              <select className="mt-2 w-full rounded-lg border border-[#cbd8d0] bg-white px-3 py-2" value={selectedIndex} onChange={(event) => setSelectedIndex(Number(event.target.value))}>
+              Провайдер кошелька
+              <select className="mt-2 w-full rounded-lg border border-[#cbd8d0] bg-white px-3 py-2" value={selectedIndex} onChange={(event) => {
+                setSelectedIndex(Number(event.target.value));
+                setAvailableAccounts([]);
+                setSelectedAccountAddress("");
+              }}>
                 {wallets.map((wallet, index) => <option key={`${wallet.name}-${index}`} value={index}>{wallet.name}</option>)}
               </select>
             </label>
           )}
-          <button className="mt-5 rounded-lg bg-[#163f2b] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled={busy || wallets.length === 0} onClick={() => void login()}>
+          {availableAccounts.length > 0 && (
+            <label className="mt-4 block text-sm font-medium">
+              {availableAccounts.length === 1 ? "Активный аккаунт Solana" : "Аккаунт Solana"}
+              <select className="mt-2 w-full rounded-lg border border-[#cbd8d0] bg-white px-3 py-2" disabled={busy}
+                value={selectedAccountAddress} onChange={(event) => setSelectedAccountAddress(event.target.value)}>
+                {availableAccounts.length > 1 && <option value="">Выберите адрес оператора</option>}
+                {availableAccounts.map((account) => (
+                  <option key={account.address} value={account.address}>{accountOptionLabel(account)}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          <button className="mt-5 rounded-lg bg-[#163f2b] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={busy || wallets.length === 0 || (availableAccounts.length > 1 && !selectedAccountAddress)} onClick={() => void login()}>
             {busy ? "Проверка…" : wallets.length === 0 ? "Solana-кошелёк не найден" : `Войти через ${selectedWallet?.name}`}
           </button>
         </div>
