@@ -27,6 +27,9 @@ jobs:
       - name: Test program logic
         run: cargo +1.98.1 test -p lifecycle_kase --locked
 
+      - name: Test Devnet program identity and logic
+        run: cargo +1.98.1 test -p lifecycle_kase --locked --features devnet
+
       - name: Lint program
         run: cargo +1.98.1 clippy -p lifecycle_kase --all-targets --locked -- -D warnings
 

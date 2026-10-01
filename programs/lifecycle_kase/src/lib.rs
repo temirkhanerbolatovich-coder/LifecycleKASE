@@ -5,7 +5,10 @@ use anchor_spl::token_2022::spl_token_2022::{
 };
 use anchor_spl::token_interface::{Mint, Token2022};
 
+#[cfg(not(feature = "devnet"))]
 declare_id!("6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo");
+#[cfg(feature = "devnet")]
+declare_id!("7HC52Y6GC7GEdfHQozHscFxrir8AGBfHUcWhKiJVw7jC");
 
 const MAX_ACTIVATION_HOLDER_ACCOUNTS: usize = 64;
 const SNAPSHOT_GRACE_SECONDS: i64 = 300;
@@ -652,6 +655,20 @@ pub enum ErrorCode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn selects_the_program_identity_for_the_build_profile() {
+        #[cfg(feature = "devnet")]
+        assert_eq!(
+            id().to_string(),
+            "7HC52Y6GC7GEdfHQozHscFxrir8AGBfHUcWhKiJVw7jC"
+        );
+        #[cfg(not(feature = "devnet"))]
+        assert_eq!(
+            id().to_string(),
+            "6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo"
+        );
+    }
 
     const TEST_NOW: i64 = 1_750_000_000;
 

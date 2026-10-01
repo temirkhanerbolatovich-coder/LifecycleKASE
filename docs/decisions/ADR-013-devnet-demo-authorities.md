@@ -23,4 +23,6 @@ This keeps the MVP contract's on-chain authorization intact. Phantom compromise 
 
 ## Risks and future work
 
+Build implementation preserves the default localnet identity and uses a distinct `devnet` Cargo feature/Anchor mapping, rather than globally replacing the local address or copying the real Devnet keypair into the checkout. This keeps local fixtures compatible and prevents a build command from becoming a custody operation. The [isolated build](../deployment/devnet-build.md) binds source/configuration/IDL to a reviewed artifact hash; actual loader and authority checks remain deployment-time work.
+
 Review backup and test funding, integrate/rebuild the public program identity, obtain separate deployment authorization, verify finalized ProgramData/authority, and implement wallet-signed initialization. Before production, design delegation, rotation and multisig governance with external security review. Do not weaken checks or import Phantom secrets to bypass an unavailable signing flow.
