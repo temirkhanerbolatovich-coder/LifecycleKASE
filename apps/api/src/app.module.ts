@@ -4,9 +4,10 @@ import { AuthRateLimitService } from "./auth-rate-limit.js";
 import { HealthController } from "./health.controller.js";
 import { PrismaService } from "./prisma.service.js";
 import { SnapshotController } from "./snapshot.controller.js";
+import { InvestorController } from "./investor.controller.js";
 
 @Module({
-  controllers: [HealthController, AuthController, SnapshotController],
+  controllers: [HealthController, AuthController, SnapshotController, InvestorController],
   providers: [PrismaService, AuthRateLimitService],
 })
 export class AppModule {}

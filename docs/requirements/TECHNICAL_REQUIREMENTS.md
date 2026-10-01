@@ -1,9 +1,11 @@
 # LifecycleKASE — технические требования к разработке MVP
 
-Версия: 1.2
-Дата: 30 сентября 2026
+Версия: 1.3
+Дата: 1 октября 2026
 Статус: обязательная техническая спецификация
 Продуктовые требования: [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md)
+
+Приоритет выполнения с 01.10.2026: localhost web/API, локальная PostgreSQL и Solana validator; публичная Devnet отложена до одобрения MVP. Ссылки на Devnet ниже сохраняются как последующий acceptance gate. Локальная конфигурация должна быть явной и сохранять genesis/network, подписи, роли, finalized confirmation, replay protection и atomic pay/burn; нельзя отключать эти проверки ради демо. Текущие Devnet-only snapshot HTTP/UI guards ещё требуют отдельного localnet adapter, а не замены адреса RPC без проверки. См. [ADR-014](../decisions/ADR-014-local-mvp-before-public-network.md).
 
 Сравнительное основание версии 1.2: [исследование платформ и блокчейнов](../research/tokenized-securities-landscape-2026-09-30.md). Это целевая спецификация; наличие пункта здесь не означает его реализацию в текущем repository.
 

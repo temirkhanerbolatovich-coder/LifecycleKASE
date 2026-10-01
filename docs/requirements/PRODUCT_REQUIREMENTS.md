@@ -1,9 +1,11 @@
 # LifecycleKASE — окончательное техническое задание на MVP
 
-Версия: 1.2
-Дата: 30 сентября 2026
+Версия: 1.3
+Дата: 1 октября 2026
 Статус: утверждённая основа для разработки MVP
 Контекст: KASE Side Track / Superteam Kazakhstan
+
+Уточнение владельца от 01.10.2026: активный этап — локальный MVP на localhost/PostgreSQL/Solana local validator. Публичная Devnet и её funding/deployment acceptance отложены до одобрения MVP; прежние упоминания Devnet ниже описывают последующий сетевой gate и не блокируют локальную разработку. Localnet acceptance требует настоящих локальных транзакций и всех security/business invariants, а не только mock UI. Mainnet, реальные средства и юридический выпуск по-прежнему вне MVP. См. [ADR-014](../decisions/ADR-014-local-mvp-before-public-network.md).
 
 ## 1. Назначение документа
 

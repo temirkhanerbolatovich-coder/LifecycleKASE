@@ -25,7 +25,8 @@ test("every accepted ADR contains the required decision sections", async () => {
     "ADR-003-atomic-entitlement-execution.md",
     "ADR-004-source-of-truth.md",
     "ADR-005-prisma-version.md",
-    "ADR-006-investor-identity-and-action-control.md"
+    "ADR-006-investor-identity-and-action-control.md",
+    "ADR-014-local-mvp-before-public-network.md"
   ];
   const requiredSections = [
     "## Context",

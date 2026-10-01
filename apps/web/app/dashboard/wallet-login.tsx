@@ -6,6 +6,7 @@ import type { Wallet, WalletAccount, WalletWithFeatures } from "@wallet-standard
 import { StandardConnect, type StandardConnectFeature } from "@wallet-standard/features";
 import { useEffect, useMemo, useState } from "react";
 import { SnapshotPanel } from "./snapshot-panel";
+import { InvestorPanel } from "./investor-panel";
 
 type LoginWallet = WalletWithFeatures<StandardConnectFeature & SolanaSignMessageFeature>;
 type OperatorUser = { id: string; displayName: string; role: string };
@@ -184,6 +185,9 @@ export function WalletLogin() {
           )}
           {user.role === "ADMINISTRATOR" && walletAddress && (
             <SnapshotPanel key={walletAddress} wallet={selectedWallet} walletAddress={walletAddress} request={apiRequest} onBusyChange={setBusy} />
+          )}
+          {["ADMINISTRATOR", "AUDITOR"].includes(user.role) && (
+            <InvestorPanel key={user.id} role={user.role} request={apiRequest} />
           )}
           <button className="mt-5 rounded-lg border border-[#cbd8d0] px-4 py-2 text-sm font-semibold disabled:opacity-50" disabled={busy} onClick={() => void logout()}>
             Выйти

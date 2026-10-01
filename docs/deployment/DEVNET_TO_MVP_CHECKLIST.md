@@ -1,6 +1,7 @@
 # Remaining delivery checklist
 
 Reviewed: 2026-10-01. This is a work plan, not proof of completed MVP functionality.
+Owner-approved active mode: local MVP first. Public Devnet funding/deployment is deferred until MVP approval under [ADR-014](../decisions/ADR-014-local-mvp-before-public-network.md); numbered network stages below are retained as later gates, not current blockers.
 The [implementation status](../IMPLEMENTED_VS_SIMULATED.md) and [requirements](../requirements/PRODUCT_REQUIREMENTS.md) remain authoritative for current evidence and target scope.
 
 ## Ordered stages
@@ -9,14 +10,15 @@ The [implementation status](../IMPLEMENTED_VS_SIMULATED.md) and [requirements](.
    - [x] Non-root toolchain, local build and fresh candidate keys prepared.
    - [x] User-approved fee-payer/Phantom authority plan recorded in [ADR-013](../decisions/ADR-013-devnet-demo-authorities.md).
    - [x] Read-only `npm run devnet:preflight` implemented and live-tested: correct Devnet, unoccupied program address, payer has zero lamports.
-   - [ ] Owner completes [encrypted offline key backup and verification](devnet-key-backup.md). Never send keys or the backup passphrase to chat, GitHub or Render.
+   - [x] Owner screenshot confirms encrypted key backup decrypts and matches both source keys. See [procedure](devnet-key-backup.md).
+   - [ ] Owner retains the passphrase/checksum separately and safely ejects/stores the disk offline; not independently confirmed. Never send secrets to chat, GitHub or Render.
    - [ ] Obtain test SOL and re-check funding. Nonzero balance alone does not prove sufficient deployment funding.
 2. **Program identity and build**
    - [x] Separate Devnet Cargo profile, Anchor mapping, isolated SBF/IDL build and public artifact hash/identity gate implemented and locally verified. See [build procedure](devnet-build.md).
    - [x] Both Rust profiles select the expected ID and pass their unit tests; default localnet ID and artifacts preserved.
    - [x] Re-run local-validator end-to-end integration with the reviewed Devnet-profile artifacts: all 25 reported scenario groups passed on 2026-10-01. This is local runtime acceptance, not public Devnet/deployment acceptance.
 3. **Devnet deployment** — obtain explicit transaction approval, deploy with the CLI payer and Phantom upgrade authority, verify loader/ProgramData/current authority and finalized signature. Do not confuse the program keypair with upgrade authority.
-4. **Investor Registry** — authenticated administrator CRUD, eligibility and wallet verification/revocation, immutable audit, auditor read-only views and negative authorization tests. No real personal/KYC data.
+4. **Investor Registry** — list/create and pending localnet wallet attachment, Administrator writes/Auditor reads, atomic audit and validation/security unit tests implemented locally. PostgreSQL/browser acceptance, update/close, eligibility, wallet verification/revocation and snapshot-window consistency remain pending. See [feature limits](../features/investor-registry.md). No real personal/KYC data.
 5. **Instrument setup** — create test Token-2022 bond and KZT-Test mints, approved authority/PDA settings, synthetic wallet distribution 10/20/5 and wallet-signed instrument initialization/activation. Verify finalized chain/database projections. The current UI does not initialize instruments.
 6. **Actions and snapshot** — action creation/scheduling UI/API, future record window, real Phantom snapshot registration, finalized confirmation, idempotency and lost-response/reload recovery. Show planned record time separately from effective capture slot/time.
 7. **Entitlements and approvals** — Rust/TypeScript calculation parity, eligibility, review/approve/reject/revision, stored author/approver and immutable audit; enforce approval before execution.
@@ -28,7 +30,7 @@ The [implementation status](../IMPLEMENTED_VS_SIMULATED.md) and [requirements](.
 
 ## Current next action
 
-Stage 1 is partially complete: backup, funding and actual authority assignment are not complete. Stage 2's isolated Devnet build and local runtime acceptance are complete. No network deployment has been performed. Next: owner-reviewed offline backup, test SOL and renewed read-only preflight, then separate deployment approval. Login/profile/session refresh are operator-reported successes; logout and authenticated API acceptance remain pending.
+Stage 2's isolated build/local runtime acceptance is complete. Backup decryption/matching is owner-reported; offline storage remains unconfirmed. Public funding, authority assignment and network deployment are deferred, not completed. Next: local PostgreSQL/browser acceptance of the first registry slice, then wallet ownership verification and eligibility lifecycle. Snapshot HTTP/UI still require explicit localnet adaptation. Login/profile/session refresh are operator-reported staging successes; logout and authenticated API acceptance remain pending.
 
 ## Preflight usage and limits
 
