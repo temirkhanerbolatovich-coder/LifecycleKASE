@@ -10,10 +10,12 @@ Status: staging login and session persistence after refresh reported working by 
 - [x] Windows/Ubuntu development tool versions rechecked with `npm run check:toolchain` on 2026-10-01.
 - [x] User reported successful Phantom login with the expected profile and session persistence after page refresh on 2026-10-01. This is operator-reported evidence, not an independent authenticated API/database inspection.
 - [ ] Verify logout and subsequent login, including denial of protected operations after logout. Never record cookie values.
-- [x] Separate `lifecycle-dev` WSL account prepared on 2026-10-01 with user-owned pinned tools and a passing local-validator smoke test; no administrative groups or persistent wallet keys. Default WSL user remains `root`, so launch `-u lifecycle-dev` explicitly. See [toolchain instructions](../development/toolchain.md).
+- [x] Separate `lifecycle-dev` WSL account prepared on 2026-10-01 with user-owned pinned tools and a passing local-validator smoke test; no administrative groups. No persistent wallet keys were created during that account-setup step. Default WSL user remains `root`, so launch `-u lifecycle-dev` explicitly. See [toolchain instructions](../development/toolchain.md).
 - [x] Full Anchor/SBF compilation and IDL generation passed as `lifecycle-dev` with Linux-owned temporary outputs on 2026-10-01; non-secret artifacts retained in ignored `generated/non-root-build/`. This is local build evidence, not a deployment.
 - [ ] Establish the reviewed Devnet program, authorities, RPC configuration, mint/distribution, synthetic investor mappings and scheduled action listed below.
 - [ ] Use a newly reviewed Devnet program identity, never the compromised disposable localnet keypair described in the [toolchain security note](../development/toolchain.md#security-boundaries).
+- [x] Fresh Devnet-only candidate deployment wallet and separate program keypair generated after explicit approval; permissions and local signing checks passed. See [key custody limitations](../development/toolchain.md#devnet-key-preparation--2026-10-01).
+- [ ] Owner confirms reviewed offline backup and deployment/upgrade-authority plan; new public program ID integrated and rebuilt. Generating keys does not close this gate or authorize a network deployment.
 
 Do not submit a snapshot merely because the login panel is available. Preparation evidence does not close the remaining end-to-end prerequisites.
 

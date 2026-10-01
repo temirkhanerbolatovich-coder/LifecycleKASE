@@ -34,6 +34,14 @@ The existing compromised **localnet-only** program keypair was temporarily copie
 
 Artifact evidence: `lifecycle_kase.so` is 290136 bytes, SHA-256 `cd502cfd217036548700c334b472b544ee7275ef1585870e4268bb34492e049b`. This is an observed build hash, not a reproducible/verifiable-build certification.
 
+## Devnet key preparation — 2026-10-01
+
+After explicit approval, two fresh keypairs were generated as `lifecycle-dev`: a candidate deployment/fee wallet and a separate candidate program identity. Their files are outside the checkout under `/home/lifecycle-dev/.local/share/lifecycle-kase/devnet-keys/` (`deployment-wallet.json`, `program-id.json`). The directory is 0700 and each file is 0600, owned by `lifecycle-dev`. Generation used `solana-keygen new --silent --no-bip39-passphrase` with all generator output suppressed; no seed phrase or private bytes were displayed. Existing keys were not overwritten. Public identities are distinct and the program identity differs from the compromised localnet identity.
+
+These JSON files contain **unencrypted private keys**; permissions are not encryption. Windows administrators and WSL root can access them. They are disposable Devnet-only candidates, not production custody. No default Solana wallet, cluster setting, Render secret or Git program-ID projection was changed. No network transaction, funding or deployment was performed. The deployment wallet has not been appointed as an on-chain upgrade authority; that requires a separate reviewed deployment plan. It is not the operator's Phantom issuer/login wallet.
+
+Local `solana-keygen verify` signing/verifying checks passed for both public identities. Seed phrases were not retained and no backup was made: losing these files after deployment can lose control of the program/authority. The owner must arrange a reviewed offline backup before deployment, without pasting keys into chat or committing them. Never rerun generation with `--force` over these files. Before proceeding, approve the custody/authority plan, integrate the new public program ID consistently, rebuild, verify the Devnet genesis hash and use explicit network/key arguments for every transaction. Do not fund these keys with real assets or use them on mainnet.
+
 ## Supported environment
 
 The supported Windows development path is WSL 2 with Ubuntu. Node-only repository checks may run in PowerShell, but Anchor builds and local-validator tests must run inside WSL because the official Solana and Anchor installation guidance requires WSL on Windows.
