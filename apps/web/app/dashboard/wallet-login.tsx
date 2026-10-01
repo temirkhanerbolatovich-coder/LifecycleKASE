@@ -50,6 +50,12 @@ function errorMessage(payload: Record<string, unknown>, fallback: string): strin
       return "Транзакция ещё не финализирована. Подождите и повторите только проверку.";
     case "AUTH_RATE_LIMITED":
       return "Слишком много запросов. Подождите перед следующей проверкой.";
+    case "REGISTRY_CAPTURE_LOCKED":
+      return "Изменения реестра временно заблокированы на время формирования snapshot.";
+    case "VERIFIED_WALLET_REQUIRED":
+      return "Сначала подтвердите хотя бы один кошелёк инвестора.";
+    case "ELIGIBILITY_ALREADY_DECIDED":
+      return "Решение по допуску уже принято. Обновите реестр.";
     default:
       return typeof payload["message"] === "string" ? payload["message"] : fallback;
   }

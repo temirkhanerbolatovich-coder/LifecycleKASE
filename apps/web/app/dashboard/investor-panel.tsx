@@ -3,7 +3,8 @@ import { useEffect, useState, type FormEvent } from "react";
 
 type Investor = {
   id: string; displayName: string; externalReference: string | null; countryCode: string;
-  kycStatus: string; eligibilityStatus: string; _count: { wallets: number };
+  kycStatus: string; eligibilityStatus: string; eligibilityReasonCode: string | null;
+  eligibilityReviewedAt: string | null; _count: { wallets: number };
   wallets: { id: string; address: string; status: string; network: string }[];
 };
 type Request = (path: string, init?: RequestInit) => Promise<Record<string, unknown>>;
@@ -15,7 +16,16 @@ const STATUS_LABELS: Record<string, string> = {
   ACTIVE: "Подтверждён",
   PENDING: "Ожидает подписи",
   NOT_STARTED: "Не начат",
-  PENDING_REVIEW: "Ожидает проверки"
+  PENDING_REVIEW: "Ожидает проверки",
+  ELIGIBLE: "Допущен",
+  NOT_ELIGIBLE: "Не допущен",
+  SUSPENDED: "Приостановлен"
+};
+
+const REASON_LABELS: Record<string, string> = {
+  DEMO_CRITERIA_MET: "Демо-критерии выполнены",
+  DEMO_CRITERIA_NOT_MET: "Демо-критерии не выполнены",
+  LEGACY_STATUS_IMPORT: "Перенесено из прежней версии"
 };
 
 function statusLabel(status: string): string {
@@ -45,6 +55,7 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("Загрузка реестра…");
   const [selected, setSelected] = useState("");
+  const [eligibilityChoices, setEligibilityChoices] = useState<Record<string, string>>({});
 
   async function load(cursor?: string, signal?: AbortSignal) {
     const result = await request(`/api/v1/investors?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, signal ? { signal } : undefined);
@@ -102,6 +113,28 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
     try { await load(cursor); }
     catch (error) { setMessage(error instanceof Error ? error.message : "Не удалось загрузить реестр."); }
     finally { setBusy(false); }
+  }
+  async function decideEligibility(investorId: string) {
+    const decision = eligibilityChoices[investorId];
+    if (decision !== "ELIGIBLE" && decision !== "NOT_ELIGIBLE") return;
+    setBusy(true);
+    try {
+      await request(`/api/v1/investors/${investorId}/eligibility`, { method: "POST", body: JSON.stringify({
+        decision,
+        reasonCode: decision === "ELIGIBLE" ? "DEMO_CRITERIA_MET" : "DEMO_CRITERIA_NOT_MET"
+      }) });
+      setEligibilityChoices(previous => ({ ...previous, [investorId]: "" }));
+      try {
+        await load();
+        setMessage(decision === "ELIGIBLE"
+          ? "Инвестор допущен для локального demo. Это не является реальным KYC или юридическим одобрением."
+          : "Инвестор отмечен как не допущенный для локального demo.");
+      } catch {
+        setMessage("Решение сохранено, но список не обновился. Нажмите «Обновить реестр»; не отправляйте решение повторно.");
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Не удалось сохранить решение по допуску.");
+    } finally { setBusy(false); }
   }
   async function verifyWallet(investorId: string, wallet: Investor["wallets"][number]) {
     if (!signWalletMessage) return;
@@ -185,7 +218,7 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
         {items.map(investor => <li className="rounded-xl border border-[#dbe5df] bg-white p-4 text-sm" key={investor.id}>
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div><p className="font-semibold">{investor.displayName}</p><p className="mt-1 text-xs text-[#61746a]">Код: {investor.externalReference ?? "не указан"} · Страна: {investor.countryCode}</p></div>
-            <div className="flex flex-wrap gap-1.5"><span className="status-wait">KYC: {statusLabel(investor.kycStatus)}</span><span className="status-wait">Допуск: {statusLabel(investor.eligibilityStatus)}</span></div>
+            <div className="flex flex-wrap gap-1.5"><span className="status-wait">KYC: {statusLabel(investor.kycStatus)}</span><span className={investor.eligibilityStatus === "ELIGIBLE" ? "status-ready" : "status-wait"}>Допуск: {statusLabel(investor.eligibilityStatus)}</span></div>
           </div>
           <p className="mt-3 text-xs font-semibold text-[#52675b]">Кошельки: {investor._count.wallets}{investor._count.wallets > 20 ? " · показаны первые 20" : ""}</p>
           {investor.wallets.map(wallet => {
@@ -205,6 +238,26 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
               </div>}
             </div>;
           })}
+          {role === "ADMINISTRATOR" && investor.eligibilityStatus === "PENDING_REVIEW" && (() => {
+            const hasVerifiedWallet = investor.wallets.some(wallet => wallet.status === "ACTIVE");
+            const choice = eligibilityChoices[investor.id] ?? "";
+            return <div className="mt-3 rounded-lg border border-[#d9e3dd] bg-[#f7faf8] p-3">
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#28744a]">Решение по допуску</p>
+              <p className="mt-1 text-xs leading-5 text-[#61746a]">Одноразовое решение для локального demo. Оно не заменяет реальный KYC/AML. Для допуска требуется подтверждённый кошелёк.</p>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <select className={`${inputClass} mt-0 sm:max-w-xs`} value={choice} disabled={busy}
+                  onChange={event => setEligibilityChoices(previous => ({ ...previous, [investor.id]: event.target.value }))}>
+                  <option value="">Выберите решение</option>
+                  <option value="ELIGIBLE" disabled={!hasVerifiedWallet}>Допустить · демо-критерии выполнены</option>
+                  <option value="NOT_ELIGIBLE">Не допустить · критерии не выполнены</option>
+                </select>
+                <button type="button" className={`${buttonClass} border-[#163f2b] bg-[#163f2b] text-white`}
+                  disabled={busy || !choice} onClick={() => void decideEligibility(investor.id)}>Сохранить решение</button>
+              </div>
+              {!hasVerifiedWallet && <p className="mt-2 text-xs text-[#8a5b18]">Сначала подтвердите хотя бы один кошелёк инвестора.</p>}
+            </div>;
+          })()}
+          {investor.eligibilityStatus !== "PENDING_REVIEW" && investor.eligibilityReasonCode && <p className="mt-3 text-xs text-[#61746a]">Основание: {REASON_LABELS[investor.eligibilityReasonCode] ?? investor.eligibilityReasonCode}{investor.eligibilityReviewedAt ? ` · ${new Date(investor.eligibilityReviewedAt).toLocaleString("ru-RU")}` : ""}</p>}
         </li>)}
       </ul>
       {nextCursor && <button type="button" className={`${buttonClass} mt-3`} disabled={busy} onClick={() => void refresh(nextCursor)}>Показать ещё</button>}

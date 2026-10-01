@@ -50,7 +50,9 @@ try {
       displayName: "Snapshot test investor",
       type: "INDIVIDUAL",
       countryCode: "KZ",
-      eligibilityStatus: "ELIGIBLE"
+      eligibilityStatus: "ELIGIBLE",
+      eligibilityReasonCode: "LEGACY_STATUS_IMPORT",
+      eligibilityReviewedAt: new Date(Date.now() - 86_400_000)
     }
   });
   await database.wallet.create({

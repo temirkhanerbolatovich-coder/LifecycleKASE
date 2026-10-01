@@ -227,6 +227,8 @@ model Investor {
   countryCode            String                  @map("country_code") @db.Char(2)
   kycStatus              KycStatus               @default(NOT_STARTED) @map("kyc_status")
   eligibilityStatus      EligibilityStatus       @default(PENDING_REVIEW) @map("eligibility_status")
+  eligibilityReasonCode  String?                  @map("eligibility_reason_code") @db.VarChar(50)
+  eligibilityReviewedAt  DateTime?                @map("eligibility_reviewed_at") @db.Timestamptz(6)
   status                 InvestorStatus          @default(ACTIVE)
   createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Prisma, type PrismaClient } from "@prisma/client";
-import { attachPendingWallet, createInvestor, InvestorRegistryError, listInvestors } from "./investor-registry.js";
+import { attachPendingWallet, createInvestor, decideInvestorEligibility, InvestorRegistryError, listInvestors,
+  registryMutationOptionsFromEnvironment } from "./investor-registry.js";
 
 const ID = "00000000-0000-4000-8000-000000000001";
 const actor = { id: ID, walletAddress: "11111111111111111111111111111111", correlationId: ID };
@@ -9,15 +10,25 @@ const input = { displayName: " Demo A ", countryCode: "kz", type: "INDIVIDUAL", 
 function fixture() {
   let state: { investor: any; wallet: any; audit: any[] } = { investor: null, wallet: null, audit: [] };
   let failAudit = false;
+  let captureLocked = false;
   const tx = {
     investor: {
       findUnique: async () => state.investor,
-      create: async ({ data }: any) => (state.investor = { id: ID, status: "ACTIVE", ...data })
+      findUniqueOrThrow: async () => state.investor,
+      create: async ({ data }: any) => (state.investor = { id: ID, status: "ACTIVE", ...data }),
+      updateMany: async ({ where, data }: any) => {
+        if (!state.investor || state.investor.id !== where.id || state.investor.status !== where.status ||
+            state.investor.eligibilityStatus !== where.eligibilityStatus) return { count: 0 };
+        Object.assign(state.investor, data);
+        return { count: 1 };
+      }
     },
     wallet: {
       findUnique: async () => state.wallet,
-      create: async ({ data }: any) => (state.wallet = { id: ID, ...data })
+      create: async ({ data }: any) => (state.wallet = { id: ID, ...data }),
+      count: async () => state.wallet?.status === "ACTIVE" && state.wallet.verifiedAt && !state.wallet.revokedAt ? 1 : 0
     },
+    corporateAction: { findFirst: async () => captureLocked ? { id: ID } : null },
     auditLog: { create: async ({ data }: any) => {
       if (failAudit) throw new Error("synthetic audit failure");
       state.audit.push(data);
@@ -29,7 +40,7 @@ function fixture() {
     const before = structuredClone(state);
     try { return await callback(tx); } catch (error) { state = before; throw error; }
   } } as unknown as PrismaClient;
-  return { database, state: () => state, failAudit: () => { failAudit = true; } };
+  return { database, state: () => state, failAudit: () => { failAudit = true; }, lockCapture: () => { captureLocked = true; } };
 }
 function code(expected: string) {
   return (error: unknown) => error instanceof InvestorRegistryError && error.code === expected;
@@ -106,5 +117,61 @@ test("maps database uniqueness and serialization conflicts without leaking detai
       throw new Prisma.PrismaClientKnownRequestError("internal diagnostic", { code: databaseCode, clientVersion: "test" });
     } } as unknown as PrismaClient;
     await assert.rejects(createInvestor(database, input, actor), code("REGISTRY_CONFLICT"));
+  }
+});
+
+test("decides eligibility once only after verified wallet ownership and writes atomic audit", async () => {
+  const f = fixture();
+  await createInvestor(f.database, input, actor);
+  await attachPendingWallet(f.database, ID, { address: actor.walletAddress }, actor);
+  await assert.rejects(
+    decideInvestorEligibility(f.database, ID, { decision: "ELIGIBLE", reasonCode: "DEMO_CRITERIA_MET" }, actor),
+    code("VERIFIED_WALLET_REQUIRED")
+  );
+  f.state().wallet.status = "ACTIVE";
+  f.state().wallet.verifiedAt = new Date("2026-10-02T09:00:00.000Z");
+  const reviewedAt = new Date("2026-10-02T09:01:00.000Z");
+  const result = await decideInvestorEligibility(
+    f.database, ID, { decision: "ELIGIBLE", reasonCode: "DEMO_CRITERIA_MET" }, actor,
+    { now: reviewedAt, graceSeconds: 300 }
+  );
+  assert.equal(result.eligibilityStatus, "ELIGIBLE");
+  assert.equal(result.eligibilityReasonCode, "DEMO_CRITERIA_MET");
+  assert.equal(result.eligibilityReviewedAt, reviewedAt);
+  assert.equal(f.state().audit.at(-1).event, "INVESTOR_ELIGIBILITY_DECIDED");
+  assert.equal(f.state().audit.at(-1).metadataJson.reasonCode, "DEMO_CRITERIA_MET");
+  await assert.rejects(
+    decideInvestorEligibility(f.database, ID, { decision: "NOT_ELIGIBLE", reasonCode: "DEMO_CRITERIA_NOT_MET" }, actor),
+    code("ELIGIBILITY_ALREADY_DECIDED")
+  );
+});
+
+test("rejects invalid decisions and locks mapping or eligibility changes during snapshot capture", async () => {
+  const f = fixture();
+  await createInvestor(f.database, input, actor);
+  for (const body of [
+    {},
+    { decision: "SUSPENDED", reasonCode: "DEMO_CRITERIA_NOT_MET" },
+    { decision: "ELIGIBLE", reasonCode: "DEMO_CRITERIA_NOT_MET" },
+    { decision: "NOT_ELIGIBLE", reasonCode: "OTHER" },
+    { decision: "NOT_ELIGIBLE", reasonCode: "DEMO_CRITERIA_NOT_MET", note: "extra" }
+  ]) await assert.rejects(decideInvestorEligibility({} as PrismaClient, ID, body, actor), code("INVALID_REQUEST"));
+  f.lockCapture();
+  await assert.rejects(
+    attachPendingWallet(f.database, ID, { address: actor.walletAddress }, actor),
+    code("REGISTRY_CAPTURE_LOCKED")
+  );
+  await assert.rejects(
+    decideInvestorEligibility(f.database, ID, { decision: "NOT_ELIGIBLE", reasonCode: "DEMO_CRITERIA_NOT_MET" }, actor),
+    code("REGISTRY_CAPTURE_LOCKED")
+  );
+  assert.equal(f.state().audit.length, 1);
+});
+
+test("validates the shared registry capture-window configuration", () => {
+  assert.equal(registryMutationOptionsFromEnvironment({}, new Date("2026-10-02T09:00:00Z")).graceSeconds, 300);
+  assert.equal(registryMutationOptionsFromEnvironment({ SNAPSHOT_GRACE_SECONDS: "120" }).graceSeconds, 120);
+  for (const value of ["0", "301", "1.5", "invalid"]) {
+    assert.throws(() => registryMutationOptionsFromEnvironment({ SNAPSHOT_GRACE_SECONDS: value }), code("REGISTRY_CONFIGURATION_INVALID"));
   }
 });

@@ -39,7 +39,7 @@ try {
   process.env.AUTH_ALLOWED_ORIGINS = origin;
   process.env.AUTH_CHALLENGE_RATE_LIMIT = "5";
   process.env.AUTH_VERIFY_RATE_LIMIT = "10";
-  process.env.MUTATION_RATE_LIMIT = "20";
+  process.env.MUTATION_RATE_LIMIT = "40";
   process.env.AUTH_RATE_LIMIT_WINDOW_SECONDS = "60";
   database = new PrismaClient();
   const { AppModule } = await import("../apps/api/dist/app.module.js");
@@ -70,7 +70,7 @@ try {
     const verified = await request("/auth/verify", { method: "POST", body: {
       challengeId: challenge.payload.challengeId, nonce: challenge.payload.nonce, signature
     } });
-    assert.equal(verified.status, 201);
+    assert.equal(verified.status, 201, JSON.stringify(verified.payload));
     const cookie = verified.headers.getSetCookie()[0]?.split(";")[0];
     assert.ok(cookie, "Signed login must return a session cookie");
     const session = await request("/auth/session", { cookie });
@@ -171,6 +171,35 @@ try {
   }
   console.log("PASS exact investor-wallet signature activates mapping once with atomic administrator audit");
 
+  const eligibilityPath = `/investors/${investorId}/eligibility`;
+  const eligibleDecision = { decision: "ELIGIBLE", reasonCode: "DEMO_CRITERIA_MET" };
+  assert.equal((await request(eligibilityPath, {
+    cookie: auditor.cookie, method: "POST", body: eligibleDecision
+  })).status, 403);
+  assert.equal((await request(eligibilityPath, {
+    cookie: administrator.cookie, method: "POST", body: eligibleDecision, requestOrigin: "https://untrusted.example"
+  })).status, 403);
+  const eligibility = await request(eligibilityPath, {
+    cookie: administrator.cookie, method: "POST", body: eligibleDecision
+  });
+  assert.equal(eligibility.status, 201);
+  assert.equal(eligibility.payload.eligibilityStatus, "ELIGIBLE");
+  assert.equal(eligibility.payload.eligibilityReasonCode, "DEMO_CRITERIA_MET");
+  assert.ok(eligibility.payload.eligibilityReviewedAt);
+  assert.equal((await request(eligibilityPath, {
+    cookie: administrator.cookie, method: "POST", body: eligibleDecision
+  })).status, 409);
+  const eligibilityAudit = await database.auditLog.findMany({
+    where: { entityId: investorId, event: "INVESTOR_ELIGIBILITY_DECIDED" }
+  });
+  assert.equal(eligibilityAudit.length, 1);
+  assert.equal(eligibilityAudit[0].actorId, administrator.userId);
+  assert.equal(eligibilityAudit[0].correlationId, eligibility.headers.get("x-correlation-id"));
+  assert.deepEqual(eligibilityAudit[0].metadataJson, {
+    previousStatus: "PENDING_REVIEW", decision: "ELIGIBLE", reasonCode: "DEMO_CRITERIA_MET"
+  });
+  console.log("PASS one-time eligibility decision requires Administrator and persists reason/time/audit");
+
   for (const address of [attached.payload.address, administrator.walletAddress]) {
     assert.equal((await request(`/investors/${investorId}/wallets`, { cookie: administrator.cookie,
       method: "POST", body: { address } })).status, 409);
@@ -183,7 +212,7 @@ try {
     body: { address: publicAddress(), verifiedAt: new Date().toISOString() } })).status, 400);
   assert.equal((await request(`/investors/${randomUUID()}/wallets`, { cookie: administrator.cookie,
     method: "POST", body: { address: publicAddress() } })).status, 404);
-  assert.equal(await database.auditLog.count({ where: { entityId: investorId } }), 2);
+  assert.equal(await database.auditLog.count({ where: { entityId: investorId } }), 3);
   console.log("PASS no wallet reassignment, auditor write, privilege injection or missing investor creation");
 
   const concurrent = await Promise.all([1, 2].map(() => request("/investors", { cookie: administrator.cookie,
@@ -200,7 +229,7 @@ try {
   const immutableAuditError = error => error instanceof Error && /audit events are append-only/.test(error.message);
   await assert.rejects(database.auditLog.update({ where: { id: audit[0].id }, data: { event: "ALTERED" } }), immutableAuditError);
   await assert.rejects(database.auditLog.delete({ where: { id: audit[0].id } }), immutableAuditError);
-  assert.equal(await database.auditLog.count({ where: { entityId: investorId } }), 2);
+  assert.equal(await database.auditLog.count({ where: { entityId: investorId } }), 3);
   console.log("PASS actual audit foreign-key failure rolls back creation; audit update/delete forbidden");
 
   for (const data of [
@@ -230,8 +259,55 @@ try {
   assert.equal((await request("/investors?cursor=invalid", { cookie: auditor.cookie })).status, 400);
   console.log("PASS real HTTP/Prisma cursor pagination and input bounds");
 
+  const lockInvestorInput = { ...investorInput, displayName: "Synthetic Locked Investor", externalReference: "CAPTURE-LOCK" };
+  const lockInvestor = await request("/investors", {
+    cookie: administrator.cookie, method: "POST", body: lockInvestorInput
+  });
+  assert.equal(lockInvestor.status, 201);
+  const captureAsset = await database.settlementAsset.create({ data: {
+    code: "KZT_TEST",
+    name: "KZT-Test",
+    disclaimer: "SIMULATED ASSET. Not issued by the National Bank of Kazakhstan."
+  } });
+  const captureIssuer = await database.issuer.create({ data: { legalName: "Capture Lock Issuer" } });
+  const captureInstrument = await database.instrument.create({ data: {
+    issuerId: captureIssuer.id,
+    settlementAssetId: captureAsset.id,
+    name: "Capture Lock Instrument",
+    ticker: `L${randomUUID().replaceAll("-", "").slice(0, 12)}`,
+    issuerAuthority: publicAddress(),
+    complianceAuthority: publicAddress(),
+    corporateActionAuthority: publicAddress(),
+    faceValueMinor: 1_000_000n,
+    couponRateBps: 500,
+    paymentsPerYear: 2,
+    issueAt: new Date(Date.now() - 86_400_000),
+    maturityAt: new Date(Date.now() + 86_400_000),
+    totalSupply: 35n,
+    circulatingSupply: 35n
+  } });
+  await database.corporateAction.create({ data: {
+    instrumentId: captureInstrument.id,
+    type: "COUPON_PAYMENT",
+    intent: "Exercise registry capture-window lock",
+    createdById: administrator.userId,
+    recordAt: new Date(),
+    executeAt: new Date(Date.now() + 3_600_000),
+    status: "SCHEDULED"
+  } });
+  const lockedEligibility = await request(`/investors/${lockInvestor.payload.id}/eligibility`, {
+    cookie: administrator.cookie, method: "POST",
+    body: { decision: "NOT_ELIGIBLE", reasonCode: "DEMO_CRITERIA_NOT_MET" }
+  });
+  assert.equal(lockedEligibility.status, 409);
+  assert.equal(lockedEligibility.payload.code, "REGISTRY_CAPTURE_LOCKED");
+  assert.equal((await request(`/investors/${lockInvestor.payload.id}/wallets`, {
+    cookie: administrator.cookie, method: "POST", body: { address: publicAddress() }
+  })).status, 409);
+  console.log("PASS snapshot capture window blocks eligibility and wallet-mapping mutations");
+
   let limited;
-  for (let attempt = 0; attempt < 25; attempt++) {
+  for (let attempt = 0; attempt < 50; attempt++) {
     const result = await request("/investors", { cookie: administrator.cookie, method: "POST", body: {} });
     if (result.status === 429) { limited = result; break; }
     assert.equal(result.status, 400);

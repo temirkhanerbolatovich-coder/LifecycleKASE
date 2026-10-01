@@ -9,7 +9,8 @@ import {
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { decodePublicKey } from "@lifecycle-kase/solana-client";
 import type { AuthRuntimeOptions } from "./auth.js";
-import { InvestorRegistryError, REGISTRY_UUID, type RegistryActor } from "./investor-registry.js";
+import { assertRegistryMutationAllowed, InvestorRegistryError, REGISTRY_UUID,
+  registryMutationOptionsFromEnvironment, type RegistryActor, type RegistryMutationOptions } from "./investor-registry.js";
 
 const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
 const walletSelect = { id: true, address: true, network: true, status: true, verifiedAt: true, revokedAt: true } as const;
@@ -86,10 +87,12 @@ export async function createWalletVerificationChallenge(
   actor: RegistryActor,
   origin: string,
   now: Date,
-  options: AuthRuntimeOptions
+  options: AuthRuntimeOptions,
+  registryOptions: RegistryMutationOptions = registryMutationOptionsFromEnvironment(process.env, now)
 ) {
   validIdentifiers(investorId, walletId);
   validNow(now);
+  await assertRegistryMutationAllowed(database, registryOptions);
   const wallet = await database.wallet.findFirst({
     where: { id: walletId, investorId },
     include: { investor: { select: { status: true } } }
@@ -128,7 +131,8 @@ export async function verifyWalletOwnership(
   actor: RegistryActor,
   origin: string,
   now: Date,
-  options: AuthRuntimeOptions
+  options: AuthRuntimeOptions,
+  registryOptions: RegistryMutationOptions = registryMutationOptionsFromEnvironment(process.env, now)
 ) {
   validIdentifiers(investorId, walletId);
   validNow(now);
@@ -159,6 +163,7 @@ export async function verifyWalletOwnership(
   }
   try {
     return await database.$transaction(async transaction => {
+      await assertRegistryMutationAllowed(transaction, registryOptions);
       const currentChallenge = await transaction.authChallenge.findUnique({ where: { id: challenge.id } });
       if (!currentChallenge || currentChallenge.usedAt !== null || currentChallenge.expiresAt <= now ||
           currentChallenge.userId !== actor.id || currentChallenge.walletId !== walletId) {

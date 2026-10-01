@@ -27,6 +27,7 @@ function fixture() {
   };
   let failAudit = false;
   const tx = {
+    corporateAction: { findFirst: async () => null },
     wallet: {
       findFirst: async ({ where }: any) => state.wallet.id === where.id && state.wallet.investorId === where.investorId ? state.wallet : null,
       update: async ({ data }: any) => Object.assign(state.wallet, data)
@@ -47,6 +48,7 @@ function fixture() {
     } }
   };
   const database = {
+    corporateAction: tx.corporateAction,
     wallet: tx.wallet,
     authChallenge: {
       ...tx.authChallenge,

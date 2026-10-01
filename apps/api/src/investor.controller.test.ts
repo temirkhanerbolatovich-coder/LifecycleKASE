@@ -7,6 +7,7 @@ import type { PrismaService } from "./prisma.service.js";
 
 const request = { headers: { cookie: `lifecyclekase_session=${"x".repeat(43)}` } };
 const response = { setHeader() {} };
+const investorId = "00000000-0000-4000-8000-000000000002";
 const status = (expected: number) => (error: unknown) => error instanceof HttpException && error.getStatus() === expected;
 test("registry requires a session, keeps auditors read-only and checks mutation origins/rate limits", async () => {
   const previous = { AUTH_ENABLED: process.env.AUTH_ENABLED, AUTH_ALLOWED_ORIGINS: process.env.AUTH_ALLOWED_ORIGINS };
@@ -26,6 +27,9 @@ test("registry requires a session, keeps auditors read-only and checks mutation 
     assert.equal(reads, 1);
     await assert.rejects(controller.create({}, request, response, "http://localhost:3000"), status(403));
     await assert.rejects(controller.attach("invalid", {}, request, response, "http://localhost:3000"), status(403));
+    await assert.rejects(controller.eligibility(investorId, {
+      decision: "ELIGIBLE", reasonCode: "DEMO_CRITERIA_MET"
+    }, request, response, "http://localhost:3000"), status(403));
     role = "ISSUER_OPERATOR";
     await assert.rejects(controller.list(request, response), status(403));
     assert.equal(reads, 1);
@@ -33,6 +37,9 @@ test("registry requires a session, keeps auditors read-only and checks mutation 
     await assert.rejects(controller.create({}, request, response, "https://untrusted.example"), status(403));
     await assert.rejects(controller.create({}, request, response), status(403));
     await assert.rejects(controller.create({ eligibilityStatus: "ELIGIBLE" }, request, response, "http://localhost:3000"), status(400));
+    await assert.rejects(controller.eligibility(investorId, {
+      decision: "ELIGIBLE", reasonCode: "DEMO_CRITERIA_NOT_MET"
+    }, request, response, "http://localhost:3000"), status(400));
     const headers = new Map<string, string>();
     const limited = new InvestorController(database, { consumeMutation() { throw new AuthRateLimitError(9); } } as unknown as AuthRateLimitService);
     await assert.rejects(limited.create({}, request, { setHeader(name, value) { headers.set(name, value); } }, "http://localhost:3000"), status(429));
