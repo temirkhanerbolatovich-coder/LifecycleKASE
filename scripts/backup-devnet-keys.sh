@@ -42,6 +42,17 @@ for entry in deployment-wallet.json:feePayer program-id.json:programId; do
     fi
 done
 
+# --no-options does not reliably initialize a fresh GnuPG home on first use.
+gpg_home="$HOME/.local/share/lifecycle-kase/backup-gnupg"
+if [[ ! -e "$gpg_home" && ! -L "$gpg_home" ]]; then
+    mkdir -m 700 -- "$gpg_home"
+fi
+if [[ ! -d "$gpg_home" || -L "$gpg_home" || ! -O "$gpg_home" || "$(stat -c '%a' "$gpg_home")" != 700 ]]; then
+    echo 'The backup GnuPG directory must be owner-only (700), owned by this user and not a symlink.' >&2
+    exit 1
+fi
+gpg --no-options --homedir "$gpg_home" --batch --list-keys >/dev/null
+
 # Only ciphertext is written to the selected drive, even on failure.
 backup_dir="$(mktemp -d -p "$destination" lifecycle-kase-devnet-backup.XXXXXXXX)"
 archive_path="$backup_dir/keys.tar.gpg"
@@ -55,10 +66,10 @@ trap report_failure EXIT
 export GPG_TTY="$(tty)"
 echo 'Choose a strong, unique passphrase. Enter it only in the terminal prompt; retain it separately from this drive.'
 tar -C "$key_dir" -cf - -- deployment-wallet.json program-id.json \
-    | gpg --no-options --no-symkey-cache --pinentry-mode loopback \
+    | gpg --no-options --homedir "$gpg_home" --no-symkey-cache --pinentry-mode loopback \
         --cipher-algo AES256 --symmetric --output "$archive_path"
 echo 'Re-enter the passphrase to verify decryption and byte-for-byte comparison. No plaintext files will be extracted.'
-gpg --no-options --no-symkey-cache --pinentry-mode loopback --decrypt "$archive_path" \
+gpg --no-options --homedir "$gpg_home" --no-symkey-cache --pinentry-mode loopback --decrypt "$archive_path" \
     | tar -C "$key_dir" --compare -f -
 sync -f "$archive_path"
 verified=true

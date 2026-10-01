@@ -14,4 +14,6 @@ Verification decrypts into `tar --compare`, not into files. Only `PASS encrypted
 
 On failure/cancellation, an incomplete encrypted archive may remain in the newly printed directory; do not treat it as a verified backup. The script does not delete existing data or source keys. Losing the passphrase makes the encrypted copy unusable. Phantom recovery must be handled separately by its owner, never through this script or chat.
 
-Validation on 2026-10-01: Bash syntax and non-interactive/root refusal checked. Actual encryption/password entry/decryption of the real keys remains owner-controlled and pending; do not mark the checklist complete until the owner confirms successful verification and offline storage.
+The script initializes a dedicated owner-only GnuPG home at `~/.local/share/lifecycle-kase/backup-gnupg` before creating backup output. This fixes a first-run missing `pubring.kbx` failure with `--no-options`; the default `~/.gnupg` is not modified by the backup script. An earlier failed backup directory is retained and is not proof of a successful backup.
+
+Validation on 2026-10-01: Bash syntax and non-interactive/root refusal checked. Run `bash scripts/test-backup-encryption.sh` in WSL for a cold-start keybox initialization and synthetic encryption/decryption/wrong-passphrase regression check; it never reads real keys. Actual encryption/password entry/decryption of the real keys remains owner-controlled and pending; do not mark the checklist complete until the owner confirms successful verification and offline storage.
