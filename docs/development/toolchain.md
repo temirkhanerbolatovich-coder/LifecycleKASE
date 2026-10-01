@@ -1,11 +1,30 @@
 # Solana development toolchain
 
 Status: local WSL toolchain and first Anchor build verified
-Last reviewed: 2026-09-29
+Last reviewed: 2026-10-01
 
 Observed in the current Ubuntu WSL environment on 2026-09-30: Rust 1.98.1, Anchor CLI 1.2.0, Solana CLI and validator 4.1.2, and SBF platform-tools v1.57. Rust unit tests, Clippy, and `anchor build` pass. The local-validator integration test deploys an upgradeable program with a disposable local administrator key and checks instrument creation, three action types, pre-snapshot cancellation, activation with canonical 10/20/5 balances, and snapshot commitment/replay guards. Anchor and Solana versions are pinned in `Anchor.toml`; the minimum supported host Rust version is in `Cargo.toml`.
 
-The current Ubuntu distribution opens as `root`, so the binaries above live under `/root`. Before creating any Devnet signer or deployment key, switch development to a non-root WSL user and install or expose the toolchain there. No Devnet key has been created by this setup step.
+The Ubuntu distribution still opens as `root` by default; this default was intentionally not changed. After explicit approval on 2026-10-01, a separate `lifecycle-dev` user was created with a locked password and only its own primary group (no sudo or Docker group). Its home has mode 0700. Version-specific binaries and the Rust toolchain were copied into user-owned directories, not linked to `/root`; no root wallet, Solana configuration, registry credentials or other private home contents were copied. The public crates.io registry cache/source/index was later reused for locked offline tests, without copying Cargo credentials. Root's installation remains unchanged. SHA-256 hashes of the copied Rustup, AVM, Anchor and Solana executables matched their installed sources; this verifies copying, not a fresh independent supply-chain audit.
+
+This account reduces accidental privileged execution, not custody risk against the Windows owner or WSL root. Those administrators can still access its files. Review that trust boundary separately before storing any signer.
+
+The new account has Rust/Cargo 1.98.1, Anchor CLI 1.2.0 and Solana CLI/validator 4.1.2. SBF platform-tools v1.57 were copied separately and checked with `cargo build-sbf --tools-version v1.57 --install-only`. The unqualified `cargo build-sbf --version` reports its default platform-tools v1.54; that output does not identify the explicitly selected v1.57 build tools. The local validator smoke test passed as `lifecycle-dev`. No persistent wallet or Devnet key was created; the validator used only a disposable temporary ledger, removed by the smoke test's cleanup.
+
+Launch the reviewed user explicitly from PowerShell:
+
+```powershell
+wsl -d Ubuntu -u lifecycle-dev -- bash -l
+```
+
+The login shell reads the user-owned `.profile` containing Cargo/AVM/Solana PATH entries. Do not change WSL's default user or run Devnet operations through the existing root-based wrapper scripts implicitly. `npm run check:toolchain` still checks the distribution's default user; it is not evidence for the separate account. Verify that account explicitly:
+
+```powershell
+wsl -d Ubuntu -u lifecycle-dev -- bash -lc 'id; rustc --version; cargo --version; anchor --version; solana --version; solana-test-validator --version'
+wsl -d Ubuntu -u lifecycle-dev -- bash -lc 'bash /mnt/c/Users/Админ/Documents/ChatGPT/LifecycleKASE/scripts/test-solana-validator.sh 18899 30'
+```
+
+This is a developer-machine checkpoint, not an automated installation runbook or Devnet deployment. Adapt the checkout path if it changes. Under `lifecycle-dev`, `cargo test --workspace --locked --offline` passed all 7 Rust unit tests and the empty doc-test suite on 2026-10-01. A full Anchor/SBF program build under this account has not yet been verified; host Rust tests and tool installation do not prove that build. Review signer/upgrade-authority custody before the next Devnet step.
 
 ## Supported environment
 

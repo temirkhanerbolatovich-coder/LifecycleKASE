@@ -10,7 +10,7 @@ Status: staging login and session persistence after refresh reported working by 
 - [x] Windows/Ubuntu development tool versions rechecked with `npm run check:toolchain` on 2026-10-01.
 - [x] User reported successful Phantom login with the expected profile and session persistence after page refresh on 2026-10-01. This is operator-reported evidence, not an independent authenticated API/database inspection.
 - [ ] Verify logout and subsequent login, including denial of protected operations after logout. Never record cookie values.
-- [ ] Move Devnet development to a non-root WSL user before creating deployment/upgrade-authority keys. `id -un` still returned `root` at this checkpoint; no keys were created.
+- [x] Separate `lifecycle-dev` WSL account prepared on 2026-10-01 with user-owned pinned tools and a passing local-validator smoke test; no administrative groups or persistent wallet keys. Default WSL user remains `root`, so launch `-u lifecycle-dev` explicitly. See [toolchain instructions](../development/toolchain.md).
 - [ ] Establish the reviewed Devnet program, authorities, RPC configuration, mint/distribution, synthetic investor mappings and scheduled action listed below.
 
 Do not submit a snapshot merely because the login panel is available. Preparation evidence does not close the remaining end-to-end prerequisites.
