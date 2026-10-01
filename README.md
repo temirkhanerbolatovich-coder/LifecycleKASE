@@ -61,6 +61,7 @@ docker compose up -d postgres
 npm run prisma:migrate:deploy
 npm run test:database
 npm run test:api:database
+npm run test:registry:database
 ```
 
 Copy `.env.example` to `.env` only when local services need configuration. `.env` is ignored by Git.
@@ -78,7 +79,9 @@ npm run dev:web
 
 Open `http://localhost:3000/dashboard`. The API listens on port `4000` by default and exposes health plus operator authentication routes. Authentication requires `AUTH_ENABLED=true`, exact `AUTH_DOMAIN`/`AUTH_ALLOWED_ORIGINS`, and a verified operator wallet in the database; see [API documentation](apps/api/README.md) and the [controlled provisioning runbook](docs/operations/operator-provisioning.md). Challenge, signature verification and protected mutation endpoints have bounded per-client in-memory limits with configurable windows. Readiness checks PostgreSQL and returns 503 when unavailable. The web app checks it server-side using `API_INTERNAL_URL` (default `http://127.0.0.1:4000`); it still renders when the API is down. For a deployment, set `DATABASE_URL`, `PORT` and `API_SERVER_URL` for that environment; the Render Blueprint wires the URL automatically. Never expose database credentials in `NEXT_PUBLIC_*` variables. The web liveness route is `GET /health/live`.
 
-PostgreSQL is exposed on host port `55432` by default to avoid collisions with an existing local PostgreSQL installation; the container still listens on its standard internal port `5432`. The default host URL uses IPv6 loopback `[::1]`, which avoids an IPv4 PostgreSQL service intercepting Docker Desktop traffic on Windows.
+PostgreSQL is exposed only on IPv4/IPv6 loopback host port `55432` by default to avoid collisions with an existing local PostgreSQL installation; the container still listens on its standard internal port `5432`. The default host URL uses IPv6 loopback `[::1]`, which avoids an IPv4 PostgreSQL service intercepting Docker Desktop traffic on Windows. Set `API_LISTEN_HOST=127.0.0.1` for a local-only API; when unset, the hosted-service default remains `0.0.0.0`.
+
+The registry database test ignores `.env`, requires local database CREATE DATABASE permission, and creates/migrates/drops only a uniquely named test database. It exercises real HTTP authentication, role/Origin controls, registry persistence, concurrency, rollback, audit immutability and logout using synthetic in-memory signing keys. See [test configuration and limits](docs/features/investor-registry.md). Owner-reported local Phantom login/profile/registry display passed; manual browser form acceptance and public network acceptance are separate pending checks.
 
 To verify a locally installed Solana validator:
 
@@ -91,7 +94,7 @@ The smoke test starts an isolated validator on port `18899`, waits for a JSON-RP
 ## Current limitations
 
 - The API supports domain-bound operator wallet authentication and administrator-only snapshot preparation/confirmation routes. The dashboard discovers Wallet Standard wallets and includes a Devnet-only snapshot review, explicit sign/send and finalized-confirm/recovery panel. A controlled CLI can create the first operator from a public wallet address, and authentication requests are rate-limited per client. See the [wallet workflow and recovery limits](apps/web/README.md). The confirmation path is fixture-tested but has no live operator-wallet/Devnet-mint proof. Authentication is default-off; disposable staging was explicitly enabled for one provisioned operator on 2026-10-01, with challenge and unauthenticated-denial boundaries verified. Real signed login remains pending; see the [deployment record](docs/deployment/render-staging.md).
-- Four SQL migrations and database guard tests are implemented. The third migration requires an empty pre-MVP domain database; it stops when domain records exist.
+- Six SQL migrations and database guard tests are implemented. The third migration requires an empty pre-MVP domain database; it stops when domain records exist. The sixth adds localnet wallet compatibility without permitting mainnet or weakening wallet lifecycle timestamps.
 - The TypeScript domain contracts are implemented; matching Rust calculations are not yet available.
 - The validator smoke-test requires an external Solana CLI installation.
 - Docker Compose currently provisions PostgreSQL only; application containers will be added with their implementation milestone.

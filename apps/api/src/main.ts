@@ -27,4 +27,8 @@ app.getHttpAdapter().getInstance().set("trust proxy", trustedProxyHopsFromEnviro
 app.setGlobalPrefix("api/v1");
 app.enableCors({ origin: [...authOptionsFromEnvironment().allowedOrigins], credentials: true });
 app.enableShutdownHooks();
-await app.listen(apiPort(process.env.PORT), "0.0.0.0");
+const listenHost = process.env.API_LISTEN_HOST ?? "0.0.0.0";
+if (!["127.0.0.1", "localhost", "::1", "0.0.0.0", "::"].includes(listenHost)) {
+  throw new Error("API_LISTEN_HOST must be a loopback or wildcard listen address");
+}
+await app.listen(apiPort(process.env.PORT), listenHost);
