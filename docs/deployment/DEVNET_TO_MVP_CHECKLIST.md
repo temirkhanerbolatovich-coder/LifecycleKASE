@@ -9,7 +9,7 @@ The [implementation status](../IMPLEMENTED_VS_SIMULATED.md) and [requirements](.
    - [x] Non-root toolchain, local build and fresh candidate keys prepared.
    - [x] User-approved fee-payer/Phantom authority plan recorded in [ADR-013](../decisions/ADR-013-devnet-demo-authorities.md).
    - [x] Read-only `npm run devnet:preflight` implemented and live-tested: correct Devnet, unoccupied program address, payer has zero lamports.
-   - [ ] Owner arranges reviewed offline key backup. Never send keys to chat, GitHub or Render.
+   - [ ] Owner completes [encrypted offline key backup and verification](devnet-key-backup.md). Never send keys or the backup passphrase to chat, GitHub or Render.
    - [ ] Obtain test SOL and re-check funding. Nonzero balance alone does not prove sufficient deployment funding.
 2. **Program identity and build**
    - [x] Separate Devnet Cargo profile, Anchor mapping, isolated SBF/IDL build and public artifact hash/identity gate implemented and locally verified. See [build procedure](devnet-build.md).
