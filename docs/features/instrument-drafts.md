@@ -1,6 +1,6 @@
 # Instrument database drafts
 
-Status: database drafts and the wallet-signed `MINT_SETUP` prepare/confirm boundary implemented on 2026-10-02; live wallet/validator acceptance pending.
+Status: database drafts plus wallet-signed `MINT_SETUP` and `DISTRIBUTION` prepare/confirm boundaries implemented on 2026-10-02; live wallet/validator acceptance pending.
 
 ## Purpose
 
@@ -35,4 +35,6 @@ Reads require Administrator or Auditor. Creation requires Administrator, the exa
 
 `deploy/confirm` verifies the exact prepared message at `finalized`, then independently reconciles Token-2022 ownership, decimals, supply, revoked authorities, permanent delegate and treasury balance before atomically saving mint projections and audit evidence. The instrument intentionally stays `DRAFT` with `circulatingSupply = 0`.
 
-This boundary is fixture-tested, but no live Phantom/validator transaction has been accepted yet. Distribution 10/20/5, Instrument PDA initialization and activation are not implemented in the application flow. The shared KZT-Test record currently permits only one canonical mint setup.
+The separate `DISTRIBUTION` request requires an explicit mapping of the fixed amounts 10, 20 and 5 to three different Investor Registry records. Every selected wallet must be active, signature-verified, not revoked, on the configured network, and owned by an active `ELIGIBLE` investor. The API stores that immutable allocation beside the exact unsigned transaction. Confirmation verifies the exact finalized message, an empty issuer treasury and the three expected Token-2022 account owners/mints/balances before changing `circulatingSupply` from 0 to 35. The instrument still remains `DRAFT`.
+
+Both boundaries are fixture-tested, but no live Phantom/validator deployment transaction has been accepted yet. Instrument PDA initialization and holder-backed activation remain separate, unimplemented application phases. The registry currently needs three suitable investor wallets before distribution can be prepared; synthetic local-demo eligibility is not real KYC. A registry change after preparation does not alter the already prepared transaction; the later activation phase must re-check that every distributed holder mapping remains eligible before it can present the instrument as active. The shared KZT-Test record currently permits only one canonical mint setup.

@@ -29,4 +29,4 @@ The API persists the exact unsigned v0 transaction, required signer, genesis has
 
 ## Risks and future work
 
-Implement and independently reconcile the 10/20/5 distribution, Instrument PDA initialization and holder-backed activation. Add real Phantom/validator acceptance including lost-response recovery. Before public Devnet use, re-check program deployment/upgrade authority, fees, wallet chain support and custody under ADR-013/014.
+The 10/20/5 distribution now has a separate prepared transaction, immutable investor/wallet allocation and finalized treasury/holder reconciliation. Instrument PDA initialization and holder-backed activation remain to be implemented as later phases. Add real Phantom/validator acceptance including lost-response recovery. Before public Devnet use, re-check program deployment/upgrade authority, fees, wallet chain support and custody under ADR-013/014.

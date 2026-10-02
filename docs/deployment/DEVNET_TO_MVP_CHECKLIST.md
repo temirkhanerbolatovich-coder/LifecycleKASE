@@ -22,7 +22,8 @@ The [implementation status](../IMPLEMENTED_VS_SIMULATED.md) and [requirements](.
 5. **Instrument setup**
    - [x] Administrator database-draft create and Administrator/Auditor list UI/API with fixed local demo invariants, operator-wallet authority binding and atomic audit.
    - [x] Implement wallet-signed `MINT_SETUP` prepare/confirm for Token-2022 bond and KZT-Test mint creation, 35-token treasury issuance and mint-authority revocation. Exact finalized transaction/mint/treasury reconciliation is enforced; live Phantom/validator acceptance is pending.
-   - [ ] Add and wallet-sign separate 10/20/5 distribution, Instrument PDA initialization and activation phases.
+   - [x] Add separate wallet-signed 10/20/5 distribution preparation/finalized reconciliation for three active verified eligible investor wallets; fixture-tested, live wallet acceptance pending.
+   - [ ] Add wallet-signed Instrument PDA initialization and activation phases.
    - [ ] Run live Localnet phased deployment acceptance before changing the draft from `DRAFT`; current UI deliberately does not claim completed issuance.
 6. **Actions and snapshot**
    - [x] Snapshot HTTP/UI boundary accepts only explicit Localnet/Devnet plans, rejects cluster/wallet-network mismatch, derives the Wallet Standard chain from the validated plan and preserves finalized confirmation/recovery safeguards.
@@ -37,7 +38,7 @@ The [implementation status](../IMPLEMENTED_VS_SIMULATED.md) and [requirements](.
 
 ## Current next action
 
-Stage 2's isolated build/local runtime acceptance is complete. Public funding, authority assignment and network deployment are deferred. Stage 5 now has a fixture-tested wallet-signed `MINT_SETUP` boundary with finalized mint/treasury reconciliation, but no live Phantom/validator transaction is claimed. Next: run Localnet MINT_SETUP acceptance, then implement distribution 10/20/5, initialize and activate before Stage 6 action scheduling and snapshot acceptance.
+Stage 2's isolated build/local runtime acceptance is complete. Public funding, authority assignment and network deployment are deferred. Stage 5 now has fixture-tested wallet-signed `MINT_SETUP` and eligible-investor `DISTRIBUTION` boundaries with finalized account reconciliation, but no live Phantom/validator deployment transaction is claimed. Next: prepare three active verified eligible local investor wallets, run Localnet MINT_SETUP and DISTRIBUTION acceptance, then implement initialize and activate before Stage 6 action scheduling and snapshot acceptance.
 
 ## Preflight usage and limits
 

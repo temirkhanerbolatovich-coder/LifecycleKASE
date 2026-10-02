@@ -7,10 +7,10 @@ Last updated: 2026-10-02
 
 | Component | Responsibility | Trust boundary |
 |---|---|---|
-| Next.js web | Status dashboard, Wallet Standard operator login, instrument/investor registries, phased mint setup and Localnet/Devnet snapshot UI; fifteen fixed same-origin rewrites transport operator requests/cookies to the API | Browser is untrusted; web server is a trusted cookie-transport boundary; no private-key custody; live transaction acceptance pending |
-| API package | Operator authentication, audited registries, administrator-only mint/snapshot transaction preparation and finalized reconciliation; NestJS health routes | Trusted application service when deployed; never holds administrator private keys |
+| Next.js web | Status dashboard, Wallet Standard operator login, instrument/investor registries, phased mint/distribution and Localnet/Devnet snapshot UI; fifteen fixed same-origin rewrites transport operator requests/cookies to the API | Browser is untrusted; web server is a trusted cookie-transport boundary; no private-key custody; live transaction acceptance pending |
+| API package | Operator authentication, audited registries, administrator-only mint/distribution/snapshot transaction preparation and finalized reconciliation; NestJS health routes | Trusted application service when deployed; never holds administrator private keys |
 | Domain package | Deterministic calculations and state rules | Pure logic with no network or persistence side effects |
-| Solana client package | Token-2022 mint setup/holder collection, instruction/transaction serialization, exact signed-message verification and account decoding | Converts finalized chain data into validated mint, treasury, holder and confirmation evidence |
+| Solana client package | Token-2022 mint setup, canonical 10/20/5 distribution and holder collection, instruction/transaction serialization, exact signed-message verification and account decoding | Converts finalized chain data into validated mint, treasury, holder and confirmation evidence |
 | Anchor program | Instrument initialization/activation, action scheduling/cancellation, and immutable snapshot hash/slot/count registration are locally implemented; entitlement calculation and execution are pending | Future authoritative execution boundary; not deployed |
 | Token-2022 | Bond ownership, transfers, burns, and total supply | Authoritative token ledger |
 | PostgreSQL | Identity links, workflow orchestration, immutable snapshot payloads and read projections | Recoverable projection; not authoritative for chain facts |
@@ -32,7 +32,7 @@ The API joins that collector with Prisma action and wallet mappings, checks the 
 
 ## Authority model
 
-Instrument deployment uses the same prepare/sign/finalize boundary in explicit phases. `MINT_SETUP` derives mint addresses without private keys, prepares both Token-2022 mints plus treasury issuance/authority revocation, and records the exact unsigned transaction. Confirmation verifies its finalized message and reconciles mint authorities, permanent delegate, decimals, supply and treasury balance before saving projections. It does not mark the instrument active.
+Instrument deployment uses the same prepare/sign/finalize boundary in explicit phases. `MINT_SETUP` derives mint addresses without private keys, prepares both Token-2022 mints plus treasury issuance/authority revocation, and records the exact unsigned transaction. Confirmation verifies its finalized message and reconciles mint authorities, permanent delegate, decimals, supply and treasury balance before saving projections. `DISTRIBUTION` then binds three explicit active verified eligible investor wallets to 10/20/5, persists the exact allocation, and independently reconciles the emptied treasury and recipient balances. Neither phase marks the instrument active; initialize and activate remain separate future phases.
 
 The fixed-supply bond mint has zero decimals. Its mint and freeze authorities are absent after issuance. The Instrument Authority PDA is the Token-2022 permanent delegate used only by program-controlled redemption instructions. A human administrator wallet authorizes corporate actions but never shares a private key with the API.
 

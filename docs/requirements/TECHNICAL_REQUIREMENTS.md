@@ -774,7 +774,7 @@ POST /investors/:id/wallets/:walletId/verify
 POST /investors/:id/wallets/:walletId/revoke
 ```
 
-`POST /instruments` создаёт database draft и не объявляет instrument on-chain. `deploy/prepare`/`deploy/confirm` выполняются по явным фазам. Реализованная фаза `MINT_SETUP` возвращает wallet-signed transaction для двух mint, bond treasury, supply 35 и отзыва mint authority; confirm проверяет точное finalized message и итоговые mint/treasury authorities/supply. Distribution 10/20/5, Instrument PDA initialize и activate являются отдельными последующими фазами.
+`POST /instruments` создаёт database draft и не объявляет instrument on-chain. `deploy/prepare`/`deploy/confirm` выполняются по явным фазам. `MINT_SETUP` возвращает wallet-signed transaction для двух mint, bond treasury, supply 35 и отзыва mint authority; confirm проверяет точное finalized message и итоговые mint/treasury authorities/supply. `DISTRIBUTION` требует явное сопоставление 10/20/5 с тремя разными active, signature-verified, non-revoked wallets трёх active `ELIGIBLE` investors, сохраняет план вместе с exact transaction и при confirm сверяет treasury=0 и три точных owner/mint/balance. Instrument PDA initialize и activate остаются отдельными последующими фазами.
 
 ### 10.4. Corporate actions
 

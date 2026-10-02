@@ -5,8 +5,8 @@ import { AuthFlowError, authOptionsFromEnvironment, readOperatorSession, require
   requireRequestOrigin, sessionTokenFromCookieHeader } from "./auth.js";
 import { AuthRateLimitError, AuthRateLimitService, authenticationClientKey } from "./auth-rate-limit.js";
 import { createInstrumentDraft, InstrumentRegistryError, listInstruments } from "./instrument-registry.js";
-import { confirmInstrumentMintSetup, InstrumentDeploymentError, instrumentDeploymentOptions,
-  prepareInstrumentMintSetup } from "./instrument-deployment.js";
+import { confirmInstrumentDistribution, confirmInstrumentMintSetup, InstrumentDeploymentError, instrumentDeploymentOptions,
+  prepareInstrumentDistribution, prepareInstrumentMintSetup } from "./instrument-deployment.js";
 import { PrismaService } from "./prisma.service.js";
 
 type Request = { headers?: { cookie?: string }; ip?: string; socket?: { remoteAddress?: string } };
@@ -61,13 +61,22 @@ export class InstrumentController {
 
   @Post(":id/deploy/prepare")
   @Header("Cache-Control", "no-store")
-  async prepareDeployment(@Param("id") instrumentId: string, @Req() request: Request,
+  async prepareDeployment(@Param("id") instrumentId: string, @Body() body: unknown, @Req() request: Request,
     @Res({ passthrough: true }) response: Response, @Headers("origin") origin?: string) {
     try {
       const actor = await this.actor(request, response, true, origin);
+      const payload = body && typeof body === "object" && !Array.isArray(body) ? body as Record<string, unknown> : {};
+      const phase = payload["phase"];
       const options = instrumentDeploymentOptions();
-      return await prepareInstrumentMintSetup(this.prisma,
-        new HttpSolanaRpc(options.rpcEndpoint, options.rpcTimeoutMs), instrumentId, actor, options);
+      const rpc = new HttpSolanaRpc(options.rpcEndpoint, options.rpcTimeoutMs);
+      if (phase === "MINT_SETUP" && Object.keys(payload).length === 1) {
+        return await prepareInstrumentMintSetup(this.prisma, rpc, instrumentId, actor, options);
+      }
+      if (phase === "DISTRIBUTION" && Object.keys(payload).every(key => ["phase", "allocations"].includes(key))) {
+        return await prepareInstrumentDistribution(this.prisma, rpc, instrumentId, actor, options,
+          { allocations: payload["allocations"] });
+      }
+      throw new InstrumentDeploymentError("INVALID_REQUEST", "A supported deployment phase is required", 400);
     } catch (error) { this.httpError(error, response); }
   }
 
@@ -80,12 +89,17 @@ export class InstrumentController {
       const payload = body && typeof body === "object" && !Array.isArray(body) ? body as Record<string, unknown> : {};
       const operationId = payload["operationId"];
       const signature = payload["signature"];
-      if (typeof operationId !== "string" || typeof signature !== "string" || Object.keys(payload).some(key => !["operationId", "signature"].includes(key))) {
-        throw new InstrumentDeploymentError("INVALID_REQUEST", "Operation and signature are required", 400);
+      const phase = payload["phase"];
+      if (typeof operationId !== "string" || typeof signature !== "string" ||
+          (phase !== "MINT_SETUP" && phase !== "DISTRIBUTION") ||
+          Object.keys(payload).some(key => !["phase", "operationId", "signature"].includes(key))) {
+        throw new InstrumentDeploymentError("INVALID_REQUEST", "Phase, operation, and signature are required", 400);
       }
       const options = instrumentDeploymentOptions();
-      return await confirmInstrumentMintSetup(this.prisma,
-        new HttpSolanaRpc(options.rpcEndpoint, options.rpcTimeoutMs), instrumentId, operationId, signature, actor, options);
+      const rpc = new HttpSolanaRpc(options.rpcEndpoint, options.rpcTimeoutMs);
+      return phase === "MINT_SETUP"
+        ? await confirmInstrumentMintSetup(this.prisma, rpc, instrumentId, operationId, signature, actor, options)
+        : await confirmInstrumentDistribution(this.prisma, rpc, instrumentId, operationId, signature, actor, options);
     } catch (error) { this.httpError(error, response); }
   }
 }

@@ -15,9 +15,12 @@ type Instrument = {
 };
 type Request = (path: string, init?: RequestInit) => Promise<Record<string, unknown>>;
 type TransactionWallet = WalletWithFeatures<StandardConnectFeature & SolanaSignAndSendTransactionFeature>;
-type DeploymentPlan = { operationId: string; phase: "MINT_SETUP"; cluster: SupportedSnapshotCluster;
+type DistributionAllocation = { investorId: string; walletAddress: string; tokenAccount: string; amount: string };
+type DistributionCandidate = { investorId: string; displayName: string; walletAddress: string };
+type DistributionDraft = { instrument: Instrument; candidates: DistributionCandidate[]; selections: Record<string, string> };
+type DeploymentPlan = { operationId: string; phase: "MINT_SETUP" | "DISTRIBUTION"; cluster: SupportedSnapshotCluster;
   requiredSigner: string; networkGenesisHash: string; serializedTransactionBase64: string;
-  bondMint?: string; settlementMint?: string; treasuryTokenAccount?: string };
+  bondMint?: string; settlementMint?: string; treasuryTokenAccount?: string; allocations?: DistributionAllocation[] };
 
 function transactionWallet(wallet: Wallet | undefined, cluster: SupportedSnapshotCluster): wallet is TransactionWallet {
   const feature = wallet?.features[SolanaSignAndSendTransaction] as SolanaSignAndSendTransactionFeature[typeof SolanaSignAndSendTransaction] | undefined;
@@ -28,10 +31,13 @@ function transactionWallet(wallet: Wallet | undefined, cluster: SupportedSnapsho
 function deploymentPlan(value: Record<string, unknown>, instrument: Instrument, walletAddress: string): DeploymentPlan {
   const cluster = value["cluster"];
   const result = value as unknown as DeploymentPlan;
-  if (value["phase"] !== "MINT_SETUP" || (cluster !== "localnet" && cluster !== "devnet") ||
+  if ((value["phase"] !== "MINT_SETUP" && value["phase"] !== "DISTRIBUTION") || (cluster !== "localnet" && cluster !== "devnet") ||
       typeof value["operationId"] !== "string" || typeof value["serializedTransactionBase64"] !== "string" ||
       value["requiredSigner"] !== walletAddress || instrument.issuerAuthority !== walletAddress) {
     throw new Error("Сервер вернул несовместимый план выпуска или другой issuer signer.");
+  }
+  if (value["phase"] === "DISTRIBUTION" && (!Array.isArray(value["allocations"]) || value["allocations"].length !== 3)) {
+    throw new Error("Сервер вернул неполный план распределения.");
   }
   unsignedTransactionForSigner(result.serializedTransactionBase64, walletAddress);
   return result;
@@ -61,6 +67,7 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
   const [signature, setSignature] = useState("");
   const [reviewed, setReviewed] = useState(false);
   const [sendAttempted, setSendAttempted] = useState(false);
+  const [distributionDraft, setDistributionDraft] = useState<DistributionDraft | null>(null);
   const inFlight = useRef(false);
 
   async function runDeployment(task: () => Promise<void>) {
@@ -72,10 +79,53 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
   }
 
   async function prepareDeployment(instrument: Instrument) {
-    const response = await request(`/api/v1/instruments/${instrument.id}/deploy/prepare`, { method: "POST", body: "{}" });
+    const response = await request(`/api/v1/instruments/${instrument.id}/deploy/prepare`, {
+      method: "POST", body: JSON.stringify({ phase: "MINT_SETUP" })
+    });
     const prepared = deploymentPlan(response, instrument, walletAddress);
     setPlan(prepared); setDeployInstrumentId(instrument.id); setSignature(""); setReviewed(false); setSendAttempted(false);
     setMessage("Фаза MINT_SETUP подготовлена. Проверьте сеть и адреса перед подписью Phantom.");
+  }
+
+  async function startDistribution(instrument: Instrument) {
+    const response = await request("/api/v1/investors?limit=100");
+    if (!Array.isArray(response["items"])) throw new Error("Реестр инвесторов вернул некорректный ответ.");
+    const candidates: DistributionCandidate[] = [];
+    for (const value of response["items"] as Record<string, unknown>[]) {
+      if (value["status"] !== "ACTIVE" || value["eligibilityStatus"] !== "ELIGIBLE" ||
+          typeof value["id"] !== "string" || typeof value["displayName"] !== "string" || !Array.isArray(value["wallets"])) continue;
+      for (const wallet of value["wallets"] as Record<string, unknown>[]) {
+        if (wallet["status"] === "ACTIVE" && typeof wallet["verifiedAt"] === "string" &&
+            wallet["revokedAt"] === null && typeof wallet["address"] === "string") {
+          candidates.push({ investorId: value["id"], displayName: value["displayName"], walletAddress: wallet["address"] });
+        }
+      }
+    }
+    const firstByInvestor = [...new Map(candidates.map(candidate => [candidate.investorId, candidate])).values()];
+    if (firstByInvestor.length < 3) throw new Error("Для DISTRIBUTION нужны три разных eligible-инвестора с активными проверенными кошельками.");
+    setDistributionDraft({ instrument, candidates, selections: {
+      "10": firstByInvestor[0]!.walletAddress, "20": firstByInvestor[1]!.walletAddress, "5": firstByInvestor[2]!.walletAddress
+    } });
+    setMessage("Выберите трёх разных инвесторов для фиксированных долей 10/20/5.");
+  }
+
+  async function prepareDistribution() {
+    if (!distributionDraft) throw new Error("Сначала выберите инструмент и инвесторов.");
+    const selected = Object.values(distributionDraft.selections);
+    if (new Set(selected).size !== 3) throw new Error("Каждую долю должен получить отдельный инвестор.");
+    const selectedInvestors = selected.map(address => distributionDraft.candidates.find(candidate => candidate.walletAddress === address)?.investorId);
+    if (selectedInvestors.some(value => value === undefined) || new Set(selectedInvestors).size !== 3) {
+      throw new Error("Доли 10/20/5 должны принадлежать трём разным инвесторам.");
+    }
+    const response = await request(`/api/v1/instruments/${distributionDraft.instrument.id}/deploy/prepare`, {
+      method: "POST", body: JSON.stringify({ phase: "DISTRIBUTION", allocations: ["10", "20", "5"].map(amount => ({
+        walletAddress: distributionDraft.selections[amount], amount
+      })) })
+    });
+    const prepared = deploymentPlan(response, distributionDraft.instrument, walletAddress);
+    setPlan(prepared); setDeployInstrumentId(distributionDraft.instrument.id); setDistributionDraft(null);
+    setSignature(""); setReviewed(false); setSendAttempted(false);
+    setMessage("Фаза DISTRIBUTION подготовлена. Проверьте три адреса и доли 10/20/5 перед подписью.");
   }
 
   async function sendDeployment() {
@@ -85,7 +135,7 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
     const account = connected.accounts.find(candidate => candidate.address === walletAddress && candidate.chains.includes(chain) && candidate.features.includes(SolanaSignAndSendTransaction));
     if (!account) throw new Error("Выбранный аккаунт Phantom не совпадает с issuer кошельком сессии.");
     setSendAttempted(true);
-    setMessage("Проверьте транзакцию MINT_SETUP в Phantom. При неясном результате не отправляйте её повторно вслепую.");
+    setMessage(`Проверьте транзакцию ${plan.phase} в Phantom. При неясном результате не отправляйте её повторно вслепую.`);
     const [output] = await wallet.features[SolanaSignAndSendTransaction].signAndSendTransaction({
       account, chain, transaction: unsignedTransactionForSigner(plan.serializedTransactionBase64, walletAddress),
       options: { preflightCommitment: "confirmed", skipPreflight: false }
@@ -98,14 +148,17 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
   async function confirmDeployment() {
     if (!plan || !signature) throw new Error("Нет подготовленной попытки и подписи транзакции.");
     const response = await request(`/api/v1/instruments/${deployInstrumentId}/deploy/confirm`, {
-      method: "POST", body: JSON.stringify({ operationId: plan.operationId, signature })
+      method: "POST", body: JSON.stringify({ phase: plan.phase, operationId: plan.operationId, signature })
     });
     if (response["status"] !== "FINALIZED" || response["operationId"] !== plan.operationId || response["signature"] !== signature) {
       throw new Error("API не подтвердил точную finalized-транзакцию.");
     }
+    const completedPhase = plan.phase;
     setPlan(null); setDeployInstrumentId(""); setSignature(""); setReviewed(false); setSendAttempted(false);
     await load();
-    setMessage("MINT_SETUP FINALIZED: два mint проверены, bond supply 35, mint authority отозвана. Следующая фаза — распределение 10/20/5.");
+    setMessage(completedPhase === "MINT_SETUP"
+      ? "MINT_SETUP FINALIZED: два mint проверены, bond supply 35, mint authority отозвана. Следующая фаза — распределение 10/20/5."
+      : "DISTRIBUTION FINALIZED: treasury равен 0, а балансы трёх инвесторов равны 10/20/5. Следующая фаза — initialize.");
   }
 
   async function load(cursor?: string, signal?: AbortSignal) {
@@ -210,22 +263,49 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
           <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || plan !== null}
             onClick={() => void runDeployment(() => prepareDeployment(instrument))}>Подготовить фазу MINT_SETUP</button>
         )}
-        {instrument.mintAddress && <p className="mt-2 text-xs text-[#28744a]">Mint setup подтверждён: {shortAddress(instrument.mintAddress)}. Инструмент остаётся DRAFT до распределения, initialize и activate.</p>}
+        {instrument.mintAddress && instrument.circulatingSupply === "0" && <>
+          <p className="mt-2 text-xs text-[#28744a]">Mint setup подтверждён: {shortAddress(instrument.mintAddress)}. 35 tokens ещё находятся в treasury.</p>
+          {role === "ADMINISTRATOR" && <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || plan !== null || distributionDraft !== null}
+            onClick={() => void runDeployment(() => startDistribution(instrument))}>Выбрать инвесторов для 10/20/5</button>}
+        </>}
+        {instrument.mintAddress && instrument.circulatingSupply === instrument.totalSupply &&
+          <p className="mt-2 text-xs text-[#28744a]">Распределение 10/20/5 подтверждено. Инструмент остаётся DRAFT до initialize и activate.</p>}
       </article>)}
     </div>
+    {distributionDraft && <div className="mt-4 rounded-xl border border-[#d3b779] bg-[#fffaf0] p-4 text-sm">
+      <p className="font-semibold">Фаза DISTRIBUTION · {distributionDraft.instrument.ticker}</p>
+      <p className="mt-2 text-xs leading-5">Каждая доля привязывается к отдельному active + verified + eligible investor-wallet. Подпись выполнит три Token-2022 transfer из issuer treasury.</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-3">{["10", "20", "5"].map(amount => <label className="text-xs" key={amount}>Доля: {amount} bond
+        <select className={inputClass} value={distributionDraft.selections[amount]} disabled={busy}
+          onChange={event => setDistributionDraft(current => current ? { ...current,
+            selections: { ...current.selections, [amount]: event.target.value } } : null)}>
+          {distributionDraft.candidates.map(candidate => <option key={candidate.walletAddress} value={candidate.walletAddress}>
+            {candidate.displayName} · {shortAddress(candidate.walletAddress)}
+          </option>)}
+        </select>
+      </label>)}</div>
+      <div className="mt-3 flex gap-2"><button type="button" className={buttonClass} disabled={busy}
+        onClick={() => void runDeployment(prepareDistribution)}>Подготовить DISTRIBUTION</button>
+      <button type="button" className={buttonClass} disabled={busy} onClick={() => setDistributionDraft(null)}>Отмена</button></div>
+    </div>}
     {plan && <div className="mt-4 rounded-xl border border-[#d3b779] bg-[#fffaf0] p-4 text-sm">
-      <p className="font-semibold">Проверка фазы MINT_SETUP</p>
-      <p className="mt-2 text-xs leading-5">Сеть: <strong>{plan.cluster}</strong>. Будут созданы тестовые bond и KZT-Test mint, выпущено 35 bond tokens в treasury и отозвана mint authority. Распределение инвесторам и активация ещё не выполняются.</p>
+      <p className="font-semibold">Проверка фазы {plan.phase}</p>
+      <p className="mt-2 text-xs leading-5">Сеть: <strong>{plan.cluster}</strong>. {plan.phase === "MINT_SETUP"
+        ? "Будут созданы два mint, выпущено 35 bond tokens в treasury и необратимо отозвана mint authority."
+        : "35 bond tokens будут переведены из treasury трём проверенным инвесторам в долях 10/20/5. Initialize и activate ещё не выполняются."}</p>
       <dl className="mt-3 space-y-1 text-xs"><div><dt className="text-[#61746a]">Signer</dt><dd className="break-all font-mono">{plan.requiredSigner}</dd></div>
         {plan.bondMint && <div><dt className="text-[#61746a]">Bond mint</dt><dd className="break-all font-mono">{plan.bondMint}</dd></div>}
-        {plan.settlementMint && <div><dt className="text-[#61746a]">KZT-Test mint</dt><dd className="break-all font-mono">{plan.settlementMint}</dd></div>}</dl>
-      <label className="mt-3 flex gap-2 text-xs"><input type="checkbox" checked={reviewed} disabled={busy || sendAttempted} onChange={event => setReviewed(event.target.checked)} />Проверил тестовую сеть, signer и необратимый отзыв mint authority</label>
+        {plan.settlementMint && <div><dt className="text-[#61746a]">KZT-Test mint</dt><dd className="break-all font-mono">{plan.settlementMint}</dd></div>}
+        {plan.allocations?.map(allocation => <div key={allocation.tokenAccount}><dt className="text-[#61746a]">{allocation.amount} bond · investor {allocation.investorId.slice(0, 8)}</dt>
+          <dd className="break-all font-mono">{allocation.walletAddress}</dd></div>)}</dl>
+      <label className="mt-3 flex gap-2 text-xs"><input type="checkbox" checked={reviewed} disabled={busy || sendAttempted} onChange={event => setReviewed(event.target.checked)} />
+        {plan.phase === "MINT_SETUP" ? "Проверил сеть, signer и необратимый отзыв mint authority" : "Проверил сеть, signer, три кошелька и доли 10/20/5"}</label>
       <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || !reviewed || sendAttempted || !transactionWallet(wallet, plan.cluster)}
-        onClick={() => void runDeployment(sendDeployment)}>Подписать и отправить MINT_SETUP</button>
+        onClick={() => void runDeployment(sendDeployment)}>Подписать и отправить {plan.phase}</button>
       {sendAttempted && <div className="mt-3"><p className="text-xs">UUID попытки: <span className="font-mono">{plan.operationId}</span></p>
         <label className="mt-2 block text-xs">Подпись из Phantom<input className={inputClass} value={signature} maxLength={88} disabled={busy} onChange={event => setSignature(event.target.value.trim())} /></label>
         <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || signature.length < 64}
-          onClick={() => void runDeployment(confirmDeployment)}>Проверить finalized и состояние mint</button></div>}
+          onClick={() => void runDeployment(confirmDeployment)}>Проверить finalized и on-chain состояние</button></div>}
     </div>}
     {nextCursor && <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy} onClick={() => void refresh(nextCursor)}>Загрузить ещё</button>}
     <p role="status" aria-live="polite" className="mt-4 text-xs leading-5 text-[#61746a]">{busy ? "Операция выполняется… " : ""}{message}</p>

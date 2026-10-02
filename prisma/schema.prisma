@@ -185,19 +185,19 @@ model User {
 }
 
 model AuthChallenge {
-  id            String    @id @default(uuid()) @db.Uuid
-  userId        String?   @map("user_id") @db.Uuid
-  walletId      String?   @map("wallet_id") @db.Uuid
+  id            String               @id @default(uuid()) @db.Uuid
+  userId        String?              @map("user_id") @db.Uuid
+  walletId      String?              @map("wallet_id") @db.Uuid
   purpose       AuthChallengePurpose @default(OPERATOR_LOGIN)
-  walletAddress String    @map("wallet_address") @db.VarChar(44)
-  nonceHash     Bytes     @unique @map("nonce_hash") @db.ByteA
-  domain        String    @db.VarChar(255)
-  origin        String    @db.VarChar(512)
-  expiresAt     DateTime  @map("expires_at") @db.Timestamptz(6)
-  usedAt        DateTime? @map("used_at") @db.Timestamptz(6)
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  user          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  wallet        Wallet?   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  walletAddress String               @map("wallet_address") @db.VarChar(44)
+  nonceHash     Bytes                @unique @map("nonce_hash") @db.ByteA
+  domain        String               @db.VarChar(255)
+  origin        String               @db.VarChar(512)
+  expiresAt     DateTime             @map("expires_at") @db.Timestamptz(6)
+  usedAt        DateTime?            @map("used_at") @db.Timestamptz(6)
+  createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  user          User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  wallet        Wallet?              @relation(fields: [walletId], references: [id], onDelete: Cascade)
 
   @@index([walletAddress, expiresAt])
   @@index([walletId, expiresAt])
@@ -227,8 +227,8 @@ model Investor {
   countryCode            String                  @map("country_code") @db.Char(2)
   kycStatus              KycStatus               @default(NOT_STARTED) @map("kyc_status")
   eligibilityStatus      EligibilityStatus       @default(PENDING_REVIEW) @map("eligibility_status")
-  eligibilityReasonCode  String?                  @map("eligibility_reason_code") @db.VarChar(50)
-  eligibilityReviewedAt  DateTime?                @map("eligibility_reviewed_at") @db.Timestamptz(6)
+  eligibilityReasonCode  String?                 @map("eligibility_reason_code") @db.VarChar(50)
+  eligibilityReviewedAt  DateTime?               @map("eligibility_reviewed_at") @db.Timestamptz(6)
   status                 InvestorStatus          @default(ACTIVE)
   createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -241,19 +241,19 @@ model Investor {
 }
 
 model Wallet {
-  id              String           @id @default(uuid()) @db.Uuid
-  address         String           @unique @db.VarChar(44)
-  userId          String?          @map("user_id") @db.Uuid
-  investorId      String?          @map("investor_id") @db.Uuid
-  network         String           @default("SOLANA_DEVNET") @db.VarChar(30)
-  status          WalletStatus     @default(PENDING)
-  verifiedAt      DateTime?        @map("verified_at") @db.Timestamptz(6)
-  revokedAt       DateTime?        @map("revoked_at") @db.Timestamptz(6)
-  revocationReasonCode String?      @map("revocation_reason_code") @db.VarChar(50)
-  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  user            User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
-  investor        Investor?        @relation(fields: [investorId], references: [id], onDelete: Restrict)
-  snapshotWallets SnapshotWallet[]
+  id                     String           @id @default(uuid()) @db.Uuid
+  address                String           @unique @db.VarChar(44)
+  userId                 String?          @map("user_id") @db.Uuid
+  investorId             String?          @map("investor_id") @db.Uuid
+  network                String           @default("SOLANA_DEVNET") @db.VarChar(30)
+  status                 WalletStatus     @default(PENDING)
+  verifiedAt             DateTime?        @map("verified_at") @db.Timestamptz(6)
+  revokedAt              DateTime?        @map("revoked_at") @db.Timestamptz(6)
+  revocationReasonCode   String?          @map("revocation_reason_code") @db.VarChar(50)
+  createdAt              DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  user                   User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  investor               Investor?        @relation(fields: [investorId], references: [id], onDelete: Restrict)
+  snapshotWallets        SnapshotWallet[]
   verificationChallenges AuthChallenge[]
 
   @@index([investorId])
@@ -288,37 +288,37 @@ model SettlementAsset {
 }
 
 model Instrument {
-  id                       String            @id @default(uuid()) @db.Uuid
-  issuerId                 String            @map("issuer_id") @db.Uuid
-  settlementAssetId        String            @map("settlement_asset_id") @db.Uuid
-  name                     String            @db.VarChar(250)
-  ticker                   String            @db.VarChar(20)
-  assetType                String            @default("BOND") @map("asset_type") @db.VarChar(20)
-  network                  String            @default("SOLANA_DEVNET") @db.VarChar(30)
-  programId                String?           @map("program_id") @db.VarChar(44)
-  mintAddress              String?           @unique @map("mint_address") @db.VarChar(44)
-  issuerAuthority          String            @map("issuer_authority") @db.VarChar(44)
-  complianceAuthority      String            @map("compliance_authority") @db.VarChar(44)
-  corporateActionAuthority String            @map("corporate_action_authority") @db.VarChar(44)
-  faceValueMinor           BigInt            @map("face_value_minor") @db.BigInt
-  currency                 String            @default("KZT_TEST") @db.VarChar(20)
-  settlementDecimals       Int               @default(6) @map("settlement_decimals")
-  couponRateBps            Int               @map("coupon_rate_bps")
-  paymentsPerYear          Int               @map("payments_per_year")
-  issueAt                  DateTime          @map("issue_at") @db.Timestamptz(6)
-  maturityAt               DateTime          @map("maturity_at") @db.Timestamptz(6)
-  totalSupply              BigInt            @map("total_supply") @db.BigInt
-  circulatingSupply        BigInt            @map("circulating_supply") @db.BigInt
-  status                   InstrumentStatus  @default(DRAFT)
-  transfersEnabled         Boolean           @default(true) @map("transfers_enabled")
-  whitelistRequired        Boolean           @default(false) @map("whitelist_required")
-  issuerApprovalRequired   Boolean           @default(false) @map("issuer_approval_required")
-  freezeEnabled            Boolean           @default(false) @map("freeze_enabled")
-  version                  Int               @default(0)
-  createdAt                DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
-  issuer                   Issuer            @relation(fields: [issuerId], references: [id], onDelete: Restrict)
-  settlementAsset          SettlementAsset   @relation(fields: [settlementAssetId], references: [id], onDelete: Restrict)
+  id                       String                  @id @default(uuid()) @db.Uuid
+  issuerId                 String                  @map("issuer_id") @db.Uuid
+  settlementAssetId        String                  @map("settlement_asset_id") @db.Uuid
+  name                     String                  @db.VarChar(250)
+  ticker                   String                  @db.VarChar(20)
+  assetType                String                  @default("BOND") @map("asset_type") @db.VarChar(20)
+  network                  String                  @default("SOLANA_DEVNET") @db.VarChar(30)
+  programId                String?                 @map("program_id") @db.VarChar(44)
+  mintAddress              String?                 @unique @map("mint_address") @db.VarChar(44)
+  issuerAuthority          String                  @map("issuer_authority") @db.VarChar(44)
+  complianceAuthority      String                  @map("compliance_authority") @db.VarChar(44)
+  corporateActionAuthority String                  @map("corporate_action_authority") @db.VarChar(44)
+  faceValueMinor           BigInt                  @map("face_value_minor") @db.BigInt
+  currency                 String                  @default("KZT_TEST") @db.VarChar(20)
+  settlementDecimals       Int                     @default(6) @map("settlement_decimals")
+  couponRateBps            Int                     @map("coupon_rate_bps")
+  paymentsPerYear          Int                     @map("payments_per_year")
+  issueAt                  DateTime                @map("issue_at") @db.Timestamptz(6)
+  maturityAt               DateTime                @map("maturity_at") @db.Timestamptz(6)
+  totalSupply              BigInt                  @map("total_supply") @db.BigInt
+  circulatingSupply        BigInt                  @map("circulating_supply") @db.BigInt
+  status                   InstrumentStatus        @default(DRAFT)
+  transfersEnabled         Boolean                 @default(true) @map("transfers_enabled")
+  whitelistRequired        Boolean                 @default(false) @map("whitelist_required")
+  issuerApprovalRequired   Boolean                 @default(false) @map("issuer_approval_required")
+  freezeEnabled            Boolean                 @default(false) @map("freeze_enabled")
+  version                  Int                     @default(0)
+  createdAt                DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+  issuer                   Issuer                  @relation(fields: [issuerId], references: [id], onDelete: Restrict)
+  settlementAsset          SettlementAsset         @relation(fields: [settlementAssetId], references: [id], onDelete: Restrict)
   corporateActions         CorporateAction[]
   snapshots                Snapshot[]
   blockchainTransactions   BlockchainTransaction[]
@@ -520,29 +520,30 @@ model ActionReceipt {
 }
 
 model BlockchainTransaction {
-  id                   String                      @id @default(uuid()) @db.Uuid
-  instrumentId         String?                     @map("instrument_id") @db.Uuid
-  corporateActionId    String?                     @map("corporate_action_id") @db.Uuid
-  entitlementId        String?                     @map("entitlement_id") @db.Uuid
-  investorId           String?                     @map("investor_id") @db.Uuid
-  operationType        String                      @map("operation_type") @db.VarChar(80)
-  signature            String?                     @unique @db.VarChar(88)
-  status               BlockchainTransactionStatus @default(PREPARED)
-  recentBlockhash      String?                     @map("recent_blockhash") @db.VarChar(64)
-  lastValidBlockHeight BigInt?                     @map("last_valid_block_height") @db.BigInt
-  submittedAt          DateTime?                   @map("submitted_at") @db.Timestamptz(6)
-  finalizedAt          DateTime?                   @map("finalized_at") @db.Timestamptz(6)
-  lastErrorCode        String?                     @map("last_error_code") @db.VarChar(100)
-  requiredSigner       String?                     @map("required_signer") @db.VarChar(44)
-  networkGenesisHash   String?                     @map("network_genesis_hash") @db.VarChar(44)
-  preparedTransactionBase64 String?                @map("prepared_transaction_base64") @db.Text
-  createdAt            DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(6)
-  corporateAction      CorporateAction?            @relation(fields: [corporateActionId], references: [id], onDelete: Restrict)
-  instrument           Instrument?                 @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
-  entitlement          Entitlement?                @relation(fields: [entitlementId], references: [id], onDelete: Restrict)
-  investor             Investor?                   @relation(fields: [investorId], references: [id], onDelete: Restrict)
-  settlementLegs       SettlementLeg[]
+  id                        String                      @id @default(uuid()) @db.Uuid
+  instrumentId              String?                     @map("instrument_id") @db.Uuid
+  corporateActionId         String?                     @map("corporate_action_id") @db.Uuid
+  entitlementId             String?                     @map("entitlement_id") @db.Uuid
+  investorId                String?                     @map("investor_id") @db.Uuid
+  operationType             String                      @map("operation_type") @db.VarChar(80)
+  signature                 String?                     @unique @db.VarChar(88)
+  status                    BlockchainTransactionStatus @default(PREPARED)
+  recentBlockhash           String?                     @map("recent_blockhash") @db.VarChar(64)
+  lastValidBlockHeight      BigInt?                     @map("last_valid_block_height") @db.BigInt
+  submittedAt               DateTime?                   @map("submitted_at") @db.Timestamptz(6)
+  finalizedAt               DateTime?                   @map("finalized_at") @db.Timestamptz(6)
+  lastErrorCode             String?                     @map("last_error_code") @db.VarChar(100)
+  requiredSigner            String?                     @map("required_signer") @db.VarChar(44)
+  networkGenesisHash        String?                     @map("network_genesis_hash") @db.VarChar(44)
+  preparedTransactionBase64 String?                     @map("prepared_transaction_base64") @db.Text
+  preparedPayload           Json?                       @map("prepared_payload") @db.JsonB
+  createdAt                 DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  corporateAction           CorporateAction?            @relation(fields: [corporateActionId], references: [id], onDelete: Restrict)
+  instrument                Instrument?                 @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
+  entitlement               Entitlement?                @relation(fields: [entitlementId], references: [id], onDelete: Restrict)
+  investor                  Investor?                   @relation(fields: [investorId], references: [id], onDelete: Restrict)
+  settlementLegs            SettlementLeg[]
 
   @@index([corporateActionId, status])
   @@index([instrumentId, status])
