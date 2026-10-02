@@ -1,13 +1,13 @@
 # Architecture overview
 
 Status: Milestone 0 baseline with partial Milestone 1 program and Milestone 2 snapshot orchestration
-Last updated: 2026-09-30
+Last updated: 2026-10-02
 
 ## Components
 
 | Component | Responsibility | Trust boundary |
 |---|---|---|
-| Next.js web | Status dashboard, Wallet Standard operator login and Devnet snapshot UI; six fixed same-origin rewrites transport operator requests/cookies to the API | Browser is untrusted; web server is a trusted cookie-transport boundary; no private-key custody; real wallet acceptance pending |
+| Next.js web | Status dashboard, Wallet Standard operator login and Localnet/Devnet snapshot UI; twelve fixed same-origin rewrites transport operator requests/cookies to the API | Browser is untrusted; web server is a trusted cookie-transport boundary; no private-key custody; live snapshot-wallet acceptance pending |
 | API package | Operator wallet authentication plus administrator-only snapshot capture, transaction preparation and finalized confirmation; NestJS health routes | Trusted application service when deployed; never holds administrator private keys |
 | Domain package | Deterministic calculations and state rules | Pure logic with no network or persistence side effects |
 | Solana client package | Token-2022 holder collection, instruction/transaction serialization, exact signed-message verification and Action PDA decoding | Converts finalized chain data into validated holder balances and confirmation evidence |
@@ -26,7 +26,7 @@ Last updated: 2026-09-30
 
 Snapshot construction is a special case: the API reads Token-2022 accounts at the current finalized slot, creates canonical JSON, computes SHA-256, persists the payload, and commits the hash and slot on-chain. Historical reconstruction is intentionally unsupported in the MVP.
 
-The implemented client collector reads all mint-filtered Token-2022 accounts at one returned finalized context slot, decodes the base token-account prefix even when extensions are present, and checks that positive balances sum to mint supply. It refuses inconsistent supply/slot responses. Authenticated API preparation and confirmation connect this data to the on-chain commitment instruction, but fixture tests are not a live Devnet snapshot proof.
+The implemented client collector reads all mint-filtered Token-2022 accounts at one returned finalized context slot, decodes the base token-account prefix even when extensions are present, and checks that positive balances sum to mint supply. It refuses inconsistent supply/slot responses. Authenticated API preparation and confirmation connect this data to the on-chain commitment instruction. The browser accepts explicit Localnet/Devnet plans and derives the requested Wallet Standard chain from the validated plan, but fixture tests are not a live validator snapshot proof.
 
 The API joins that collector with Prisma action and wallet mappings, checks the configured genesis hash and record-date window, and computes canonical snapshot-v2 bytes. Persistence revalidates state, versions and wallet mappings in a serializable transaction, then writes the canonical payload and child rows as `PENDING_REGISTRATION`. Preparation rebuilds the stored commitment, creates an unsigned v0 transaction and records a blockhash-bound attempt. Confirmation fetches the supplied signature at `finalized`, compares its complete message to that attempt, reads back the program-owned Action PDA, and atomically finalizes the transaction, snapshot and action projection. The wallet remains responsible for signing and submission.
 

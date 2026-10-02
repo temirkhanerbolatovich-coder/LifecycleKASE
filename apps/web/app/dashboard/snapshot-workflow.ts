@@ -25,11 +25,17 @@ export function transactionSignature(bytes: Uint8Array): string {
   return encodeBase58(bytes);
 }
 
+export type SupportedSnapshotCluster = "localnet" | "devnet";
+
+export function walletChainForCluster(cluster: SupportedSnapshotCluster): `solana:${SupportedSnapshotCluster}` {
+  return `solana:${cluster}`;
+}
+
 export type PreparedSnapshot = {
   corporateActionId: string;
   operationId: string;
   snapshotId: string;
-  cluster: "devnet";
+  cluster: SupportedSnapshotCluster;
   requiredSigner: string;
   snapshotHash: string;
   programId: string;
@@ -48,7 +54,7 @@ export function preparedSnapshot(payload: Record<string, unknown>, actionId: str
   if (!isActionId(actionId) || payload.corporateActionId !== actionId ||
       typeof payload.operationId !== "string" || !UUID.test(payload.operationId) ||
       typeof payload.snapshotId !== "string" || !UUID.test(payload.snapshotId) ||
-      payload.cluster !== "devnet" || payload.requiredSigner !== walletAddress ||
+      (payload.cluster !== "localnet" && payload.cluster !== "devnet") || payload.requiredSigner !== walletAddress ||
       payload.transactionFormat !== "SOLANA_V0_WIRE_TRANSACTION_BASE64" ||
       payload.recordPointMode !== "DEMO_CAPTURE_SLOT" ||
       typeof payload.snapshotHash !== "string" || !/^[0-9a-f]{64}$/i.test(payload.snapshotHash) ||

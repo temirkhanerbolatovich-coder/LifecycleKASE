@@ -41,7 +41,7 @@ export default async function Dashboard() {
           <div>
             <p className="mb-4 text-xs font-bold uppercase tracking-[0.22em] text-[#28744a]">Обзор платформы</p>
             <h1 className="max-w-2xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">Прозрачный жизненный цикл токенизированных ценных бумаг.</h1>
-            <p className="mt-6 max-w-xl text-base leading-7 text-[#586c60]">Рабочее место администратора корпоративных действий: статус сервиса, вход через кошелёк и регистрация snapshot в Devnet при настроенной среде. Выпуск и выплаты пока не доступны пользователям.</p>
+            <p className="mt-6 max-w-xl text-base leading-7 text-[#586c60]">Рабочее место администратора корпоративных действий: статус сервиса, вход через кошелёк, реестр инвесторов и регистрация snapshot в настроенной тестовой сети. Выпуск и выплаты пока не доступны пользователям.</p>
           </div>
           <div className="rounded-2xl border border-[#dbe5df] bg-white p-7 shadow-[0_14px_50px_-30px_rgba(16,35,28,0.3)]">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#708278]">Состояние окружения</p>
@@ -52,7 +52,7 @@ export default async function Dashboard() {
               <span>API и PostgreSQL</span><span className={state === "ready" ? "status-ready" : "status-wait"}>{state === "ready" ? "Готово" : "Недоступно"}</span>
             </div>
             <div className="mt-4 flex items-center justify-between">
-              <span>Solana Devnet</span><span className="status-wait">Не проверено</span>
+              <span>Solana Localnet / Devnet</span><span className="status-wait">Требует проверки</span>
             </div>
             <p className="mt-6 text-xs leading-5 text-[#708278]">Проверка API отражает только доступность сервера и базы данных. Она не подтверждает готовность блокчейн-операций.</p>
           </div>

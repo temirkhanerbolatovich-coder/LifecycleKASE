@@ -4,7 +4,7 @@ import { SolanaSignAndSendTransaction, type SolanaSignAndSendTransactionFeature 
 import type { Wallet, WalletWithFeatures } from "@wallet-standard/base";
 import { StandardConnect, type StandardConnectFeature } from "@wallet-standard/features";
 import { useRef, useState } from "react";
-import { isActionId, preparedSnapshot, requireFinalizedResponse, transactionSignature, unsignedTransactionBytes, type PreparedSnapshot } from "./snapshot-workflow";
+import { isActionId, preparedSnapshot, requireFinalizedResponse, transactionSignature, unsignedTransactionBytes, walletChainForCluster, type PreparedSnapshot, type SupportedSnapshotCluster } from "./snapshot-workflow";
 
 type TransactionWallet = WalletWithFeatures<StandardConnectFeature & SolanaSignAndSendTransactionFeature>;
 type Props = {
@@ -14,10 +14,16 @@ type Props = {
   onBusyChange: (busy: boolean) => void;
 };
 
-function transactionWallet(wallet: Wallet | undefined): wallet is TransactionWallet {
+function transactionWallet(wallet: Wallet | undefined, cluster: SupportedSnapshotCluster): wallet is TransactionWallet {
   const feature = wallet?.features[SolanaSignAndSendTransaction] as SolanaSignAndSendTransactionFeature[typeof SolanaSignAndSendTransaction] | undefined;
   return typeof feature?.signAndSendTransaction === "function" && feature.supportedTransactionVersions.includes(0) &&
-    wallet?.chains.includes("solana:devnet") === true;
+    wallet?.chains.includes(walletChainForCluster(cluster)) === true;
+}
+
+function networkDescription(cluster: SupportedSnapshotCluster): string {
+  return cluster === "localnet"
+    ? "Localnet — локальная тестовая сеть; публичный SOL не используется."
+    : "Devnet — публичная тестовая сеть; комиссия оплачивается тестовым SOL.";
 }
 
 export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange }: Props) {
@@ -29,7 +35,7 @@ export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange }: 
   const [sendAttempted, setSendAttempted] = useState(false);
   const [finalized, setFinalized] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("Укажите UUID существующего SCHEDULED действия. Интерфейс поддерживает только Devnet.");
+  const [message, setMessage] = useState("Укажите UUID существующего SCHEDULED действия. Сеть будет взята из проверенного плана API.");
   const inFlight = useRef(false);
 
   async function run(task: () => Promise<void>) {
@@ -56,17 +62,20 @@ export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange }: 
   }
 
   async function send() {
-    if (!plan || !reviewed || sendAttempted || !transactionWallet(wallet)) throw new Error("Нужен проверенный план и кошелёк с поддержкой Devnet / v0.");
+    if (!plan || !reviewed || sendAttempted || !transactionWallet(wallet, plan.cluster)) {
+      throw new Error("Нужен проверенный план и кошелёк с поддержкой его сети и транзакций v0.");
+    }
+    const chain = walletChainForCluster(plan.cluster);
     const connected = await wallet.features[StandardConnect].connect();
     const account = connected.accounts.find((candidate) => candidate.address === walletAddress &&
-      candidate.chains.includes("solana:devnet") && candidate.features.includes(SolanaSignAndSendTransaction));
+      candidate.chains.includes(chain) && candidate.features.includes(SolanaSignAndSendTransaction));
     if (!account || account.address !== plan.requiredSigner) throw new Error("Выбранный аккаунт не совпадает с кошельком сессии и issuer signer.");
     // Once the wallet is invoked, a failure can mean submission succeeded but its response was lost.
     setSendAttempted(true);
     setMessage("Проверьте запрос кошелька. При ошибке проверьте его историю; не отправляйте транзакцию повторно вслепую.");
     try {
       const [output] = await wallet.features[SolanaSignAndSendTransaction].signAndSendTransaction({
-        account, chain: "solana:devnet", transaction: unsignedTransactionBytes(plan.serializedTransactionBase64),
+        account, chain, transaction: unsignedTransactionBytes(plan.serializedTransactionBase64),
         options: { preflightCommitment: "confirmed", skipPreflight: false }
       });
       if (!output) throw new Error("Кошелёк не вернул результат отправки.");
@@ -93,14 +102,20 @@ export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange }: 
   const buttonClass = "rounded-lg border border-[#cbd8d0] px-4 py-2 text-sm font-semibold disabled:opacity-50";
   return (
     <section className="mt-6 border-t border-[#dbe5df] pt-6" aria-label="Регистрация snapshot">
-      <h3 className="font-semibold">Регистрация snapshot · Devnet</h3>
-      <p className="mt-2 text-xs leading-5 text-[#8a5b18]">DEMO_CAPTURE_SLOT — снимок на фактическом finalized slot, а не доказательство владения на более раннюю дату. Транзакция расходует тестовый SOL, но не выполняет выплату.</p>
+      <h3 className="font-semibold">Регистрация snapshot · Localnet / Devnet</h3>
+      <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs leading-5 text-[#61746a]">
+        <li>Укажите UUID уже запланированного действия.</li>
+        <li>Проверьте сеть, signer и параметры снимка.</li>
+        <li>Подпишите транзакцию и отдельно подтвердите finalized через API.</li>
+      </ol>
+      <p className="mt-2 text-xs leading-5 text-[#8a5b18]">DEMO_CAPTURE_SLOT фиксирует фактический finalized slot, а не доказывает владение на более раннюю дату. Регистрация не выполняет выплату.</p>
       <label className="mt-4 block text-sm">UUID корпоративного действия
         <input className={inputClass} value={actionId} maxLength={36} disabled={busy || finalized || plan !== null} onChange={(event) => setActionId(event.target.value.trim())} />
       </label>
       <button className={`mt-3 ${buttonClass}`} disabled={busy || sendAttempted || finalized || signature !== "" || !plan && operationId !== "" || !isActionId(actionId)} onClick={() => void run(prepare)}>Подготовить / обновить неподписанный план</button>
       {plan && (
         <div className="mt-4 rounded-lg bg-[#f4f7f5] p-4">
+          <p className="mb-3 rounded-md border border-[#cbd8d0] bg-white px-3 py-2 text-xs font-semibold">{networkDescription(plan.cluster)}</p>
           <dl className="space-y-2 text-xs">
             {Object.entries({ "Сеть": plan.cluster, "Genesis": plan.networkGenesisHash, "Signer / fee payer": plan.requiredSigner,
               "Программа": plan.programId, "Action PDA": plan.actionAddress, "Snapshot UUID": plan.snapshotId,
@@ -110,8 +125,8 @@ export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange }: 
             ))}
           </dl>
           <label className="mt-4 flex gap-2 text-xs"><input type="checkbox" checked={reviewed} disabled={busy || sendAttempted} onChange={(event) => setReviewed(event.target.checked)} />Проверил параметры, тестовую сеть и окно регистрации</label>
-          <button className={`mt-3 ${buttonClass}`} disabled={busy || !reviewed || sendAttempted || finalized || !transactionWallet(wallet)} onClick={() => void run(send)}>Подписать и отправить через кошелёк</button>
-          {!transactionWallet(wallet) && <p className="mt-2 text-xs">Нужен кошелёк с solana:signAndSendTransaction, Devnet и v0.</p>}
+          <button className={`mt-3 ${buttonClass}`} disabled={busy || !reviewed || sendAttempted || finalized || !transactionWallet(wallet, plan.cluster)} onClick={() => void run(send)}>Подписать и отправить через кошелёк</button>
+          {!transactionWallet(wallet, plan.cluster) && <p className="mt-2 text-xs">Текущий кошелёк не объявляет поддержку {walletChainForCluster(plan.cluster)}, solana:signAndSendTransaction и v0. Выберите совместимый кошелёк или сеть.</p>}
         </div>
       )}
       <details className="mt-4" open={signature !== "" || sendAttempted}>

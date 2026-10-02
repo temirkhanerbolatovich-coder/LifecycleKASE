@@ -136,9 +136,23 @@ test("validates snapshot HTTP configuration without accepting mainnet or excessi
     rpcEndpoint: "https://api.devnet.solana.com",
     rpcTimeoutMs: 15_000
   });
+  assert.deepEqual(snapshotHttpOptionsFromEnvironment({
+    SOLANA_CLUSTER: "localnet",
+    SOLANA_GENESIS_HASH: KEY,
+    SOLANA_RPC_URL: "http://127.0.0.1:8899"
+  }), {
+    cluster: "localnet",
+    expectedGenesisHash: KEY,
+    walletNetwork: "SOLANA_LOCALNET",
+    graceSeconds: 300,
+    rpcEndpoint: "http://127.0.0.1:8899",
+    rpcTimeoutMs: 15_000
+  });
   for (const environment of [
     { SOLANA_CLUSTER: "mainnet", SOLANA_GENESIS_HASH: KEY, SOLANA_RPC_URL: "https://example.com" },
-    { SOLANA_CLUSTER: "devnet", SOLANA_GENESIS_HASH: KEY, SOLANA_RPC_URL: "https://example.com", SNAPSHOT_GRACE_SECONDS: "301" }
+    { SOLANA_CLUSTER: "devnet", SOLANA_GENESIS_HASH: KEY, SOLANA_RPC_URL: "https://example.com", SNAPSHOT_GRACE_SECONDS: "301" },
+    { SOLANA_CLUSTER: "localnet", SOLANA_GENESIS_HASH: KEY, SOLANA_RPC_URL: "http://127.0.0.1:8899", WALLET_NETWORK: "SOLANA_DEVNET" },
+    { SOLANA_CLUSTER: "devnet", SOLANA_GENESIS_HASH: KEY, SOLANA_RPC_URL: "https://api.devnet.solana.com", WALLET_NETWORK: "SOLANA_LOCALNET" }
   ]) {
     assert.throws(
       () => snapshotHttpOptionsFromEnvironment(environment),
@@ -146,4 +160,25 @@ test("validates snapshot HTTP configuration without accepting mainnet or excessi
         error.code === "SNAPSHOT_CONFIGURATION_INVALID"
     );
   }
+});
+
+test("does not prepare an operation when a persisted snapshot belongs to another cluster", async () => {
+  const setup = pendingFixture();
+  await assert.rejects(
+    prepareSnapshotRegistrationForAction(
+      setup.database,
+      setup.rpc,
+      ACTION_ID,
+      { id: ACTOR_ID, walletAddress: KEY, correlationId: CORRELATION_ID },
+      {
+        cluster: "localnet",
+        expectedGenesisHash: KEY,
+        walletNetwork: "SOLANA_LOCALNET",
+        graceSeconds: 300,
+        now: new Date("2026-09-30T10:03:00.000Z")
+      }
+    ),
+    (error: unknown) => error instanceof SnapshotPreparationError && error.code === "WRONG_SOLANA_NETWORK"
+  );
+  assert.equal(setup.auditEvents.length, 0);
 });

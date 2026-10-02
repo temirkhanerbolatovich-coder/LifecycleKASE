@@ -52,10 +52,18 @@ export function snapshotHttpOptionsFromEnvironment(
   if (!rpcEndpoint) {
     throw new SnapshotPreparationError("SNAPSHOT_CONFIGURATION_INVALID", "SOLANA_RPC_URL is required");
   }
+  const expectedWalletNetwork = cluster === "devnet" ? "SOLANA_DEVNET" : "SOLANA_LOCALNET";
+  const walletNetwork = environment.WALLET_NETWORK || expectedWalletNetwork;
+  if (walletNetwork !== expectedWalletNetwork) {
+    throw new SnapshotPreparationError(
+      "SNAPSHOT_CONFIGURATION_INVALID",
+      `WALLET_NETWORK must be ${expectedWalletNetwork} when SOLANA_CLUSTER is ${cluster}`
+    );
+  }
   return {
     cluster,
     expectedGenesisHash,
-    walletNetwork: environment.WALLET_NETWORK || (cluster === "devnet" ? "SOLANA_DEVNET" : "SOLANA_LOCALNET"),
+    walletNetwork,
     graceSeconds,
     rpcEndpoint,
     rpcTimeoutMs: safeInteger(environment.SOLANA_RPC_TIMEOUT_MS, 15_000, "SOLANA_RPC_TIMEOUT_MS")
@@ -119,6 +127,9 @@ export async function prepareSnapshotRegistrationForAction(
     now: options.now,
     graceSeconds: options.graceSeconds
   });
+  if (registration.cluster !== options.cluster) {
+    throw new SnapshotPreparationError("WRONG_SOLANA_NETWORK", "Persisted snapshot cluster does not match configuration");
+  }
   const prepared = await database.$transaction(async (transaction) => {
     const operation = await transaction.blockchainTransaction.create({
       data: {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { encodeBase58, isActionId, preparedSnapshot, requireFinalizedResponse, transactionSignature, unsignedTransactionBytes } from "./snapshot-workflow.js";
+import { encodeBase58, isActionId, preparedSnapshot, requireFinalizedResponse, transactionSignature, unsignedTransactionBytes, walletChainForCluster } from "./snapshot-workflow.js";
 
 const ACTION = "00000000-0000-4000-8000-000000000001";
 const OPERATION = "00000000-0000-4000-8000-000000000002";
@@ -15,14 +15,17 @@ function fixture(): Record<string, unknown> {
     recordPointMode: "DEMO_CAPTURE_SLOT", serializedTransactionBase64: Buffer.from(wire).toString("base64") };
 }
 
-test("validates action identifiers and accepts a matching Devnet plan", () => {
+test("validates action identifiers and accepts matching Localnet and Devnet plans", () => {
   assert.equal(isActionId(ACTION), true);
   assert.equal(isActionId("../../auth"), false);
   assert.equal(preparedSnapshot(fixture(), ACTION, KEY).operationId, OPERATION);
+  assert.equal(preparedSnapshot({ ...fixture(), cluster: "localnet" }, ACTION, KEY).cluster, "localnet");
+  assert.equal(walletChainForCluster("localnet"), "solana:localnet");
+  assert.equal(walletChainForCluster("devnet"), "solana:devnet");
 });
 test("rejects wrong network, signer, action, format and malformed review fields", () => {
   for (const changes of [
-    { cluster: "mainnet" }, { cluster: "localnet" }, { requiredSigner: "other" },
+    { cluster: "mainnet" }, { cluster: "testnet" }, { requiredSigner: "other" },
     { corporateActionId: OPERATION }, { operationId: "bad" }, { snapshotHash: "bad" },
     { recordPointMode: "HISTORICAL" }, { transactionFormat: "other" }, { effectiveSlot: "1.1" },
     { recordAt: "invalid" }, { lastValidBlockHeight: -1 }, { programId: "bad" }

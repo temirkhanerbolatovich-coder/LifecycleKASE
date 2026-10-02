@@ -268,8 +268,8 @@ export function WalletLogin() {
           )}
           {user.role === "ADMINISTRATOR" && walletAddress && (
             <details className="mt-6 rounded-xl border border-[#dbe5df] bg-[#f8faf9] px-4">
-              <summary className="cursor-pointer py-4 text-sm font-semibold">Расширенные операции · Snapshot Devnet</summary>
-              <p className="text-xs leading-5 text-[#61746a]">Откройте этот раздел только для подготовленного корпоративного действия с известным UUID.</p>
+              <summary className="cursor-pointer py-4 text-sm font-semibold">Расширенные операции · Snapshot Localnet / Devnet</summary>
+              <p className="text-xs leading-5 text-[#61746a]">Откройте этот раздел только для подготовленного корпоративного действия с известным UUID. Сеть определяется сервером и повторно проверяется перед подписью.</p>
               <SnapshotPanel key={walletAddress} wallet={selectedWallet} walletAddress={walletAddress} request={apiRequest} onBusyChange={setBusy} />
             </details>
           )}
