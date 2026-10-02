@@ -18,9 +18,11 @@ type TransactionWallet = WalletWithFeatures<StandardConnectFeature & SolanaSignA
 type DistributionAllocation = { investorId: string; walletAddress: string; tokenAccount: string; amount: string };
 type DistributionCandidate = { investorId: string; displayName: string; walletAddress: string };
 type DistributionDraft = { instrument: Instrument; candidates: DistributionCandidate[]; selections: Record<string, string> };
-type DeploymentPlan = { operationId: string; phase: "MINT_SETUP" | "DISTRIBUTION"; cluster: SupportedSnapshotCluster;
+type DeploymentPhase = "MINT_SETUP" | "DISTRIBUTION" | "INITIALIZE" | "ACTIVATE";
+type DeploymentPlan = { operationId: string; phase: DeploymentPhase; cluster: SupportedSnapshotCluster;
   requiredSigner: string; networkGenesisHash: string; serializedTransactionBase64: string;
-  bondMint?: string; settlementMint?: string; treasuryTokenAccount?: string; allocations?: DistributionAllocation[] };
+  bondMint?: string; settlementMint?: string; treasuryTokenAccount?: string; instrumentAddress?: string;
+  allocations?: DistributionAllocation[] };
 
 function transactionWallet(wallet: Wallet | undefined, cluster: SupportedSnapshotCluster): wallet is TransactionWallet {
   const feature = wallet?.features[SolanaSignAndSendTransaction] as SolanaSignAndSendTransactionFeature[typeof SolanaSignAndSendTransaction] | undefined;
@@ -31,13 +33,18 @@ function transactionWallet(wallet: Wallet | undefined, cluster: SupportedSnapsho
 function deploymentPlan(value: Record<string, unknown>, instrument: Instrument, walletAddress: string): DeploymentPlan {
   const cluster = value["cluster"];
   const result = value as unknown as DeploymentPlan;
-  if ((value["phase"] !== "MINT_SETUP" && value["phase"] !== "DISTRIBUTION") || (cluster !== "localnet" && cluster !== "devnet") ||
+  if (!["MINT_SETUP", "DISTRIBUTION", "INITIALIZE", "ACTIVATE"].includes(String(value["phase"])) ||
+      (cluster !== "localnet" && cluster !== "devnet") ||
       typeof value["operationId"] !== "string" || typeof value["serializedTransactionBase64"] !== "string" ||
       value["requiredSigner"] !== walletAddress || instrument.issuerAuthority !== walletAddress) {
     throw new Error("Сервер вернул несовместимый план выпуска или другой issuer signer.");
   }
-  if (value["phase"] === "DISTRIBUTION" && (!Array.isArray(value["allocations"]) || value["allocations"].length !== 3)) {
-    throw new Error("Сервер вернул неполный план распределения.");
+  if ((value["phase"] === "DISTRIBUTION" || value["phase"] === "ACTIVATE") &&
+      (!Array.isArray(value["allocations"]) || value["allocations"].length !== 3)) {
+    throw new Error("Сервер вернул неполный план держателей.");
+  }
+  if ((value["phase"] === "INITIALIZE" || value["phase"] === "ACTIVATE") && typeof value["instrumentAddress"] !== "string") {
+    throw new Error("Сервер не вернул Instrument PDA.");
   }
   unsignedTransactionForSigner(result.serializedTransactionBase64, walletAddress);
   return result;
@@ -53,6 +60,20 @@ function formatMinor(value: string): string {
   const whole = amount / 1_000_000n;
   const fraction = (amount % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "");
   return fraction ? `${whole}.${fraction}` : whole.toString();
+}
+
+function phaseSummary(phase: DeploymentPhase): string {
+  if (phase === "MINT_SETUP") return "Будут созданы два mint, выпущено 35 bond tokens в treasury и необратимо отозвана mint authority.";
+  if (phase === "DISTRIBUTION") return "35 bond tokens будут переведены трём проверенным инвесторам в долях 10/20/5.";
+  if (phase === "INITIALIZE") return "Будет создан Instrument PDA со статусом Deploying и точными условиями инструмента.";
+  return "После повторной проверки eligibility и балансов Instrument PDA перейдёт из Deploying в Active.";
+}
+
+function phaseReview(phase: DeploymentPhase): string {
+  if (phase === "MINT_SETUP") return "Проверил сеть, signer и необратимый отзыв mint authority";
+  if (phase === "DISTRIBUTION") return "Проверил сеть, signer, три кошелька и доли 10/20/5";
+  if (phase === "INITIALIZE") return "Проверил сеть, signer, Instrument PDA и неизменяемые условия инструмента";
+  return "Проверил signer, актуальный eligibility и полное покрытие supply балансами держателей";
 }
 
 export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyChange }: {
@@ -85,6 +106,17 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
     const prepared = deploymentPlan(response, instrument, walletAddress);
     setPlan(prepared); setDeployInstrumentId(instrument.id); setSignature(""); setReviewed(false); setSendAttempted(false);
     setMessage("Фаза MINT_SETUP подготовлена. Проверьте сеть и адреса перед подписью Phantom.");
+  }
+
+  async function prepareLifecycle(instrument: Instrument, phase: "INITIALIZE" | "ACTIVATE") {
+    const response = await request(`/api/v1/instruments/${instrument.id}/deploy/prepare`, {
+      method: "POST", body: JSON.stringify({ phase })
+    });
+    const prepared = deploymentPlan(response, instrument, walletAddress);
+    setPlan(prepared); setDeployInstrumentId(instrument.id); setSignature(""); setReviewed(false); setSendAttempted(false);
+    setMessage(phase === "INITIALIZE"
+      ? "Фаза INITIALIZE подготовлена. Проверьте Instrument PDA и параметры перед подписью."
+      : "Фаза ACTIVATE подготовлена после повторной проверки investor eligibility и балансов 10/20/5.");
   }
 
   async function startDistribution(instrument: Instrument) {
@@ -156,9 +188,13 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
     const completedPhase = plan.phase;
     setPlan(null); setDeployInstrumentId(""); setSignature(""); setReviewed(false); setSendAttempted(false);
     await load();
-    setMessage(completedPhase === "MINT_SETUP"
-      ? "MINT_SETUP FINALIZED: два mint проверены, bond supply 35, mint authority отозвана. Следующая фаза — распределение 10/20/5."
-      : "DISTRIBUTION FINALIZED: treasury равен 0, а балансы трёх инвесторов равны 10/20/5. Следующая фаза — initialize.");
+    const messages: Record<DeploymentPhase, string> = {
+      MINT_SETUP: "MINT_SETUP FINALIZED: два mint проверены, bond supply 35, mint authority отозвана. Следующая фаза — распределение 10/20/5.",
+      DISTRIBUTION: "DISTRIBUTION FINALIZED: treasury равен 0, а балансы трёх инвесторов равны 10/20/5. Следующая фаза — INITIALIZE.",
+      INITIALIZE: "INITIALIZE FINALIZED: Instrument PDA проверен, статус DEPLOYING. Следующая фаза — ACTIVATE.",
+      ACTIVATE: "ACTIVATE FINALIZED: eligibility, балансы и Instrument PDA проверены. Инструмент ACTIVE."
+    };
+    setMessage(messages[completedPhase]);
   }
 
   async function load(cursor?: string, signal?: AbortSignal) {
@@ -268,8 +304,18 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
           {role === "ADMINISTRATOR" && <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || plan !== null || distributionDraft !== null}
             onClick={() => void runDeployment(() => startDistribution(instrument))}>Выбрать инвесторов для 10/20/5</button>}
         </>}
-        {instrument.mintAddress && instrument.circulatingSupply === instrument.totalSupply &&
-          <p className="mt-2 text-xs text-[#28744a]">Распределение 10/20/5 подтверждено. Инструмент остаётся DRAFT до initialize и activate.</p>}
+        {instrument.status === "DRAFT" && instrument.mintAddress && instrument.circulatingSupply === instrument.totalSupply && <>
+          <p className="mt-2 text-xs text-[#28744a]">Распределение 10/20/5 подтверждено. Следующий шаг создаст Instrument PDA со статусом Deploying.</p>
+          {role === "ADMINISTRATOR" && <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || plan !== null}
+            onClick={() => void runDeployment(() => prepareLifecycle(instrument, "INITIALIZE"))}>Подготовить INITIALIZE</button>}
+        </>}
+        {instrument.status === "DEPLOYING" && <>
+          <p className="mt-2 text-xs text-[#28744a]">Instrument PDA инициализирован. Перед активацией API повторно проверит eligibility и балансы держателей.</p>
+          {role === "ADMINISTRATOR" && <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || plan !== null}
+            onClick={() => void runDeployment(() => prepareLifecycle(instrument, "ACTIVATE"))}>Подготовить ACTIVATE</button>}
+        </>}
+        {instrument.status === "ACTIVE" &&
+          <p className="mt-2 text-xs font-semibold text-[#28744a]">Инструмент ACTIVE: финальная транзакция и on-chain Instrument PDA подтверждены.</p>}
       </article>)}
     </div>
     {distributionDraft && <div className="mt-4 rounded-xl border border-[#d3b779] bg-[#fffaf0] p-4 text-sm">
@@ -290,16 +336,15 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
     </div>}
     {plan && <div className="mt-4 rounded-xl border border-[#d3b779] bg-[#fffaf0] p-4 text-sm">
       <p className="font-semibold">Проверка фазы {plan.phase}</p>
-      <p className="mt-2 text-xs leading-5">Сеть: <strong>{plan.cluster}</strong>. {plan.phase === "MINT_SETUP"
-        ? "Будут созданы два mint, выпущено 35 bond tokens в treasury и необратимо отозвана mint authority."
-        : "35 bond tokens будут переведены из treasury трём проверенным инвесторам в долях 10/20/5. Initialize и activate ещё не выполняются."}</p>
+      <p className="mt-2 text-xs leading-5">Сеть: <strong>{plan.cluster}</strong>. {phaseSummary(plan.phase)}</p>
       <dl className="mt-3 space-y-1 text-xs"><div><dt className="text-[#61746a]">Signer</dt><dd className="break-all font-mono">{plan.requiredSigner}</dd></div>
         {plan.bondMint && <div><dt className="text-[#61746a]">Bond mint</dt><dd className="break-all font-mono">{plan.bondMint}</dd></div>}
         {plan.settlementMint && <div><dt className="text-[#61746a]">KZT-Test mint</dt><dd className="break-all font-mono">{plan.settlementMint}</dd></div>}
+        {plan.instrumentAddress && <div><dt className="text-[#61746a]">Instrument PDA</dt><dd className="break-all font-mono">{plan.instrumentAddress}</dd></div>}
         {plan.allocations?.map(allocation => <div key={allocation.tokenAccount}><dt className="text-[#61746a]">{allocation.amount} bond · investor {allocation.investorId.slice(0, 8)}</dt>
           <dd className="break-all font-mono">{allocation.walletAddress}</dd></div>)}</dl>
       <label className="mt-3 flex gap-2 text-xs"><input type="checkbox" checked={reviewed} disabled={busy || sendAttempted} onChange={event => setReviewed(event.target.checked)} />
-        {plan.phase === "MINT_SETUP" ? "Проверил сеть, signer и необратимый отзыв mint authority" : "Проверил сеть, signer, три кошелька и доли 10/20/5"}</label>
+        {phaseReview(plan.phase)}</label>
       <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || !reviewed || sendAttempted || !transactionWallet(wallet, plan.cluster)}
         onClick={() => void runDeployment(sendDeployment)}>Подписать и отправить {plan.phase}</button>
       {sendAttempted && <div className="mt-3"><p className="text-xs">UUID попытки: <span className="font-mono">{plan.operationId}</span></p>

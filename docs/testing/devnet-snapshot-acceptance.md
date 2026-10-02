@@ -26,7 +26,7 @@ Explicit public Devnet CLI checks returned genesis hash `EtWTRABZaYq6iMfeYKouRu1
 
 The current `initialize_instrument` implementation requires the signing administrator to equal the program's upgrade authority and stores that address as `instrument.issuer_authority`. Activation/action/snapshot instructions then require that issuer; the API additionally requires the session wallet to match the issuer. Consequently, appointing the CLI deployment wallet as upgrade authority would prevent the existing Phantom operator from managing instruments initialized by that wallet. Deployment fee payer, program keypair and upgrade authority are different concepts; possessing a new program keypair does not grant issuer access.
 
-Before changing public program-ID projections or deploying, explicitly choose either (a) Phantom as upgrade authority/initial issuer, with wallet-signed initialization prepared separately, or (b) a reviewed contract change separating bootstrap administrator from instrument issuer. Option (b) needs new authorization tests and is not implemented. Never import the Phantom seed into the CLI as a workaround. The current UI supports snapshot registration and the preceding `MINT_SETUP` phase, but does not yet submit `initialize_instrument`, distribution or activation. Owner-controlled offline backup remains pending.
+Before changing public program-ID projections or deploying, explicitly choose either (a) Phantom as upgrade authority/initial issuer, using the implemented wallet-signed initialization, or (b) a reviewed contract change separating bootstrap administrator from instrument issuer. Option (b) needs new authorization tests and is not implemented. Never import the Phantom seed into the CLI as a workaround. The UI now supports all four deployment phases plus snapshot registration, but none of the complete issuance sequence has live Devnet acceptance. Owner-controlled offline backup remains pending.
 
 ## Safe wallet setup
 
@@ -41,7 +41,7 @@ Keep the recovery phrase and private key outside chat, the repository, screensho
 - [ ] Public operator address independently checked and provisioned through the [controlled runbook](../operations/operator-provisioning.md); no ad hoc role changes.
 - [ ] Separate reviewed Devnet program deployment and its upgrade/issuer authorities established. The checked-in local program ID and local validator test are not a Devnet deployment.
 - [ ] API configured with Devnet RPC and its verified genesis hash. A `ready` health response alone does not test RPC.
-- [ ] Active instrument, Token-2022 mint and 35-token distribution (10/20/5), eligible synthetic investors and verified wallet mappings exist in both relevant chain/database projections. The current UI can create the two deterministic mints and treasury supply, but distribution, on-chain initialization and activation remain separate pending phases.
+- [ ] Active instrument, Token-2022 mint and 35-token distribution (10/20/5), eligible synthetic investors and verified wallet mappings exist in both relevant chain/database projections. The UI/API can prepare and confirm all four phases, but this prerequisite remains open until the live wallet/validator sequence succeeds.
 - [ ] Existing SCHEDULED action with a future record date and sufficient time to register within the bounded window. Never backdate a missed snapshot.
 - [ ] Session operator is ADMINISTRATOR and the same address is the instrument's issuer signer/fee payer.
 - [ ] Test SOL available for the wallet's Devnet transaction fee; private keys remain user-controlled.

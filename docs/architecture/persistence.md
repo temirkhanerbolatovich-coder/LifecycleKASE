@@ -24,7 +24,7 @@ It does not override Solana ownership, mint supply, program state, snapshot comm
 
 ## Immutability
 
-The `MINT_SETUP` attempt is attached directly to an instrument. A database check requires its prepared wire transaction, signer and genesis hash. Finalized confirmation updates the attempt, bond/settlement mint projections and audit atomically; holder distribution and instrument status are deliberately unchanged.
+Every `MINT_SETUP`, `DISTRIBUTION`, `INITIALIZE` and `ACTIVATE` attempt is attached directly to an instrument. A database check requires its prepared wire transaction, signer and genesis hash, and partial unique indexes allow only one active attempt of each phase per instrument. Finalized confirmation compare-and-sets the attempt, instrument projection and audit atomically. `prepared_payload` retains the non-personal distribution/PDA evidence needed for later reconciliation.
 
 A snapshot and all investor/wallet/token-account rows are first written atomically in `PENDING_REGISTRATION`. After finalized on-chain commitment verification, the snapshot moves to `FINALIZED`. PostgreSQL triggers then reject mutation or deletion of the snapshot and its child rows, and reject new child rows.
 

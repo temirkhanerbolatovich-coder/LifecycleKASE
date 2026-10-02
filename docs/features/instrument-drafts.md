@@ -1,6 +1,6 @@
 # Instrument database drafts
 
-Status: database drafts plus wallet-signed `MINT_SETUP` and `DISTRIBUTION` prepare/confirm boundaries implemented on 2026-10-02; live wallet/validator acceptance pending.
+Status: database drafts plus wallet-signed `MINT_SETUP`, `DISTRIBUTION`, `INITIALIZE` and `ACTIVATE` prepare/confirm boundaries implemented on 2026-10-02; live wallet/validator acceptance pending.
 
 ## Purpose
 
@@ -37,4 +37,8 @@ Reads require Administrator or Auditor. Creation requires Administrator, the exa
 
 The separate `DISTRIBUTION` request requires an explicit mapping of the fixed amounts 10, 20 and 5 to three different Investor Registry records. Every selected wallet must be active, signature-verified, not revoked, on the configured network, and owned by an active `ELIGIBLE` investor. The API stores that immutable allocation beside the exact unsigned transaction. Confirmation verifies the exact finalized message, an empty issuer treasury and the three expected Token-2022 account owners/mints/balances before changing `circulatingSupply` from 0 to 35. The instrument still remains `DRAFT`.
 
-Both boundaries are fixture-tested, but no live Phantom/validator deployment transaction has been accepted yet. Instrument PDA initialization and holder-backed activation remain separate, unimplemented application phases. The registry currently needs three suitable investor wallets before distribution can be prepared; synthetic local-demo eligibility is not real KYC. A registry change after preparation does not alter the already prepared transaction; the later activation phase must re-check that every distributed holder mapping remains eligible before it can present the instrument as active. The shared KZT-Test record currently permits only one canonical mint setup.
+`INITIALIZE` is available only after finalized distribution. It encodes the database terms into the existing Anchor `initialize_instrument` instruction, stores the exact transaction, and on confirmation requires the finalized message plus a program-owned Instrument PDA whose IDs, authorities, mints, dates, coupon terms, supply and `Deploying` status exactly match the database. Only then does the database status change to `DEPLOYING`.
+
+`ACTIVATE` reloads the finalized distribution mapping and requires every wallet/investor to remain active, verified, non-revoked, eligible and on the configured network. It independently checks the three holder accounts and exact 10/20/5 balances before preparation. Confirmation repeats the eligibility check, verifies the exact finalized message, rechecks holder balances at or after the transaction slot, and requires the Instrument PDA to be `Active` before atomically changing the database status to `ACTIVE`.
+
+All four boundaries are fixture-tested, but no live Phantom/validator deployment sequence has been accepted yet. Synthetic local-demo eligibility is not real KYC. A registry change after preparation does not alter the already prepared transaction and blocks activation confirmation when eligibility has changed. The shared KZT-Test record currently permits only one canonical mint setup. Initialization also inherits [ADR-008](../decisions/ADR-008-program-administrator.md): the Phantom issuer must be the deployed program's upgrade authority under the current MVP program design.

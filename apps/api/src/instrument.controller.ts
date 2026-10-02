@@ -5,8 +5,9 @@ import { AuthFlowError, authOptionsFromEnvironment, readOperatorSession, require
   requireRequestOrigin, sessionTokenFromCookieHeader } from "./auth.js";
 import { AuthRateLimitError, AuthRateLimitService, authenticationClientKey } from "./auth-rate-limit.js";
 import { createInstrumentDraft, InstrumentRegistryError, listInstruments } from "./instrument-registry.js";
-import { confirmInstrumentDistribution, confirmInstrumentMintSetup, InstrumentDeploymentError, instrumentDeploymentOptions,
-  prepareInstrumentDistribution, prepareInstrumentMintSetup } from "./instrument-deployment.js";
+import { confirmInstrumentActivation, confirmInstrumentDistribution, confirmInstrumentInitialization,
+  confirmInstrumentMintSetup, InstrumentDeploymentError, instrumentDeploymentOptions, prepareInstrumentActivation,
+  prepareInstrumentDistribution, prepareInstrumentInitialization, prepareInstrumentMintSetup } from "./instrument-deployment.js";
 import { PrismaService } from "./prisma.service.js";
 
 type Request = { headers?: { cookie?: string }; ip?: string; socket?: { remoteAddress?: string } };
@@ -76,6 +77,12 @@ export class InstrumentController {
         return await prepareInstrumentDistribution(this.prisma, rpc, instrumentId, actor, options,
           { allocations: payload["allocations"] });
       }
+      if (phase === "INITIALIZE" && Object.keys(payload).length === 1) {
+        return await prepareInstrumentInitialization(this.prisma, rpc, instrumentId, actor, options);
+      }
+      if (phase === "ACTIVATE" && Object.keys(payload).length === 1) {
+        return await prepareInstrumentActivation(this.prisma, rpc, instrumentId, actor, options);
+      }
       throw new InstrumentDeploymentError("INVALID_REQUEST", "A supported deployment phase is required", 400);
     } catch (error) { this.httpError(error, response); }
   }
@@ -91,15 +98,16 @@ export class InstrumentController {
       const signature = payload["signature"];
       const phase = payload["phase"];
       if (typeof operationId !== "string" || typeof signature !== "string" ||
-          (phase !== "MINT_SETUP" && phase !== "DISTRIBUTION") ||
+          !["MINT_SETUP", "DISTRIBUTION", "INITIALIZE", "ACTIVATE"].includes(String(phase)) ||
           Object.keys(payload).some(key => !["phase", "operationId", "signature"].includes(key))) {
         throw new InstrumentDeploymentError("INVALID_REQUEST", "Phase, operation, and signature are required", 400);
       }
       const options = instrumentDeploymentOptions();
       const rpc = new HttpSolanaRpc(options.rpcEndpoint, options.rpcTimeoutMs);
-      return phase === "MINT_SETUP"
-        ? await confirmInstrumentMintSetup(this.prisma, rpc, instrumentId, operationId, signature, actor, options)
-        : await confirmInstrumentDistribution(this.prisma, rpc, instrumentId, operationId, signature, actor, options);
+      if (phase === "MINT_SETUP") return await confirmInstrumentMintSetup(this.prisma, rpc, instrumentId, operationId, signature, actor, options);
+      if (phase === "DISTRIBUTION") return await confirmInstrumentDistribution(this.prisma, rpc, instrumentId, operationId, signature, actor, options);
+      if (phase === "INITIALIZE") return await confirmInstrumentInitialization(this.prisma, rpc, instrumentId, operationId, signature, actor, options);
+      return await confirmInstrumentActivation(this.prisma, rpc, instrumentId, operationId, signature, actor, options);
     } catch (error) { this.httpError(error, response); }
   }
 }

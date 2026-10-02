@@ -17,7 +17,7 @@ Instrument deployment includes irreversible mint-authority revocation, holder di
 
 Deployment is phased. `MINT_SETUP` deterministically derives per-instrument bond and KZT-Test mint addresses from the issuer public key plus bounded seeds. It creates both Token-2022 mints, sets the Instrument Authority PDA as bond permanent delegate, creates the issuer treasury account, mints exactly 35 indivisible bonds and revokes bond mint authority. Freeze authority is never assigned.
 
-The API persists the exact unsigned v0 transaction, required signer, genesis hash and blockhash expiry. Phantom is the only signer. `deploy/confirm` accepts a signature only after the RPC returns the exact prepared message at `finalized` and account reconciliation proves both mint configurations and treasury balance. Only then are mint projections saved. The instrument remains `DRAFT`; distribution, initialization and activation are later phases.
+The API persists the exact unsigned v0 transaction, required signer, genesis hash and blockhash expiry. Phantom is the only signer. `deploy/confirm` accepts a signature only after the RPC returns the exact prepared message at `finalized` and phase-specific account reconciliation succeeds. `DISTRIBUTION` proves treasury/holder balances, `INITIALIZE` proves every immutable Instrument PDA field and `Deploying` status, and `ACTIVATE` repeats current registry eligibility and holder-balance coverage before proving the PDA is `Active`. Database status changes only after the corresponding finalized read-back.
 
 ## Consequences
 
@@ -25,8 +25,8 @@ The API persists the exact unsigned v0 transaction, required signer, genesis has
 - Deterministic addresses make preparation repeatable without generating or storing a mint private key.
 - Revocation is intentionally irreversible. The UI requires a separate review checkbox.
 - The shared KZT-Test asset means the current single-workspace demo supports one canonical mint setup; multi-issuer settlement-token reuse needs a later design.
-- Successful `MINT_SETUP` is not issuance completion and must never display `ACTIVE`.
+- Successful `MINT_SETUP` or `DISTRIBUTION` is not issuance completion and must never display `ACTIVE`; `INITIALIZE` maps only to `DEPLOYING`.
 
 ## Risks and future work
 
-The 10/20/5 distribution now has a separate prepared transaction, immutable investor/wallet allocation and finalized treasury/holder reconciliation. Instrument PDA initialization and holder-backed activation remain to be implemented as later phases. Add real Phantom/validator acceptance including lost-response recovery. Before public Devnet use, re-check program deployment/upgrade authority, fees, wallet chain support and custody under ADR-013/014.
+All four phases now have separate prepared transactions and finalized reconciliation. Add real Phantom/validator acceptance including blockhash expiry and lost-response recovery. Before public Devnet use, re-check program deployment/upgrade authority, fees, wallet chain support and custody under ADR-013/014. The current upgrade-authority-as-administrator design remains an MVP constraint under ADR-008.

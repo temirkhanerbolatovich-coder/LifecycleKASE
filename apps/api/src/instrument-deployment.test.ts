@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
-import { buildInstrumentDistribution, decodePublicKey, serializeUnsignedInstructionsTransaction,
+import { buildInstrumentActivation, buildInstrumentDistribution, buildInstrumentInitialization, decodePublicKey, serializeUnsignedInstructionsTransaction,
   TOKEN_2022_PROGRAM_ID } from "@lifecycle-kase/solana-client";
 
-import { confirmInstrumentDistribution, InstrumentDeploymentError, instrumentDeploymentOptions, prepareInstrumentDistribution,
+import { confirmInstrumentActivation, confirmInstrumentDistribution, confirmInstrumentInitialization, InstrumentDeploymentError, instrumentDeploymentOptions,
+  prepareInstrumentActivation, prepareInstrumentDistribution, prepareInstrumentInitialization,
   prepareInstrumentMintSetup } from "./instrument-deployment.js";
 
 const KEY = "5Nn5WtR1dzVamAJYAheUBucFu6wUuJLbCUr2VwTTJzMM";
@@ -232,4 +234,220 @@ test("finalizes only the exact distribution transaction and reconciled 10/20/5 b
   assert.equal(accountRead, 4);
   assert.equal(writes[1]?.["circulatingSupply"], 35n);
   assert.equal(writes[2]?.["event"], "INSTRUMENT_DISTRIBUTION_FINALIZED");
+});
+
+function lifecycleInstrument(instrumentId: string, status: "DRAFT" | "DEPLOYING") {
+  return { id: instrumentId, status, programId: PROGRAM, mintAddress: PROGRAM, issuerAuthority: KEY,
+    complianceAuthority: KEY, corporateActionAuthority: KEY, faceValueMinor: 1_000_000n,
+    couponRateBps: 1000, paymentsPerYear: 2, issueAt: new Date("2026-01-01T00:00:00.000Z"),
+    maturityAt: new Date("2027-01-01T00:00:00.000Z"), totalSupply: 35n, circulatingSupply: 35n,
+    settlementAsset: { mintAddress: KEY } };
+}
+
+function instrumentAccount(instrumentId: string, status: 0 | 1) {
+  const instrument = lifecycleInstrument(instrumentId, status === 0 ? "DEPLOYING" : "DEPLOYING");
+  const data = Buffer.alloc(225);
+  createHash("sha256").update("account:Instrument").digest().copy(data, 0, 0, 8);
+  let offset = 8; data[offset++] = 1;
+  Buffer.from(instrumentId.replaceAll("-", ""), "hex").copy(data, offset); offset += 16;
+  for (const key of [instrument.issuerAuthority, instrument.complianceAuthority,
+    instrument.corporateActionAuthority, instrument.mintAddress!, instrument.settlementAsset.mintAddress!]) {
+    Buffer.from(decodePublicKey(key)).copy(data, offset); offset += 32;
+  }
+  data.writeBigUInt64LE(instrument.faceValueMinor, offset); offset += 8;
+  data.writeUInt32LE(instrument.couponRateBps, offset); offset += 4; data[offset++] = instrument.paymentsPerYear;
+  data.writeBigInt64LE(BigInt(Math.floor(instrument.issueAt.getTime() / 1000)), offset); offset += 8;
+  data.writeBigInt64LE(BigInt(Math.floor(instrument.maturityAt.getTime() / 1000)), offset); offset += 8;
+  data.writeBigUInt64LE(instrument.totalSupply, offset); offset += 8; data[offset] = status;
+  return { context: { slot: 42 }, value: { owner: PROGRAM, executable: false,
+    data: [data.toString("base64"), "base64"] } };
+}
+
+test("prepares initialization only after finalized distribution", async () => {
+  const instrumentId = "00000000-0000-4000-8000-000000000002";
+  const actor = { id: "00000000-0000-4000-8000-000000000001", walletAddress: KEY,
+    correlationId: "00000000-0000-4000-8000-000000000003" };
+  const created: Record<string, unknown>[] = [];
+  const database = {
+    blockchainTransaction: { findFirst: async ({ where }: { where: { operationType: string } }) =>
+      where.operationType === "INSTRUMENT_DISTRIBUTION" ? { id: "distribution" } : null },
+    instrument: { findUnique: async () => lifecycleInstrument(instrumentId, "DRAFT") },
+    $transaction: async (work: (transaction: unknown) => Promise<unknown>) => work({
+      blockchainTransaction: { create: async ({ data }: { data: Record<string, unknown> }) => {
+        created.push(data); return { id: "00000000-0000-4000-8000-000000000004" };
+      } },
+      auditLog: { create: async ({ data }: { data: Record<string, unknown> }) => { created.push(data); return data; } }
+    })
+  };
+  const rpc = { request: async (method: string) => {
+    if (method === "getGenesisHash") return KEY;
+    if (method === "getAccountInfo") return { value: null };
+    if (method === "getLatestBlockhash") return { value: { blockhash: KEY, lastValidBlockHeight: 9 } };
+    throw new Error(`unexpected RPC method ${method}`);
+  } };
+  const result = await prepareInstrumentInitialization(database as never, rpc, instrumentId, actor, {
+    cluster: "localnet", rpcEndpoint: "http://127.0.0.1:8899", rpcTimeoutMs: 15_000,
+    expectedGenesisHash: KEY, programId: PROGRAM
+  });
+  assert.equal(result.phase, "INITIALIZE");
+  assert.equal(created[0]?.["operationType"], "INSTRUMENT_INITIALIZE");
+  assert.equal(created[1]?.["event"], "INSTRUMENT_INITIALIZE_PREPARED");
+});
+
+test("finalizes initialization only after the exact transaction and Deploying PDA match", async () => {
+  const instrumentId = "00000000-0000-4000-8000-000000000002";
+  const operationId = "00000000-0000-4000-8000-000000000004";
+  const instrument = lifecycleInstrument(instrumentId, "DRAFT");
+  const plan = await buildInstrumentInitialization({ programId: PROGRAM,
+    instrumentId: Uint8Array.from(Buffer.from(instrumentId.replaceAll("-", ""), "hex")), administrator: KEY,
+    bondMint: PROGRAM, settlementMint: KEY, complianceAuthority: KEY, corporateActionAuthority: KEY,
+    faceValueMinor: instrument.faceValueMinor, couponRateBps: instrument.couponRateBps,
+    paymentsPerYear: instrument.paymentsPerYear, issueAt: BigInt(Math.floor(instrument.issueAt.getTime() / 1000)),
+    maturityAt: BigInt(Math.floor(instrument.maturityAt.getTime() / 1000)), totalSupply: 35n });
+  const unsigned = serializeUnsignedInstructionsTransaction({ instructions: [plan.instruction], feePayer: KEY,
+    recentBlockhash: "11111111111111111111111111111111", lastValidBlockHeight: 9 });
+  const signed = Buffer.from(unsigned, "base64"); signed.fill(11, 1, 65);
+  const signature = base58(signed.subarray(1, 65));
+  const writes: Record<string, unknown>[] = [];
+  const database = {
+    blockchainTransaction: { findUnique: async () => ({ id: operationId, instrumentId,
+      operationType: "INSTRUMENT_INITIALIZE", status: "PREPARED", signature: null, requiredSigner: KEY,
+      networkGenesisHash: KEY, preparedTransactionBase64: unsigned,
+      preparedPayload: { instrumentAddress: plan.instrumentAddress }, instrument }) },
+    $transaction: async (work: (transaction: unknown) => Promise<unknown>) => work({
+      blockchainTransaction: { updateMany: async ({ data }: { data: Record<string, unknown> }) => { writes.push(data); return { count: 1 }; } },
+      instrument: { updateMany: async ({ data }: { data: Record<string, unknown> }) => { writes.push(data); return { count: 1 }; } },
+      auditLog: { create: async ({ data }: { data: Record<string, unknown> }) => { writes.push(data); return data; } }
+    })
+  };
+  const rpc = { request: async (method: string) => {
+    if (method === "getGenesisHash") return KEY;
+    if (method === "getTransaction") return { slot: 42, meta: { err: null }, transaction: [signed.toString("base64"), "base64"] };
+    if (method === "getAccountInfo") return instrumentAccount(instrumentId, 0);
+    throw new Error(`unexpected RPC method ${method}`);
+  } };
+  const result = await confirmInstrumentInitialization(database as never, rpc, instrumentId, operationId, signature,
+    { id: "00000000-0000-4000-8000-000000000001", walletAddress: KEY,
+      correlationId: "00000000-0000-4000-8000-000000000003" },
+    { cluster: "localnet", rpcEndpoint: "http://127.0.0.1:8899", rpcTimeoutMs: 15_000,
+      expectedGenesisHash: KEY, programId: PROGRAM });
+  assert.equal(result.nextPhase, "ACTIVATE");
+  assert.equal(writes[1]?.["status"], "DEPLOYING");
+  assert.equal(writes[2]?.["event"], "INSTRUMENT_INITIALIZED");
+});
+
+test("activation prepare rechecks eligibility and exact holder balances", async () => {
+  const instrumentId = "00000000-0000-4000-8000-000000000002";
+  const actor = { id: "00000000-0000-4000-8000-000000000001", walletAddress: KEY,
+    correlationId: "00000000-0000-4000-8000-000000000003" };
+  const wallets = [
+    "9bHwb1ghrc3e1ntCyrgccNHVAppbtRJu1bAwHybjpAWK",
+    "6heq5Nw2ErTWsaAYxWS8ZKtzorgpNdwNNeH4QMXWD3Bk",
+    "C8LAzJwa6XyecAnjC9XkSHNm28M242qBSmacUytvBKb5"
+  ];
+  const plan = await buildInstrumentDistribution({ administrator: KEY, bondMint: PROGRAM,
+    allocations: wallets.map((walletAddress, index) => ({ walletAddress, amount: [10n, 20n, 5n][index]! })) });
+  const payload = { bondMint: PROGRAM, treasuryTokenAccount: plan.treasuryTokenAccount,
+    allocations: plan.allocations.map((allocation, index) => ({
+      investorId: `00000000-0000-4000-8000-00000000000${index + 5}`,
+      walletAddress: allocation.walletAddress, tokenAccount: allocation.tokenAccount,
+      amount: allocation.amount.toString()
+    })) };
+  const created: Record<string, unknown>[] = [];
+  const database = {
+    blockchainTransaction: { findFirst: async ({ where }: { where: { operationType: string; status?: string } }) => {
+      if (where.operationType === "INSTRUMENT_ACTIVATE") return null;
+      if (where.operationType === "INSTRUMENT_INITIALIZE") return { id: "initialize" };
+      return { preparedPayload: payload };
+    } },
+    instrument: { findUnique: async () => lifecycleInstrument(instrumentId, "DEPLOYING") },
+    wallet: { findMany: async () => payload.allocations.map(allocation => ({ address: allocation.walletAddress,
+      network: "SOLANA_LOCALNET", status: "ACTIVE", verifiedAt: new Date(), revokedAt: null,
+      investor: { id: allocation.investorId, status: "ACTIVE", eligibilityStatus: "ELIGIBLE" } })) },
+    $transaction: async (work: (transaction: unknown) => Promise<unknown>) => work({
+      blockchainTransaction: { create: async ({ data }: { data: Record<string, unknown> }) => {
+        created.push(data); return { id: "00000000-0000-4000-8000-000000000004" };
+      } },
+      auditLog: { create: async ({ data }: { data: Record<string, unknown> }) => { created.push(data); return data; } }
+    })
+  };
+  let account = 0;
+  const rpc = { request: async (method: string) => {
+    if (method === "getGenesisHash") return KEY;
+    if (method === "getAccountInfo") {
+      const allocation = payload.allocations[account++]!;
+      return tokenAccount(PROGRAM, allocation.walletAddress, BigInt(allocation.amount));
+    }
+    if (method === "getLatestBlockhash") return { value: { blockhash: KEY, lastValidBlockHeight: 9 } };
+    throw new Error(`unexpected RPC method ${method}`);
+  } };
+  const result = await prepareInstrumentActivation(database as never, rpc, instrumentId, actor, {
+    cluster: "localnet", rpcEndpoint: "http://127.0.0.1:8899", rpcTimeoutMs: 15_000,
+    expectedGenesisHash: KEY, programId: PROGRAM
+  });
+  assert.equal(result.phase, "ACTIVATE");
+  assert.equal((result as unknown as { allocations: unknown[] }).allocations.length, 3);
+  assert.equal(created[0]?.["operationType"], "INSTRUMENT_ACTIVATE");
+  assert.equal(created[1]?.["event"], "INSTRUMENT_ACTIVATION_PREPARED");
+});
+
+test("finalizes activation only after eligibility, balances, and Active PDA match", async () => {
+  const instrumentId = "00000000-0000-4000-8000-000000000002";
+  const operationId = "00000000-0000-4000-8000-000000000004";
+  const wallets = [
+    "9bHwb1ghrc3e1ntCyrgccNHVAppbtRJu1bAwHybjpAWK",
+    "6heq5Nw2ErTWsaAYxWS8ZKtzorgpNdwNNeH4QMXWD3Bk",
+    "C8LAzJwa6XyecAnjC9XkSHNm28M242qBSmacUytvBKb5"
+  ];
+  const distribution = await buildInstrumentDistribution({ administrator: KEY, bondMint: PROGRAM,
+    allocations: wallets.map((walletAddress, index) => ({ walletAddress, amount: [10n, 20n, 5n][index]! })) });
+  const allocations = distribution.allocations.map((allocation, index) => ({
+    investorId: `00000000-0000-4000-8000-00000000000${index + 5}`,
+    walletAddress: allocation.walletAddress, tokenAccount: allocation.tokenAccount,
+    amount: allocation.amount.toString()
+  }));
+  const activation = await buildInstrumentActivation({ programId: PROGRAM,
+    instrumentId: Uint8Array.from(Buffer.from(instrumentId.replaceAll("-", ""), "hex")),
+    issuerAuthority: KEY, bondMint: PROGRAM, holderTokenAccounts: allocations.map(row => row.tokenAccount) });
+  const unsigned = serializeUnsignedInstructionsTransaction({ instructions: [activation.instruction], feePayer: KEY,
+    recentBlockhash: "11111111111111111111111111111111", lastValidBlockHeight: 9 });
+  const signed = Buffer.from(unsigned, "base64"); signed.fill(13, 1, 65);
+  const signature = base58(signed.subarray(1, 65));
+  const instrument = lifecycleInstrument(instrumentId, "DEPLOYING");
+  const writes: Record<string, unknown>[] = [];
+  const database = {
+    blockchainTransaction: { findUnique: async () => ({ id: operationId, instrumentId,
+      operationType: "INSTRUMENT_ACTIVATE", status: "PREPARED", signature: null, requiredSigner: KEY,
+      networkGenesisHash: KEY, preparedTransactionBase64: unsigned,
+      preparedPayload: { instrumentAddress: activation.instrumentAddress, bondMint: PROGRAM,
+        treasuryTokenAccount: distribution.treasuryTokenAccount, allocations }, instrument }) },
+    wallet: { findMany: async () => allocations.map(allocation => ({ address: allocation.walletAddress,
+      network: "SOLANA_LOCALNET", status: "ACTIVE", verifiedAt: new Date(), revokedAt: null,
+      investor: { id: allocation.investorId, status: "ACTIVE", eligibilityStatus: "ELIGIBLE" } })) },
+    $transaction: async (work: (transaction: unknown) => Promise<unknown>) => work({
+      blockchainTransaction: { updateMany: async ({ data }: { data: Record<string, unknown> }) => { writes.push(data); return { count: 1 }; } },
+      instrument: { updateMany: async ({ data }: { data: Record<string, unknown> }) => { writes.push(data); return { count: 1 }; } },
+      auditLog: { create: async ({ data }: { data: Record<string, unknown> }) => { writes.push(data); return data; } }
+    })
+  };
+  let accountRead = -1;
+  const rpc = { request: async (method: string) => {
+    if (method === "getGenesisHash") return KEY;
+    if (method === "getTransaction") return { slot: 42, meta: { err: null }, transaction: [signed.toString("base64"), "base64"] };
+    if (method === "getAccountInfo") {
+      accountRead += 1;
+      if (accountRead === 0) return instrumentAccount(instrumentId, 1);
+      const allocation = allocations[accountRead - 1]!;
+      return { context: { slot: 42 }, ...tokenAccount(PROGRAM, allocation.walletAddress, BigInt(allocation.amount)) };
+    }
+    throw new Error(`unexpected RPC method ${method}`);
+  } };
+  const result = await confirmInstrumentActivation(database as never, rpc, instrumentId, operationId, signature,
+    { id: "00000000-0000-4000-8000-000000000001", walletAddress: KEY,
+      correlationId: "00000000-0000-4000-8000-000000000003" },
+    { cluster: "localnet", rpcEndpoint: "http://127.0.0.1:8899", rpcTimeoutMs: 15_000,
+      expectedGenesisHash: KEY, programId: PROGRAM });
+  assert.equal(result.phase, "ACTIVATE");
+  assert.equal(writes[1]?.["status"], "ACTIVE");
+  assert.equal(writes[2]?.["event"], "INSTRUMENT_ACTIVATED");
 });
