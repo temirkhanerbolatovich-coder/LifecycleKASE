@@ -58,7 +58,7 @@ Bond mint:
 KZT-Test mint:
 
 - `decimals = 6`;
-- используется только на Devnet;
+- используется только в явно настроенной Localnet или Devnet demo-среде;
 - treasury token account принадлежит administrator wallet;
 - программа переводит settlement tokens через CPI только при наличии administrator signature.
 
@@ -176,7 +176,7 @@ issuer_id: UUID
 name: string
 ticker: string
 asset_type: BOND
-network: SOLANA_DEVNET
+network: SOLANA_LOCALNET | SOLANA_DEVNET
 program_id: base58 pubkey
 mint_address: base58 pubkey
 issuer_authority: base58 pubkey

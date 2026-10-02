@@ -71,6 +71,28 @@ INSERT INTO instruments (
     35, 35, CURRENT_TIMESTAMP
 );
 
+UPDATE settlement_assets SET network = 'SOLANA_LOCALNET'
+WHERE id = '00000000-0000-4000-8000-000000000003';
+UPDATE instruments SET network = 'SOLANA_LOCALNET'
+WHERE id = '00000000-0000-4000-8000-000000000006';
+
+DO $$
+BEGIN
+    BEGIN
+        UPDATE instruments SET network = 'SOLANA_MAINNET'
+        WHERE id = '00000000-0000-4000-8000-000000000006';
+        RAISE EXCEPTION 'mainnet instrument accepted';
+    EXCEPTION WHEN check_violation THEN NULL;
+    END;
+    BEGIN
+        UPDATE settlement_assets SET network = 'SOLANA_MAINNET'
+        WHERE id = '00000000-0000-4000-8000-000000000003';
+        RAISE EXCEPTION 'mainnet settlement asset accepted';
+    EXCEPTION WHEN check_violation THEN NULL;
+    END;
+END;
+$$;
+
 DO $$
 BEGIN
     BEGIN

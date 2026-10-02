@@ -7,6 +7,7 @@ import { StandardConnect, StandardEvents, type StandardConnectFeature, type Stan
 import { useEffect, useMemo, useState } from "react";
 import { SnapshotPanel } from "./snapshot-panel";
 import { InvestorPanel } from "./investor-panel";
+import { InstrumentPanel } from "./instrument-panel";
 import { accountForAddress, accountOptionLabel, messageAccounts, reconcileAccountSelection, shortWalletAddress } from "./wallet-account-selection";
 
 type LoginWallet = WalletWithFeatures<StandardConnectFeature & SolanaSignMessageFeature>;
@@ -58,6 +59,10 @@ function errorMessage(payload: Record<string, unknown>, fallback: string): strin
       return "Решение по допуску уже принято. Обновите реестр.";
     case "WALLET_ALREADY_REVOKED":
       return "Кошелёк уже отозван. Обновите реестр.";
+    case "INSTRUMENT_CONFLICT":
+      return "Эмитент или тикер уже зарегистрирован. Обновите список инструментов.";
+    case "SETTLEMENT_ASSET_CONFLICT":
+      return "Настройка KZT-Test не соответствует выбранной тестовой сети.";
     default:
       return typeof payload["message"] === "string" ? payload["message"] : fallback;
   }
@@ -260,6 +265,9 @@ export function WalletLogin() {
                 {wallets.map((wallet, index) => <option key={`${wallet.name}-${index}`} value={index}>{wallet.name}</option>)}
               </select>
             </label>
+          )}
+          {['ADMINISTRATOR', 'AUDITOR'].includes(user.role) && (
+            <InstrumentPanel key={`instruments-${user.id}`} role={user.role} request={apiRequest} />
           )}
           {["ADMINISTRATOR", "AUDITOR"].includes(user.role) && (
             <InvestorPanel key={user.id} role={user.role} request={apiRequest}

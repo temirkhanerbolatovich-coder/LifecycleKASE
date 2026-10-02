@@ -41,6 +41,8 @@ try {
   process.env.AUTH_VERIFY_RATE_LIMIT = "10";
   process.env.MUTATION_RATE_LIMIT = "40";
   process.env.AUTH_RATE_LIMIT_WINDOW_SECONDS = "60";
+  process.env.SOLANA_CLUSTER = "localnet";
+  process.env.WALLET_NETWORK = "SOLANA_LOCALNET";
   database = new PrismaClient();
   const { AppModule } = await import("../apps/api/dist/app.module.js");
   const { provisionOperator } = await import("../apps/api/dist/operator-provisioning.js");
@@ -83,6 +85,41 @@ try {
   const auditor = await operator("AUDITOR");
   const issuer = await operator("ISSUER_OPERATOR");
   console.log("PASS local HTTP wallet challenge/signature/session for three operator roles");
+  const instrumentInput = {
+    issuerLegalName: "Synthetic Local Issuer", name: "Canonical Local Bond", ticker: "LKB26",
+    faceValueKzt: "1000", couponRateBps: 1000, paymentsPerYear: 2,
+    issueAt: "2026-10-02T00:00:00.000Z", maturityAt: "2027-10-02T00:00:00.000Z"
+  };
+  assert.equal((await request("/instruments")).status, 401);
+  assert.equal((await request("/instruments", { cookie: issuer.cookie })).status, 403);
+  assert.equal((await request("/instruments", { cookie: auditor.cookie, method: "POST", body: instrumentInput })).status, 403);
+  assert.equal((await request("/instruments", { cookie: administrator.cookie, method: "POST", body: instrumentInput,
+    requestOrigin: "https://untrusted.example" })).status, 403);
+  const instrumentDraft = await request("/instruments", {
+    cookie: administrator.cookie, method: "POST", body: instrumentInput
+  });
+  assert.equal(instrumentDraft.status, 201, JSON.stringify(instrumentDraft.payload));
+  assert.equal(instrumentDraft.payload.status, "DRAFT");
+  assert.equal(instrumentDraft.payload.network, "SOLANA_LOCALNET");
+  assert.equal(instrumentDraft.payload.totalSupply, "35");
+  assert.equal(instrumentDraft.payload.circulatingSupply, "0");
+  assert.equal(instrumentDraft.payload.issuerAuthority, administrator.walletAddress);
+  assert.equal(instrumentDraft.payload.mintAddress, null);
+  assert.equal((await request("/instruments", {
+    cookie: administrator.cookie, method: "POST", body: instrumentInput
+  })).status, 409);
+  const instrumentList = await request("/instruments?limit=20", { cookie: auditor.cookie });
+  assert.equal(instrumentList.status, 200);
+  assert.equal(instrumentList.payload.items.length, 1);
+  assert.equal(instrumentList.payload.items[0].id, instrumentDraft.payload.id);
+  const instrumentAudit = await database.auditLog.findMany({
+    where: { entityId: instrumentDraft.payload.id, event: "INSTRUMENT_DRAFT_CREATED" }
+  });
+  assert.equal(instrumentAudit.length, 1);
+  assert.deepEqual(instrumentAudit[0].metadataJson, {
+    ticker: "LKB26", network: "SOLANA_LOCALNET", status: "DRAFT", totalSupply: "35", onChain: false
+  });
+  console.log("PASS local HTTP instrument draft is role-bound, audited and explicitly off-chain");
   const investorInput = { displayName: "Synthetic Registry Investor", type: "INDIVIDUAL", countryCode: "KZ", externalReference: "REGISTRY-TEST-A" };
   assert.equal((await request("/investors")).status, 401);
   assert.equal((await request("/investors", { cookie: issuer.cookie })).status, 403);
@@ -310,11 +347,7 @@ try {
     cookie: administrator.cookie, method: "POST", body: { address: publicAddress() }
   });
   assert.equal(lockWallet.status, 201);
-  const captureAsset = await database.settlementAsset.create({ data: {
-    code: "KZT_TEST",
-    name: "KZT-Test",
-    disclaimer: "SIMULATED ASSET. Not issued by the National Bank of Kazakhstan."
-  } });
+  const captureAsset = await database.settlementAsset.findUniqueOrThrow({ where: { code: "KZT_TEST" } });
   const captureIssuer = await database.issuer.create({ data: { legalName: "Capture Lock Issuer" } });
   const captureInstrument = await database.instrument.create({ data: {
     issuerId: captureIssuer.id,
@@ -371,6 +404,7 @@ try {
   const loggedOut = await request("/auth/logout", { cookie: administrator.cookie, method: "POST", body: {} });
   assert.equal(loggedOut.status, 201);
   assert.equal((await request("/investors", { cookie: administrator.cookie })).status, 401);
+  assert.equal((await request("/instruments", { cookie: administrator.cookie })).status, 401);
   console.log("PASS logout invalidates subsequent registry reads");
 } finally {
   try {

@@ -11,6 +11,7 @@ export function operatorApiRewrites(environment = process.env) {
     "/api/v1/auth/challenge", "/api/v1/auth/verify", "/api/v1/auth/session", "/api/v1/auth/logout",
     "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/snapshot/prepare",
     "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/snapshot/confirm",
+    "/api/v1/instruments",
     "/api/v1/investors",
     "/api/v1/investors/:id([0-9a-fA-F-]{36})/eligibility",
     "/api/v1/investors/:id([0-9a-fA-F-]{36})/wallets",

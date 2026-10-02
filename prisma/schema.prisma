@@ -262,7 +262,7 @@ model Wallet {
 
 model Issuer {
   id          String       @id @default(uuid()) @db.Uuid
-  legalName   String       @map("legal_name") @db.VarChar(250)
+  legalName   String       @unique @map("legal_name") @db.VarChar(250)
   createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
   instruments Instrument[]

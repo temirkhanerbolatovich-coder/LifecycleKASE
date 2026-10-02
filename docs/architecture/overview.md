@@ -7,8 +7,8 @@ Last updated: 2026-10-02
 
 | Component | Responsibility | Trust boundary |
 |---|---|---|
-| Next.js web | Status dashboard, Wallet Standard operator login and Localnet/Devnet snapshot UI; twelve fixed same-origin rewrites transport operator requests/cookies to the API | Browser is untrusted; web server is a trusted cookie-transport boundary; no private-key custody; live snapshot-wallet acceptance pending |
-| API package | Operator wallet authentication plus administrator-only snapshot capture, transaction preparation and finalized confirmation; NestJS health routes | Trusted application service when deployed; never holds administrator private keys |
+| Next.js web | Status dashboard, Wallet Standard operator login, instrument/investor registries and Localnet/Devnet snapshot UI; thirteen fixed same-origin rewrites transport operator requests/cookies to the API | Browser is untrusted; web server is a trusted cookie-transport boundary; no private-key custody; live transaction acceptance pending |
+| API package | Operator wallet authentication, audited instrument/investor registries, administrator-only snapshot capture, transaction preparation and finalized confirmation; NestJS health routes | Trusted application service when deployed; never holds administrator private keys |
 | Domain package | Deterministic calculations and state rules | Pure logic with no network or persistence side effects |
 | Solana client package | Token-2022 holder collection, instruction/transaction serialization, exact signed-message verification and Action PDA decoding | Converts finalized chain data into validated holder balances and confirmation evidence |
 | Anchor program | Instrument initialization/activation, action scheduling/cancellation, and immutable snapshot hash/slot/count registration are locally implemented; entitlement calculation and execution are pending | Future authoritative execution boundary; not deployed |
