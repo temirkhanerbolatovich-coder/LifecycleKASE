@@ -1,6 +1,14 @@
 # Disposable Render staging
 
-Status: disposable demo staging and operator challenge boundary verified on 2026-10-01. Real wallet login remains unverified. The September entries below are historical; the October activation record is the latest verified state.
+Status: disposable demo staging updated and health-verified on 2026-10-02. Earlier operator login was owner-accepted; authenticated browser flows were not repeated after this deployment. The historical entries below remain as an evidence trail.
+
+## Repository synchronization — 2026-10-02
+
+GitHub `master` commit `6dd98fe170967e349bc675a651a476275c1829f8` passed both `repository-checks` and `program-checks` in [CI run 36966669189](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/actions/runs/36966669189). Render does not auto-deploy these Blueprint-managed services, so API and web were updated manually from that exact commit after CI succeeded.
+
+API deployment `dep-davjk5lg1s2s73apa8u0` became Live in 1m08s. Its build log explicitly reported all fourteen migrations successfully applied, including `20261002170000_unique_active_instrument_deployment`, and then mapped the Investor and Instrument routes. Web deployment `dep-davjl4id0e5s7388mi9g` became Live in 1m40s; its install reported zero vulnerabilities and its Next.js production build completed successfully.
+
+Post-deploy public checks returned HTTP 200 with the expected JSON for web liveness, API liveness and PostgreSQL readiness. `/dashboard` returned HTTP 200. Unauthenticated `GET /api/v1/instruments` returned HTTP 401 `SESSION_REQUIRED`, proving the new protected route is present without bypassing authentication. These checks prove deployed revision, process/database reachability and route protection; they do not prove Solana RPC configuration, a live wallet-signed `MINT_SETUP`, snapshot finalization, data durability or production readiness. A later documentation-only commit is not a different deployed application revision.
 
 The `lifecyclekase-staging` Blueprint in the separate `LifecycleKASE` Hobby workspace deployed commit `626cc326800e0c84eff1796088a735cdee6e14e3` from `master`. Its initial sync created the free `lifecyclekase-staging-db`, `lifecyclekase-api`, and `lifecyclekase-web` resources without changing the separate VKO workspace.
 
@@ -56,7 +64,7 @@ The database `ipAllowList: []` blocks external connections. The API gets its con
 - API `GET /api/v1/health/ready` responds with `{ "status": "ready" }`; after a database failure it responds with HTTP 503 and `DATABASE_UNAVAILABLE`.
 - Web `GET /health/live` responds with `{ "status": "live" }`.
 - Web `/dashboard` renders and displays the API/PostgreSQL status, while Solana remains explicitly unconnected.
-- Unknown domain routes, such as `/api/v1/investors`, remain 404. Do not add them without authentication and authorization.
+- Protected domain routes, such as `/api/v1/investors` and `/api/v1/instruments`, return 401 without an active operator session. A 404 is expected only for routes the current application does not implement.
 - Record the actual public URLs and deployed Git commit only after these checks pass. A local build is not deployment evidence.
 
 The free API may sleep after inactivity. During wake-up, the dashboard may temporarily show `Недоступно`; refresh after the API has warmed. The dashboard validates the JSON status and will not treat a Render loading page as readiness.
