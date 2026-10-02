@@ -63,6 +63,15 @@ function errorMessage(payload: Record<string, unknown>, fallback: string): strin
       return "Эмитент или тикер уже зарегистрирован. Обновите список инструментов.";
     case "SETTLEMENT_ASSET_CONFLICT":
       return "Настройка KZT-Test не соответствует выбранной тестовой сети.";
+    case "WALLET_MISMATCH":
+      return "Кошелёк сессии не совпадает с issuer authority инструмента.";
+    case "MINT_ADDRESS_OCCUPIED":
+      return "Расчётный адрес mint уже занят. Не отправляйте транзакцию; проверьте предыдущую попытку.";
+    case "TRANSACTION_MISMATCH":
+      return "Finalized-транзакция не совпадает с подготовленным планом.";
+    case "MINT_STATE_MISMATCH":
+    case "TREASURY_STATE_MISMATCH":
+      return "On-chain состояние mint или treasury не прошло обязательную сверку.";
     default:
       return typeof payload["message"] === "string" ? payload["message"] : fallback;
   }
@@ -266,8 +275,9 @@ export function WalletLogin() {
               </select>
             </label>
           )}
-          {['ADMINISTRATOR', 'AUDITOR'].includes(user.role) && (
-            <InstrumentPanel key={`instruments-${user.id}`} role={user.role} request={apiRequest} />
+          {walletAddress && ["ADMINISTRATOR", "AUDITOR"].includes(user.role) && (
+            <InstrumentPanel key={`instruments-${user.id}`} role={user.role} request={apiRequest}
+              wallet={selectedWallet} walletAddress={walletAddress} onBusyChange={setBusy} />
           )}
           {["ADMINISTRATOR", "AUDITOR"].includes(user.role) && (
             <InvestorPanel key={user.id} role={user.role} request={apiRequest}

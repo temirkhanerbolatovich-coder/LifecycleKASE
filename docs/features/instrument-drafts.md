@@ -1,6 +1,6 @@
 # Instrument database drafts
 
-Status: implemented and locally HTTP/PostgreSQL-tested on 2026-10-02.
+Status: database drafts and the wallet-signed `MINT_SETUP` prepare/confirm boundary implemented on 2026-10-02; live wallet/validator acceptance pending.
 
 ## Purpose
 
@@ -31,4 +31,8 @@ Reads require Administrator or Auditor. Creation requires Administrator, the exa
 
 ## Known limitations
 
-This slice does not create Token-2022 mints, distribute 10/20/5 balances, revoke mint authority, prepare wallet transactions, initialize/activate the Instrument PDA or reconcile chain state. Those operations belong to `deploy/prepare`, wallet signing and `deploy/confirm`. Until finalized reconciliation succeeds, the instrument remains `DRAFT` with `circulatingSupply = 0`.
+`POST /api/v1/instruments/:id/deploy/prepare` now prepares an exact unsigned `MINT_SETUP` transaction after validating network genesis, signer, draft state, rent and unoccupied deterministic addresses. It creates bond and KZT-Test Token-2022 mints, sets the Instrument Authority PDA as permanent delegate, creates the issuer treasury, mints 35 bonds and revokes bond mint authority. Phantom remains the only signer.
+
+`deploy/confirm` verifies the exact prepared message at `finalized`, then independently reconciles Token-2022 ownership, decimals, supply, revoked authorities, permanent delegate and treasury balance before atomically saving mint projections and audit evidence. The instrument intentionally stays `DRAFT` with `circulatingSupply = 0`.
+
+This boundary is fixture-tested, but no live Phantom/validator transaction has been accepted yet. Distribution 10/20/5, Instrument PDA initialization and activation are not implemented in the application flow. The shared KZT-Test record currently permits only one canonical mint setup.

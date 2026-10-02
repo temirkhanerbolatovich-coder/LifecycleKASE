@@ -14,3 +14,4 @@
 - [ADR-012: Same-origin operator API transport](ADR-012-same-origin-operator-api.md)
 - [ADR-013: Phantom authority and separate Devnet deployment payer](ADR-013-devnet-demo-authorities.md)
 - [ADR-014: Local MVP acceptance before public-network deployment](ADR-014-local-mvp-before-public-network.md)
+- [ADR-015: Phased wallet-signed instrument deployment](ADR-015-phased-instrument-deployment.md)

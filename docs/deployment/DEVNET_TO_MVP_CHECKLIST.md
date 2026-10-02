@@ -21,8 +21,9 @@ The [implementation status](../IMPLEMENTED_VS_SIMULATED.md) and [requirements](.
 4. **Investor Registry** — list/create, pending localnet wallet attachment, exact Ed25519 wallet-ownership activation, one-time local-demo eligibility and terminal reasoned wallet revocation implemented in API/UI. Administrator writes/Auditor reads, atomic reason/time/actor audit and a global single-workspace snapshot capture lock are enforced. Real HTTP/PostgreSQL acceptance covers proof replay rejection, eligibility, revocation, capture locking, concurrency, rollback, audit immutability, network guards and logout. Owner confirmed the local Administrator two-account flow through activation/revocation and the separate Account 3 read-only Auditor presentation. Update/close, eligibility correction/suspension and temporary blocking remain pending. See [feature limits](../features/investor-registry.md). No real personal/KYC data.
 5. **Instrument setup**
    - [x] Administrator database-draft create and Administrator/Auditor list UI/API with fixed local demo invariants, operator-wallet authority binding and atomic audit.
-   - [ ] Prepare and wallet-sign Token-2022 bond and KZT-Test mint creation, 10/20/5 distribution, mint-authority revocation and Instrument PDA initialization/activation.
-   - [ ] Confirm finalized transactions and reconcile exact chain state before changing the draft from `DRAFT`; current UI deliberately does not claim issuance.
+   - [x] Implement wallet-signed `MINT_SETUP` prepare/confirm for Token-2022 bond and KZT-Test mint creation, 35-token treasury issuance and mint-authority revocation. Exact finalized transaction/mint/treasury reconciliation is enforced; live Phantom/validator acceptance is pending.
+   - [ ] Add and wallet-sign separate 10/20/5 distribution, Instrument PDA initialization and activation phases.
+   - [ ] Run live Localnet phased deployment acceptance before changing the draft from `DRAFT`; current UI deliberately does not claim completed issuance.
 6. **Actions and snapshot**
    - [x] Snapshot HTTP/UI boundary accepts only explicit Localnet/Devnet plans, rejects cluster/wallet-network mismatch, derives the Wallet Standard chain from the validated plan and preserves finalized confirmation/recovery safeguards.
    - [ ] Add action creation/scheduling UI/API with a future record window; the current UI still requires an existing action UUID.
@@ -36,7 +37,7 @@ The [implementation status](../IMPLEMENTED_VS_SIMULATED.md) and [requirements](.
 
 ## Current next action
 
-Stage 2's isolated build/local runtime acceptance is complete. Public funding, authority assignment and network deployment are deferred. Local HTTP/PostgreSQL acceptance covers investor lifecycle and the new audited instrument database draft; the owner accepted the Administrator/Auditor investor presentation. The Localnet/Devnet snapshot boundary is test-validated, but no live wallet transaction is claimed. Next: finish Stage 5 wallet-signed mint/distribution/initialize/activate and reconciliation, then Stage 6 action creation/scheduling and real Localnet snapshot acceptance. Local HTTP logout is tested; no staging logout acceptance is claimed.
+Stage 2's isolated build/local runtime acceptance is complete. Public funding, authority assignment and network deployment are deferred. Stage 5 now has a fixture-tested wallet-signed `MINT_SETUP` boundary with finalized mint/treasury reconciliation, but no live Phantom/validator transaction is claimed. Next: run Localnet MINT_SETUP acceptance, then implement distribution 10/20/5, initialize and activate before Stage 6 action scheduling and snapshot acceptance.
 
 ## Preflight usage and limits
 

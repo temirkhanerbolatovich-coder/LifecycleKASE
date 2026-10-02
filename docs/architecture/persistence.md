@@ -1,7 +1,7 @@
 # Persistence architecture
 
-Status: schema foundation, four guarded migrations, and snapshot prepare/confirm persistence implemented
-Last updated: 2026-09-30
+Status: schema foundation with guarded snapshot and instrument deployment attempts
+Last updated: 2026-10-02
 
 ## Responsibility
 
@@ -18,10 +18,13 @@ It does not override Solana ownership, mint supply, program state, snapshot comm
 - Cash and Asset Legs are unique per settlement and leg type.
 - Execution jobs are unique per action, entitlement, and job type; transaction attempts remain separate rows.
 - Blockchain signatures are unique when present.
+- Instrument deployment attempts retain the exact prepared transaction, required signer and network genesis hash.
 - Idempotency keys are unique inside an operation scope.
 - Authentication challenges and sessions store hashes, not raw nonces or bearer tokens.
 
 ## Immutability
+
+The `MINT_SETUP` attempt is attached directly to an instrument. A database check requires its prepared wire transaction, signer and genesis hash. Finalized confirmation updates the attempt, bond/settlement mint projections and audit atomically; holder distribution and instrument status are deliberately unchanged.
 
 A snapshot and all investor/wallet/token-account rows are first written atomically in `PENDING_REGISTRATION`. After finalized on-chain commitment verification, the snapshot moves to `FINALIZED`. PostgreSQL triggers then reject mutation or deletion of the snapshot and its child rows, and reject new child rows.
 

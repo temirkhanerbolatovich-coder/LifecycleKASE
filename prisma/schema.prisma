@@ -321,6 +321,7 @@ model Instrument {
   settlementAsset          SettlementAsset   @relation(fields: [settlementAssetId], references: [id], onDelete: Restrict)
   corporateActions         CorporateAction[]
   snapshots                Snapshot[]
+  blockchainTransactions   BlockchainTransaction[]
 
   @@unique([issuerId, ticker])
   @@index([status, maturityAt])
@@ -520,6 +521,7 @@ model ActionReceipt {
 
 model BlockchainTransaction {
   id                   String                      @id @default(uuid()) @db.Uuid
+  instrumentId         String?                     @map("instrument_id") @db.Uuid
   corporateActionId    String?                     @map("corporate_action_id") @db.Uuid
   entitlementId        String?                     @map("entitlement_id") @db.Uuid
   investorId           String?                     @map("investor_id") @db.Uuid
@@ -531,14 +533,19 @@ model BlockchainTransaction {
   submittedAt          DateTime?                   @map("submitted_at") @db.Timestamptz(6)
   finalizedAt          DateTime?                   @map("finalized_at") @db.Timestamptz(6)
   lastErrorCode        String?                     @map("last_error_code") @db.VarChar(100)
+  requiredSigner       String?                     @map("required_signer") @db.VarChar(44)
+  networkGenesisHash   String?                     @map("network_genesis_hash") @db.VarChar(44)
+  preparedTransactionBase64 String?                @map("prepared_transaction_base64") @db.Text
   createdAt            DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(6)
   corporateAction      CorporateAction?            @relation(fields: [corporateActionId], references: [id], onDelete: Restrict)
+  instrument           Instrument?                 @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
   entitlement          Entitlement?                @relation(fields: [entitlementId], references: [id], onDelete: Restrict)
   investor             Investor?                   @relation(fields: [investorId], references: [id], onDelete: Restrict)
   settlementLegs       SettlementLeg[]
 
   @@index([corporateActionId, status])
+  @@index([instrumentId, status])
   @@index([entitlementId, status])
   @@map("blockchain_transactions")
 }

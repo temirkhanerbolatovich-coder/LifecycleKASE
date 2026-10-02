@@ -2,6 +2,7 @@ import {
   AccountRole,
   address,
   appendTransactionMessageInstruction,
+  appendTransactionMessageInstructions,
   blockhash,
   compileTransaction,
   createTransactionMessage,
@@ -12,6 +13,12 @@ import {
 } from "@solana/kit";
 
 import type { SnapshotRegistrationInstruction } from "./snapshot-registration.js";
+
+export type SolanaInstructionPlan = {
+  programId: string;
+  accounts: readonly { address: string; isSigner: boolean; isWritable: boolean }[];
+  data: Uint8Array;
+};
 
 function accountRole(account: { isSigner: boolean; isWritable: boolean }): AccountRole {
   if (account.isSigner) {
@@ -27,9 +34,21 @@ export function serializeUnsignedSnapshotRegistrationTransaction(input: {
   recentBlockhash: string;
   lastValidBlockHeight: number;
 }): string {
-  const signerAccounts = input.instruction.accounts.filter((account) => account.isSigner);
-  if (signerAccounts.length !== 1 || signerAccounts[0]?.address !== input.feePayer) {
-    throw new Error("Snapshot registration must have exactly the issuer fee payer as signer");
+  return serializeUnsignedInstructionsTransaction({ ...input, instructions: [input.instruction] });
+}
+
+/** Serializes v0 instructions that require only the external fee-payer signature. */
+export function serializeUnsignedInstructionsTransaction(input: {
+  instructions: readonly SolanaInstructionPlan[];
+  feePayer: string;
+  recentBlockhash: string;
+  lastValidBlockHeight: number;
+}): string {
+  if (input.instructions.length === 0) throw new Error("At least one instruction is required");
+  const signerAddresses = new Set(input.instructions.flatMap((instruction) =>
+    instruction.accounts.filter((account) => account.isSigner).map((account) => account.address)));
+  if (signerAddresses.size !== 1 || !signerAddresses.has(input.feePayer)) {
+    throw new Error("Transaction must have exactly the external fee payer as signer");
   }
   if (!Number.isSafeInteger(input.lastValidBlockHeight) || input.lastValidBlockHeight < 0) {
     throw new Error("Last valid block height is invalid");
@@ -42,14 +61,11 @@ export function serializeUnsignedSnapshotRegistrationTransaction(input: {
       blockhash: blockhash(input.recentBlockhash),
       lastValidBlockHeight: BigInt(input.lastValidBlockHeight)
     }, message),
-    (message) => appendTransactionMessageInstruction({
-      programAddress: address(input.instruction.programId),
-      accounts: input.instruction.accounts.map((account) => ({
-        address: address(account.address),
-        role: accountRole(account)
-      })),
-      data: input.instruction.data
-    }, message)
+    (message) => appendTransactionMessageInstructions(input.instructions.map((instruction) => ({
+      programAddress: address(instruction.programId),
+      accounts: instruction.accounts.map((account) => ({ address: address(account.address), role: accountRole(account) })),
+      data: instruction.data
+    })), message)
   );
   return getBase64EncodedWireTransaction(compileTransaction(transactionMessage));
 }

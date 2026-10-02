@@ -1,6 +1,10 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { SolanaSignAndSendTransaction, type SolanaSignAndSendTransactionFeature } from "@solana/wallet-standard-features";
+import type { Wallet, WalletWithFeatures } from "@wallet-standard/base";
+import { StandardConnect, type StandardConnectFeature } from "@wallet-standard/features";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { transactionSignature, unsignedTransactionBytes, walletChainForCluster, type SupportedSnapshotCluster } from "./snapshot-workflow";
 
 type Instrument = {
   id: string; name: string; ticker: string; network: string; status: string; issuerAuthority: string;
@@ -10,6 +14,27 @@ type Instrument = {
   settlementAsset: { code: string; name: string; mintAddress: string | null; disclaimer: string };
 };
 type Request = (path: string, init?: RequestInit) => Promise<Record<string, unknown>>;
+type TransactionWallet = WalletWithFeatures<StandardConnectFeature & SolanaSignAndSendTransactionFeature>;
+type DeploymentPlan = { operationId: string; phase: "MINT_SETUP"; cluster: SupportedSnapshotCluster;
+  requiredSigner: string; networkGenesisHash: string; serializedTransactionBase64: string;
+  bondMint?: string; settlementMint?: string; treasuryTokenAccount?: string };
+
+function transactionWallet(wallet: Wallet | undefined, cluster: SupportedSnapshotCluster): wallet is TransactionWallet {
+  const feature = wallet?.features[SolanaSignAndSendTransaction] as SolanaSignAndSendTransactionFeature[typeof SolanaSignAndSendTransaction] | undefined;
+  return typeof feature?.signAndSendTransaction === "function" && feature.supportedTransactionVersions.includes(0) &&
+    wallet?.chains.includes(walletChainForCluster(cluster)) === true;
+}
+
+function deploymentPlan(value: Record<string, unknown>, instrument: Instrument, walletAddress: string): DeploymentPlan {
+  const cluster = value["cluster"];
+  const result = value as unknown as DeploymentPlan;
+  if (value["phase"] !== "MINT_SETUP" || (cluster !== "localnet" && cluster !== "devnet") ||
+      typeof value["operationId"] !== "string" || typeof value["serializedTransactionBase64"] !== "string" ||
+      value["requiredSigner"] !== walletAddress || instrument.issuerAuthority !== walletAddress) {
+    throw new Error("Сервер вернул несовместимый план выпуска или другой issuer signer.");
+  }
+  return result;
+}
 
 function shortAddress(address: string): string {
   return address.length > 15 ? `${address.slice(0, 6)}…${address.slice(-6)}` : address;
@@ -23,11 +48,64 @@ function formatMinor(value: string): string {
   return fraction ? `${whole}.${fraction}` : whole.toString();
 }
 
-export function InstrumentPanel({ role, request }: { role: string; request: Request }) {
+export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyChange }: {
+  role: string; request: Request; wallet: Wallet | undefined; walletAddress: string; onBusyChange: (busy: boolean) => void;
+}) {
   const [items, setItems] = useState<Instrument[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("Загрузка инструментов…");
+  const [plan, setPlan] = useState<DeploymentPlan | null>(null);
+  const [deployInstrumentId, setDeployInstrumentId] = useState("");
+  const [signature, setSignature] = useState("");
+  const [reviewed, setReviewed] = useState(false);
+  const [sendAttempted, setSendAttempted] = useState(false);
+  const inFlight = useRef(false);
+
+  async function runDeployment(task: () => Promise<void>) {
+    if (inFlight.current) return;
+    inFlight.current = true; setBusy(true); onBusyChange(true);
+    try { await task(); }
+    catch (error) { setMessage(error instanceof Error ? error.message : "Операция выпуска не выполнена."); }
+    finally { inFlight.current = false; setBusy(false); onBusyChange(false); }
+  }
+
+  async function prepareDeployment(instrument: Instrument) {
+    const response = await request(`/api/v1/instruments/${instrument.id}/deploy/prepare`, { method: "POST", body: "{}" });
+    const prepared = deploymentPlan(response, instrument, walletAddress);
+    setPlan(prepared); setDeployInstrumentId(instrument.id); setSignature(""); setReviewed(false); setSendAttempted(false);
+    setMessage("Фаза MINT_SETUP подготовлена. Проверьте сеть и адреса перед подписью Phantom.");
+  }
+
+  async function sendDeployment() {
+    if (!plan || !reviewed || sendAttempted || !transactionWallet(wallet, plan.cluster)) throw new Error("Нужен проверенный план и совместимый кошелёк транзакций v0.");
+    const chain = walletChainForCluster(plan.cluster);
+    const connected = await wallet.features[StandardConnect].connect();
+    const account = connected.accounts.find(candidate => candidate.address === walletAddress && candidate.chains.includes(chain) && candidate.features.includes(SolanaSignAndSendTransaction));
+    if (!account) throw new Error("Выбранный аккаунт Phantom не совпадает с issuer кошельком сессии.");
+    setSendAttempted(true);
+    setMessage("Проверьте транзакцию MINT_SETUP в Phantom. При неясном результате не отправляйте её повторно вслепую.");
+    const [output] = await wallet.features[SolanaSignAndSendTransaction].signAndSendTransaction({
+      account, chain, transaction: unsignedTransactionBytes(plan.serializedTransactionBase64),
+      options: { preflightCommitment: "confirmed", skipPreflight: false }
+    });
+    if (!output) throw new Error("Кошелёк не вернул подпись. Проверьте историю Phantom.");
+    setSignature(transactionSignature(output.signature));
+    setMessage("Транзакция отправлена. Теперь отдельно подтвердите finalized через API.");
+  }
+
+  async function confirmDeployment() {
+    if (!plan || !signature) throw new Error("Нет подготовленной попытки и подписи транзакции.");
+    const response = await request(`/api/v1/instruments/${deployInstrumentId}/deploy/confirm`, {
+      method: "POST", body: JSON.stringify({ operationId: plan.operationId, signature })
+    });
+    if (response["status"] !== "FINALIZED" || response["operationId"] !== plan.operationId || response["signature"] !== signature) {
+      throw new Error("API не подтвердил точную finalized-транзакцию.");
+    }
+    setPlan(null); setDeployInstrumentId(""); setSignature(""); setReviewed(false); setSendAttempted(false);
+    await load();
+    setMessage("MINT_SETUP FINALIZED: два mint проверены, bond supply 35, mint authority отозвана. Следующая фаза — распределение 10/20/5.");
+  }
 
   async function load(cursor?: string, signal?: AbortSignal) {
     const result = await request(`/api/v1/instruments?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
@@ -127,8 +205,27 @@ export function InstrumentPanel({ role, request }: { role: string; request: Requ
         <p className="mt-3 text-xs leading-5 text-[#8a5b18]">{instrument.programId && instrument.mintAddress
           ? `Program: ${shortAddress(instrument.programId)} · Mint: ${shortAddress(instrument.mintAddress)}`
           : "Следующий этап: подготовить mint/distribution/authority revocation и подписать deploy-транзакции кошельком."}</p>
+        {role === "ADMINISTRATOR" && instrument.status === "DRAFT" && !instrument.mintAddress && (
+          <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || plan !== null}
+            onClick={() => void runDeployment(() => prepareDeployment(instrument))}>Подготовить фазу MINT_SETUP</button>
+        )}
+        {instrument.mintAddress && <p className="mt-2 text-xs text-[#28744a]">Mint setup подтверждён: {shortAddress(instrument.mintAddress)}. Инструмент остаётся DRAFT до распределения, initialize и activate.</p>}
       </article>)}
     </div>
+    {plan && <div className="mt-4 rounded-xl border border-[#d3b779] bg-[#fffaf0] p-4 text-sm">
+      <p className="font-semibold">Проверка фазы MINT_SETUP</p>
+      <p className="mt-2 text-xs leading-5">Сеть: <strong>{plan.cluster}</strong>. Будут созданы тестовые bond и KZT-Test mint, выпущено 35 bond tokens в treasury и отозвана mint authority. Распределение инвесторам и активация ещё не выполняются.</p>
+      <dl className="mt-3 space-y-1 text-xs"><div><dt className="text-[#61746a]">Signer</dt><dd className="break-all font-mono">{plan.requiredSigner}</dd></div>
+        {plan.bondMint && <div><dt className="text-[#61746a]">Bond mint</dt><dd className="break-all font-mono">{plan.bondMint}</dd></div>}
+        {plan.settlementMint && <div><dt className="text-[#61746a]">KZT-Test mint</dt><dd className="break-all font-mono">{plan.settlementMint}</dd></div>}</dl>
+      <label className="mt-3 flex gap-2 text-xs"><input type="checkbox" checked={reviewed} disabled={busy || sendAttempted} onChange={event => setReviewed(event.target.checked)} />Проверил тестовую сеть, signer и необратимый отзыв mint authority</label>
+      <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || !reviewed || sendAttempted || !transactionWallet(wallet, plan.cluster)}
+        onClick={() => void runDeployment(sendDeployment)}>Подписать и отправить MINT_SETUP</button>
+      {sendAttempted && <div className="mt-3"><p className="text-xs">UUID попытки: <span className="font-mono">{plan.operationId}</span></p>
+        <label className="mt-2 block text-xs">Подпись из Phantom<input className={inputClass} value={signature} maxLength={88} disabled={busy} onChange={event => setSignature(event.target.value.trim())} /></label>
+        <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || signature.length < 64}
+          onClick={() => void runDeployment(confirmDeployment)}>Проверить finalized и состояние mint</button></div>}
+    </div>}
     {nextCursor && <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy} onClick={() => void refresh(nextCursor)}>Загрузить ещё</button>}
     <p role="status" aria-live="polite" className="mt-4 text-xs leading-5 text-[#61746a]">{busy ? "Операция выполняется… " : ""}{message}</p>
   </section>;

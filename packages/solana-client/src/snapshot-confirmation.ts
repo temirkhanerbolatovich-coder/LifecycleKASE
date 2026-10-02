@@ -26,7 +26,7 @@ function decodeBase64(value: string, name: string): Buffer {
 }
 
 /** Verifies that a finalized wire transaction is the signed form of the prepared transaction. */
-export function verifyFinalizedSnapshotTransaction(input: {
+export function verifyFinalizedTransaction(input: {
   expectedUnsignedTransactionBase64: string;
   finalizedTransactionBase64: string;
   requiredSigner: string;
@@ -50,6 +50,8 @@ export function verifyFinalizedSnapshotTransaction(input: {
     throw new Error("Finalized transaction signature does not match the request");
   }
 }
+
+export const verifyFinalizedSnapshotTransaction = verifyFinalizedTransaction;
 
 function requireBytes(data: Buffer, offset: number, length: number): void {
   if (offset < 0 || length < 0 || offset + length > data.length) {
