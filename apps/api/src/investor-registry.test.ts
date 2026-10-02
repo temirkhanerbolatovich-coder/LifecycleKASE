@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { attachPendingWallet, createInvestor, decideInvestorEligibility, InvestorRegistryError, listInvestors,
-  registryMutationOptionsFromEnvironment } from "./investor-registry.js";
+  registryMutationOptionsFromEnvironment, revokeInvestorWallet } from "./investor-registry.js";
 
 const ID = "00000000-0000-4000-8000-000000000001";
 const actor = { id: ID, walletAddress: "11111111111111111111111111111111", correlationId: ID };
@@ -25,8 +25,17 @@ function fixture() {
     },
     wallet: {
       findUnique: async () => state.wallet,
+      findUniqueOrThrow: async () => state.wallet,
+      findFirst: async ({ where }: any) => state.wallet?.id === where.id && state.wallet?.investorId === where.investorId
+        ? state.wallet : null,
       create: async ({ data }: any) => (state.wallet = { id: ID, ...data }),
-      count: async () => state.wallet?.status === "ACTIVE" && state.wallet.verifiedAt && !state.wallet.revokedAt ? 1 : 0
+      count: async () => state.wallet?.status === "ACTIVE" && state.wallet.verifiedAt && !state.wallet.revokedAt ? 1 : 0,
+      updateMany: async ({ where, data }: any) => {
+        if (!state.wallet || state.wallet.id !== where.id || state.wallet.investorId !== where.investorId ||
+            state.wallet.status !== where.status || state.wallet.revokedAt !== where.revokedAt) return { count: 0 };
+        Object.assign(state.wallet, data);
+        return { count: 1 };
+      }
     },
     corporateAction: { findFirst: async () => captureLocked ? { id: ID } : null },
     auditLog: { create: async ({ data }: any) => {
@@ -174,4 +183,59 @@ test("validates the shared registry capture-window configuration", () => {
   for (const value of ["0", "301", "1.5", "invalid"]) {
     assert.throws(() => registryMutationOptionsFromEnvironment({ SNAPSHOT_GRACE_SECONDS: value }), code("REGISTRY_CONFIGURATION_INVALID"));
   }
+});
+
+test("revokes an investor wallet once with a fixed reason and atomic audit", async () => {
+  const f = fixture();
+  await createInvestor(f.database, input, actor);
+  await attachPendingWallet(f.database, ID, { address: actor.walletAddress }, actor);
+  f.state().wallet.status = "ACTIVE";
+  f.state().wallet.verifiedAt = new Date("2026-10-02T09:00:00.000Z");
+  f.state().investor.eligibilityStatus = "ELIGIBLE";
+  const revokedAt = new Date("2026-10-02T11:00:00.000Z");
+  const result = await revokeInvestorWallet(
+    f.database, ID, ID, { reasonCode: "WALLET_REPLACEMENT" }, actor,
+    { now: revokedAt, graceSeconds: 300 }
+  );
+  assert.equal(result.status, "REVOKED");
+  assert.equal(result.revokedAt, revokedAt);
+  assert.equal(result.revocationReasonCode, "WALLET_REPLACEMENT");
+  assert.equal(f.state().investor.eligibilityStatus, "ELIGIBLE");
+  assert.equal(f.state().audit.at(-1).event, "INVESTOR_WALLET_REVOKED");
+  assert.deepEqual(f.state().audit.at(-1).metadataJson, {
+    investorId: ID, previousStatus: "ACTIVE", reasonCode: "WALLET_REPLACEMENT", network: "SOLANA_LOCALNET"
+  });
+  await assert.rejects(
+    revokeInvestorWallet(f.database, ID, ID, { reasonCode: "OWNER_REQUEST" }, actor),
+    code("WALLET_ALREADY_REVOKED")
+  );
+});
+
+test("validates wallet revocation scope and rolls state back when audit persistence fails", async () => {
+  for (const body of [{}, { reasonCode: "OTHER" }, { reasonCode: "OWNER_REQUEST", note: "free text" }]) {
+    await assert.rejects(revokeInvestorWallet({} as PrismaClient, ID, ID, body, actor), code("INVALID_REQUEST"));
+  }
+  await assert.rejects(revokeInvestorWallet({} as PrismaClient, "invalid", ID, {}, actor), code("INVALID_REQUEST"));
+  const f = fixture();
+  await createInvestor(f.database, input, actor);
+  await attachPendingWallet(f.database, ID, { address: actor.walletAddress }, actor);
+  f.failAudit();
+  await assert.rejects(
+    revokeInvestorWallet(f.database, ID, ID, { reasonCode: "REGISTRY_CORRECTION" }, actor),
+    /synthetic audit failure/
+  );
+  assert.equal(f.state().wallet.status, "PENDING");
+  assert.equal(f.state().wallet.revokedAt, null);
+});
+
+test("blocks wallet revocation during snapshot capture", async () => {
+  const f = fixture();
+  await createInvestor(f.database, input, actor);
+  await attachPendingWallet(f.database, ID, { address: actor.walletAddress }, actor);
+  f.lockCapture();
+  await assert.rejects(
+    revokeInvestorWallet(f.database, ID, ID, { reasonCode: "SECURITY_CONCERN" }, actor),
+    code("REGISTRY_CAPTURE_LOCKED")
+  );
+  assert.equal(f.state().wallet.status, "PENDING");
 });

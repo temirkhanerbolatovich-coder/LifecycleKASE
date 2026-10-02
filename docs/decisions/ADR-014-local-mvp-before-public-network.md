@@ -27,7 +27,7 @@ The public staging site remains a separately deployed prior revision. Local chan
 
 ## Risks
 
-Local validators do not reproduce all public-network congestion, RPC failure, wallet/provider or governance conditions. Current snapshot HTTP configuration and browser signing still target Devnet. The local single-workspace registry now uses a deliberately broad capture-window lock for eligibility, wallet attachment and wallet activation. Multi-issuer scale still requires issuer-scoped locking or append-only effective-time history before these become public operations.
+Local validators do not reproduce all public-network congestion, RPC failure, wallet/provider or governance conditions. Current snapshot HTTP configuration and browser signing still target Devnet. The local single-workspace registry now uses a deliberately broad capture-window lock for eligibility, wallet attachment, activation and revocation. Multi-issuer scale still requires issuer-scoped locking or append-only effective-time history before these become public operations.
 
 ## Future work
 

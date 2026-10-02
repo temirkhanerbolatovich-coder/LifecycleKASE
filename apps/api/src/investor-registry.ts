@@ -9,7 +9,10 @@ export class InvestorRegistryError extends Error {
   }
 }
 export type RegistryActor = { id: string; walletAddress: string; correlationId: string };
-const walletSelect = { id: true, address: true, network: true, status: true, verifiedAt: true, revokedAt: true } as const;
+const walletSelect = {
+  id: true, address: true, network: true, status: true, verifiedAt: true, revokedAt: true,
+  revocationReasonCode: true
+} as const;
 const investorSelect = {
   id: true, externalReference: true, displayName: true, type: true, countryCode: true,
   kycStatus: true, eligibilityStatus: true, eligibilityReasonCode: true, eligibilityReviewedAt: true,
@@ -136,6 +139,60 @@ export async function attachPendingWallet(database: PrismaClient, investorId: st
         correlationId: actor.correlationId, event: "INVESTOR_WALLET_ATTACHED", entityType: "Investor", entityId: investorId,
         metadataJson: { walletId: wallet.id, network: "SOLANA_LOCALNET", status: "PENDING" } } });
       return wallet;
+    }, { isolationLevel: "Serializable" });
+  } catch (error) { databaseError(error); }
+}
+
+const WALLET_REVOCATION_REASONS = new Set([
+  "OWNER_REQUEST", "SECURITY_CONCERN", "WALLET_REPLACEMENT", "REGISTRY_CORRECTION"
+]);
+
+export async function revokeInvestorWallet(
+  database: PrismaClient,
+  investorId: string,
+  walletId: string,
+  body: unknown,
+  actor: RegistryActor,
+  options: RegistryMutationOptions = registryMutationOptionsFromEnvironment()
+) {
+  if (!REGISTRY_UUID.test(investorId) || !REGISTRY_UUID.test(walletId)) {
+    invalid("Investor and wallet IDs must be UUIDs");
+  }
+  const input = payload(body, ["reasonCode"]);
+  const reasonCode = input["reasonCode"];
+  if (typeof reasonCode !== "string" || !WALLET_REVOCATION_REASONS.has(reasonCode)) {
+    invalid("Wallet revocation reason code is invalid");
+  }
+  try {
+    return await database.$transaction(async tx => {
+      await assertRegistryMutationAllowed(tx, options);
+      const wallet = await tx.wallet.findFirst({
+        where: { id: walletId, investorId },
+        select: walletSelect
+      });
+      if (!wallet) throw new InvestorRegistryError("WALLET_NOT_FOUND", "Investor wallet not found", 404);
+      if (wallet.status === "REVOKED" || wallet.revokedAt !== null) {
+        throw new InvestorRegistryError("WALLET_ALREADY_REVOKED", "Investor wallet has already been revoked", 409);
+      }
+      const previousStatus = wallet.status;
+      const changed = await tx.wallet.updateMany({
+        where: { id: walletId, investorId, status: previousStatus, revokedAt: null },
+        data: { status: "REVOKED", revokedAt: options.now, revocationReasonCode: reasonCode }
+      });
+      if (changed.count !== 1) {
+        throw new InvestorRegistryError("REGISTRY_CONFLICT", "Concurrent change; refresh before retrying", 409);
+      }
+      const revoked = await tx.wallet.findUniqueOrThrow({ where: { id: walletId }, select: walletSelect });
+      await tx.auditLog.create({ data: {
+        actorId: actor.id,
+        actorWallet: actor.walletAddress,
+        correlationId: actor.correlationId,
+        event: "INVESTOR_WALLET_REVOKED",
+        entityType: "Wallet",
+        entityId: walletId,
+        metadataJson: { investorId, previousStatus, reasonCode, network: wallet.network }
+      } });
+      return revoked;
     }, { isolationLevel: "Serializable" });
   } catch (error) { databaseError(error); }
 }

@@ -249,6 +249,7 @@ model Wallet {
   status          WalletStatus     @default(PENDING)
   verifiedAt      DateTime?        @map("verified_at") @db.Timestamptz(6)
   revokedAt       DateTime?        @map("revoked_at") @db.Timestamptz(6)
+  revocationReasonCode String?      @map("revocation_reason_code") @db.VarChar(50)
   createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   user            User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
   investor        Investor?        @relation(fields: [investorId], references: [id], onDelete: Restrict)

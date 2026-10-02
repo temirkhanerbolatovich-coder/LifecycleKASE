@@ -45,7 +45,7 @@ try {
   const { AppModule } = await import("../apps/api/dist/app.module.js");
   const { provisionOperator } = await import("../apps/api/dist/operator-provisioning.js");
   const { createInvestor } = await import("../apps/api/dist/investor-registry.js");
-  app = await NestFactory.create(AppModule, { logger: false });
+  app = await NestFactory.create(AppModule, { logger: process.env.REGISTRY_TEST_DEBUG === "1" ? ["error"] : false });
   app.setGlobalPrefix("api/v1");
   await app.listen(0, "127.0.0.1");
   const baseUrl = await app.getUrl();
@@ -200,6 +200,41 @@ try {
   });
   console.log("PASS one-time eligibility decision requires Administrator and persists reason/time/audit");
 
+  const revocationPath = `/investors/${investorId}/wallets/${attached.payload.id}/revoke`;
+  const revocation = { reasonCode: "WALLET_REPLACEMENT" };
+  assert.equal((await request(revocationPath, {
+    cookie: auditor.cookie, method: "POST", body: revocation
+  })).status, 403);
+  assert.equal((await request(revocationPath, {
+    cookie: administrator.cookie, method: "POST", body: revocation, requestOrigin: "https://untrusted.example"
+  })).status, 403);
+  assert.equal((await request(revocationPath, {
+    cookie: administrator.cookie, method: "POST", body: { reasonCode: "OTHER" }
+  })).status, 400);
+  const revoked = await request(revocationPath, {
+    cookie: administrator.cookie, method: "POST", body: revocation
+  });
+  assert.equal(revoked.status, 201);
+  assert.equal(revoked.payload.status, "REVOKED");
+  assert.equal(revoked.payload.revocationReasonCode, "WALLET_REPLACEMENT");
+  assert.ok(revoked.payload.revokedAt);
+  assert.equal((await request(revocationPath, {
+    cookie: administrator.cookie, method: "POST", body: revocation
+  })).status, 409);
+  const revocationAudit = await database.auditLog.findMany({
+    where: { entityId: attached.payload.id, event: "INVESTOR_WALLET_REVOKED" }
+  });
+  assert.equal(revocationAudit.length, 1);
+  assert.equal(revocationAudit[0].actorId, administrator.userId);
+  assert.equal(revocationAudit[0].correlationId, revoked.headers.get("x-correlation-id"));
+  assert.deepEqual(revocationAudit[0].metadataJson, {
+    investorId, previousStatus: "ACTIVE", reasonCode: "WALLET_REPLACEMENT", network: "SOLANA_LOCALNET"
+  });
+  const afterRevocation = await request("/investors", { cookie: auditor.cookie });
+  assert.equal(afterRevocation.payload.items[0].eligibilityStatus, "ELIGIBLE");
+  assert.equal(afterRevocation.payload.items[0].wallets[0].status, "REVOKED");
+  console.log("PASS wallet revocation is terminal, reasoned and audited without rewriting investor eligibility");
+
   for (const address of [attached.payload.address, administrator.walletAddress]) {
     assert.equal((await request(`/investors/${investorId}/wallets`, { cookie: administrator.cookie,
       method: "POST", body: { address } })).status, 409);
@@ -235,11 +270,18 @@ try {
   for (const data of [
     { network: "SOLANA_MAINNET", status: "PENDING" },
     { network: "SOLANA_LOCALNET", status: "ACTIVE" },
-    { network: "SOLANA_LOCALNET", status: "REVOKED" }
+    { network: "SOLANA_LOCALNET", status: "REVOKED", revocationReasonCode: "OWNER_REQUEST" }
   ]) {
     await assert.rejects(database.wallet.create({ data: { address: publicAddress(), investorId, ...data } }),
       error => error instanceof Error && /wallets_status_timeline_check/.test(error.message));
   }
+  await assert.rejects(database.wallet.create({ data: {
+    address: publicAddress(), investorId, network: "SOLANA_LOCALNET", status: "REVOKED", revokedAt: new Date()
+  } }), error => error instanceof Error && /wallets_revocation_reason_required_check/.test(error.message));
+  await assert.rejects(database.wallet.create({ data: {
+    address: publicAddress(), investorId, network: "SOLANA_LOCALNET", status: "PENDING",
+    revocationReasonCode: "OWNER_REQUEST"
+  } }), error => error instanceof Error && /wallets_revocation_reason_check/.test(error.message));
   const devnetCompatibility = await database.wallet.create({ data: {
     address: publicAddress(), investorId, network: "SOLANA_DEVNET", status: "PENDING"
   } });
@@ -264,6 +306,10 @@ try {
     cookie: administrator.cookie, method: "POST", body: lockInvestorInput
   });
   assert.equal(lockInvestor.status, 201);
+  const lockWallet = await request(`/investors/${lockInvestor.payload.id}/wallets`, {
+    cookie: administrator.cookie, method: "POST", body: { address: publicAddress() }
+  });
+  assert.equal(lockWallet.status, 201);
   const captureAsset = await database.settlementAsset.create({ data: {
     code: "KZT_TEST",
     name: "KZT-Test",
@@ -304,7 +350,14 @@ try {
   assert.equal((await request(`/investors/${lockInvestor.payload.id}/wallets`, {
     cookie: administrator.cookie, method: "POST", body: { address: publicAddress() }
   })).status, 409);
-  console.log("PASS snapshot capture window blocks eligibility and wallet-mapping mutations");
+  const lockedRevocation = await request(
+    `/investors/${lockInvestor.payload.id}/wallets/${lockWallet.payload.id}/revoke`, {
+      cookie: administrator.cookie, method: "POST", body: { reasonCode: "REGISTRY_CORRECTION" }
+    }
+  );
+  assert.equal(lockedRevocation.status, 409);
+  assert.equal(lockedRevocation.payload.code, "REGISTRY_CAPTURE_LOCKED");
+  console.log("PASS snapshot capture window blocks eligibility, wallet attachment and revocation");
 
   let limited;
   for (let attempt = 0; attempt < 50; attempt++) {

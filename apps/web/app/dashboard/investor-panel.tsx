@@ -5,7 +5,8 @@ type Investor = {
   id: string; displayName: string; externalReference: string | null; countryCode: string;
   kycStatus: string; eligibilityStatus: string; eligibilityReasonCode: string | null;
   eligibilityReviewedAt: string | null; _count: { wallets: number };
-  wallets: { id: string; address: string; status: string; network: string }[];
+  wallets: { id: string; address: string; status: string; network: string; revokedAt: string | null;
+    revocationReasonCode: string | null }[];
 };
 type Request = (path: string, init?: RequestInit) => Promise<Record<string, unknown>>;
 type VerificationChallenge = {
@@ -19,12 +20,22 @@ const STATUS_LABELS: Record<string, string> = {
   PENDING_REVIEW: "Ожидает проверки",
   ELIGIBLE: "Допущен",
   NOT_ELIGIBLE: "Не допущен",
-  SUSPENDED: "Приостановлен"
+  SUSPENDED: "Приостановлен",
+  BLOCKED: "Заблокирован",
+  REVOKED: "Отозван"
 };
 
 const REASON_LABELS: Record<string, string> = {
   DEMO_CRITERIA_MET: "Демо-критерии выполнены",
   DEMO_CRITERIA_NOT_MET: "Демо-критерии не выполнены",
+  LEGACY_STATUS_IMPORT: "Перенесено из прежней версии"
+};
+
+const REVOCATION_REASON_LABELS: Record<string, string> = {
+  OWNER_REQUEST: "По запросу владельца",
+  SECURITY_CONCERN: "Подозрение на компрометацию",
+  WALLET_REPLACEMENT: "Замена кошелька",
+  REGISTRY_CORRECTION: "Исправление записи реестра",
   LEGACY_STATUS_IMPORT: "Перенесено из прежней версии"
 };
 
@@ -56,6 +67,7 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
   const [message, setMessage] = useState("Загрузка реестра…");
   const [selected, setSelected] = useState("");
   const [eligibilityChoices, setEligibilityChoices] = useState<Record<string, string>>({});
+  const [revocationChoices, setRevocationChoices] = useState<Record<string, string>>({});
 
   async function load(cursor?: string, signal?: AbortSignal) {
     const result = await request(`/api/v1/investors?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, signal ? { signal } : undefined);
@@ -134,6 +146,26 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось сохранить решение по допуску.");
+    } finally { setBusy(false); }
+  }
+  async function revokeWallet(investorId: string, wallet: Investor["wallets"][number]) {
+    const reasonCode = revocationChoices[wallet.id];
+    if (!reasonCode) return;
+    if (!window.confirm(`Отозвать кошелёк ${shortAddress(wallet.address)}? Это действие нельзя отменить.`)) return;
+    setBusy(true);
+    try {
+      await request(`/api/v1/investors/${investorId}/wallets/${wallet.id}/revoke`, {
+        method: "POST", body: JSON.stringify({ reasonCode })
+      });
+      setRevocationChoices(previous => ({ ...previous, [wallet.id]: "" }));
+      try {
+        await load();
+        setMessage("Кошелёк отозван и больше не может использоваться для выплаты. Допуск инвестора автоматически не изменён.");
+      } catch {
+        setMessage("Кошелёк отозван, но список не обновился. Нажмите «Обновить»; не отправляйте отзыв повторно.");
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Не удалось отозвать кошелёк.");
     } finally { setBusy(false); }
   }
   async function verifyWallet(investorId: string, wallet: Investor["wallets"][number]) {
@@ -236,6 +268,25 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
                 <button type="button" className={`${buttonClass} mt-2 ${readyToVerify ? "border-[#163f2b] bg-[#163f2b] text-white" : "bg-white"}`}
                   disabled={busy || !readyToVerify} onClick={() => void verifyWallet(investor.id, wallet)}>{readyToVerify ? "Подтвердить владение" : "Ожидается нужный аккаунт Phantom"}</button>
               </div>}
+              {role === "ADMINISTRATOR" && wallet.status !== "REVOKED" && <div className="mt-3 border-t border-[#e3eae6] pt-3">
+                <p className="text-xs font-semibold text-[#7b3e28]">Отзыв кошелька</p>
+                <p className="mt-1 text-xs leading-5 text-[#61746a]">Необратимо запрещает использовать адрес для выплаты. Баланс адреса может остаться в snapshot для сверки; допуск инвестора автоматически не меняется.</p>
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                  <select className={`${inputClass} mt-0 sm:max-w-xs`} value={revocationChoices[wallet.id] ?? ""} disabled={busy}
+                    aria-label={`Причина отзыва ${shortAddress(wallet.address)}`}
+                    onChange={event => setRevocationChoices(previous => ({ ...previous, [wallet.id]: event.target.value }))}>
+                    <option value="">Выберите причину</option>
+                    <option value="OWNER_REQUEST">По запросу владельца</option>
+                    <option value="SECURITY_CONCERN">Подозрение на компрометацию</option>
+                    <option value="WALLET_REPLACEMENT">Замена кошелька</option>
+                    <option value="REGISTRY_CORRECTION">Исправление записи реестра</option>
+                  </select>
+                  <button type="button" className={`${buttonClass} border-[#9b4b32] bg-white text-[#7b3e28]`}
+                    disabled={busy || !revocationChoices[wallet.id]}
+                    onClick={() => void revokeWallet(investor.id, wallet)}>Отозвать кошелёк</button>
+                </div>
+              </div>}
+              {wallet.status === "REVOKED" && wallet.revocationReasonCode && <p className="mt-2 text-xs text-[#7b3e28]">Причина: {REVOCATION_REASON_LABELS[wallet.revocationReasonCode] ?? wallet.revocationReasonCode}{wallet.revokedAt ? ` · ${new Date(wallet.revokedAt).toLocaleString("ru-RU")}` : ""}</p>}
             </div>;
           })}
           {role === "ADMINISTRATOR" && investor.eligibilityStatus === "PENDING_REVIEW" && (() => {

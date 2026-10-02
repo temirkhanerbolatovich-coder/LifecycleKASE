@@ -295,6 +295,8 @@ Unique constraint: `(corporate_action_id, investor_id)`. Snapshot rows: Snapshot
 
 `Investor` хранит стабильный ID, display name, `INDIVIDUAL|INSTITUTIONAL`, ISO country code, KYC status, eligibility status и lifecycle status. `Wallet` хранит address, network, owner Investor ID, `PENDING|ACTIVE|BLOCKED|REVOKED`, verified/revoked timestamps. Admin auth wallets могут иметь User ID без Investor ID; для holder registry требуется именно Investor ID.
 
+Отзыв investor wallet — терминальный переход в `REVOKED` с фиксированным reason code, временем, actor/correlation audit и capture-window lock. Он не переписывает eligibility инвестора. Snapshot сохраняет баланс отозванного holder для сверки supply и исторического evidence, но current payout eligibility обязана отклонить wallet status, отличный от `ACTIVE`; автоматический перевод токенов не выполняется.
+
 Eligibility Engine принимает snapshot investor row, статус инвестора на effective finalized snapshot slot, статус его wallets и параметры инструмента. Он возвращает decision, reason и версию правила. Только `ELIGIBLE` допускается к исполнению; `PENDING_REVIEW` и `SUSPENDED` требуют ручного разрешения или нового action. Проверка receiver wallet выполняется непосредственно перед payout, чтобы отзыв кошелька после snapshot не приводил к выплате на него. Это не меняет уже зафиксированный snapshot.
 
 В demo дата eligibility трактуется как effective finalized snapshot slot/time (§2.6). Текущий mutable `Investor`/`Wallet` row не доказывает прошлый статус: до snapshot изменения registry замораживаются либо сохраняются append-only версии с effective time и actor. Wallet verification требует nonce-based доказательства контроля адреса; администраторский ввод адреса без подписи не делает его `verified`.

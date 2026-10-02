@@ -30,6 +30,9 @@ test("registry requires a session, keeps auditors read-only and checks mutation 
     await assert.rejects(controller.eligibility(investorId, {
       decision: "ELIGIBLE", reasonCode: "DEMO_CRITERIA_MET"
     }, request, response, "http://localhost:3000"), status(403));
+    await assert.rejects(controller.revokeWallet(investorId, investorId, {
+      reasonCode: "OWNER_REQUEST"
+    }, request, response, "http://localhost:3000"), status(403));
     role = "ISSUER_OPERATOR";
     await assert.rejects(controller.list(request, response), status(403));
     assert.equal(reads, 1);
@@ -39,6 +42,9 @@ test("registry requires a session, keeps auditors read-only and checks mutation 
     await assert.rejects(controller.create({ eligibilityStatus: "ELIGIBLE" }, request, response, "http://localhost:3000"), status(400));
     await assert.rejects(controller.eligibility(investorId, {
       decision: "ELIGIBLE", reasonCode: "DEMO_CRITERIA_NOT_MET"
+    }, request, response, "http://localhost:3000"), status(400));
+    await assert.rejects(controller.revokeWallet(investorId, investorId, {
+      reasonCode: "OTHER"
     }, request, response, "http://localhost:3000"), status(400));
     const headers = new Map<string, string>();
     const limited = new InvestorController(database, { consumeMutation() { throw new AuthRateLimitError(9); } } as unknown as AuthRateLimitService);

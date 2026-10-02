@@ -56,6 +56,8 @@ function errorMessage(payload: Record<string, unknown>, fallback: string): strin
       return "Сначала подтвердите хотя бы один кошелёк инвестора.";
     case "ELIGIBILITY_ALREADY_DECIDED":
       return "Решение по допуску уже принято. Обновите реестр.";
+    case "WALLET_ALREADY_REVOKED":
+      return "Кошелёк уже отозван. Обновите реестр.";
     default:
       return typeof payload["message"] === "string" ? payload["message"] : fallback;
   }
