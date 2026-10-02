@@ -4,7 +4,7 @@ import { SolanaSignAndSendTransaction, type SolanaSignAndSendTransactionFeature 
 import type { Wallet, WalletWithFeatures } from "@wallet-standard/base";
 import { StandardConnect, type StandardConnectFeature } from "@wallet-standard/features";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { transactionSignature, unsignedTransactionBytes, walletChainForCluster, type SupportedSnapshotCluster } from "./snapshot-workflow";
+import { transactionSignature, unsignedTransactionForSigner, walletChainForCluster, type SupportedSnapshotCluster } from "./snapshot-workflow";
 
 type Instrument = {
   id: string; name: string; ticker: string; network: string; status: string; issuerAuthority: string;
@@ -33,6 +33,7 @@ function deploymentPlan(value: Record<string, unknown>, instrument: Instrument, 
       value["requiredSigner"] !== walletAddress || instrument.issuerAuthority !== walletAddress) {
     throw new Error("Сервер вернул несовместимый план выпуска или другой issuer signer.");
   }
+  unsignedTransactionForSigner(result.serializedTransactionBase64, walletAddress);
   return result;
 }
 
@@ -86,7 +87,7 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
     setSendAttempted(true);
     setMessage("Проверьте транзакцию MINT_SETUP в Phantom. При неясном результате не отправляйте её повторно вслепую.");
     const [output] = await wallet.features[SolanaSignAndSendTransaction].signAndSendTransaction({
-      account, chain, transaction: unsignedTransactionBytes(plan.serializedTransactionBase64),
+      account, chain, transaction: unsignedTransactionForSigner(plan.serializedTransactionBase64, walletAddress),
       options: { preflightCommitment: "confirmed", skipPreflight: false }
     });
     if (!output) throw new Error("Кошелёк не вернул подпись. Проверьте историю Phantom.");

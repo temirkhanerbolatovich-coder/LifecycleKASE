@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { encodeBase58, isActionId, preparedSnapshot, requireFinalizedResponse, transactionSignature, unsignedTransactionBytes, walletChainForCluster } from "./snapshot-workflow.js";
+import { encodeBase58, isActionId, preparedSnapshot, requireFinalizedResponse, transactionSignature, unsignedTransactionBytes, unsignedTransactionForSigner, walletChainForCluster } from "./snapshot-workflow.js";
 
 const ACTION = "00000000-0000-4000-8000-000000000001";
 const OPERATION = "00000000-0000-4000-8000-000000000002";
@@ -34,9 +34,12 @@ test("rejects wrong network, signer, action, format and malformed review fields"
 test("rejects transaction fee payer differing from the session signer", () => {
   const payload = fixture();
   const wire = Buffer.from(payload.serializedTransactionBase64 as string, "base64");
+  assert.deepEqual([...unsignedTransactionForSigner(wire.toString("base64"), KEY)], [...wire]);
   wire[70] = 1;
   payload.serializedTransactionBase64 = wire.toString("base64");
   assert.throws(() => preparedSnapshot(payload, ACTION, KEY));
+  assert.throws(() => unsignedTransactionForSigner(wire.toString("base64"), KEY), /Fee payer/);
+  assert.throws(() => unsignedTransactionForSigner(fixture().serializedTransactionBase64 as string, "invalid"), /Fee payer/);
 });
 test("rejects signed, legacy, oversized and noncanonical transaction bytes", () => {
   const wire = Buffer.from(fixture().serializedTransactionBase64 as string, "base64");

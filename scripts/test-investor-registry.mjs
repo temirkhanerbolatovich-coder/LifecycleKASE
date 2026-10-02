@@ -8,11 +8,11 @@ import { NestFactory } from "@nestjs/core";
 import { encodePublicKey } from "@lifecycle-kase/solana-client";
 
 // No .env loading: never silently test against a staging/production database.
-const localUrl = new URL(process.env.REGISTRY_TEST_DATABASE_URL ??
+const localUrl = new URL(process.env.REGISTRY_TEST_DATABASE_URL ?? process.env.DATABASE_URL ??
   "postgresql://lifecycle_kase:local_development_only@[::1]:55432/lifecycle_kase?schema=public");
 if (localUrl.protocol !== "postgresql:" || !["localhost", "127.0.0.1", "[::1]"].includes(localUrl.hostname) ||
-    localUrl.pathname !== "/lifecycle_kase" || localUrl.port !== "55432") {
-  throw new Error("Registry tests require the local lifecycle_kase database on loopback port 55432");
+    localUrl.pathname !== "/lifecycle_kase" || !/^[0-9]{2,5}$/.test(localUrl.port)) {
+  throw new Error("Registry tests require the local lifecycle_kase database on an explicit loopback port");
 }
 const testDatabaseName = `registry_test_${randomUUID().replaceAll("-", "")}`;
 if (!/^registry_test_[0-9a-f]{32}$/.test(testDatabaseName)) throw new Error("Invalid test database name");

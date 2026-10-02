@@ -46,4 +46,4 @@ npm run prisma:generate
 
 `npm run test:database` runs transactional PostgreSQL checks, including snapshot-v2 child-row immutability. The third migration replaces a pre-MVP schema and aborts when domain records exist. Existing live records require an explicit conversion migration; no data is silently discarded.
 
-`npm run test:api:database` exercises the actual Prisma pending-snapshot write, nested rows, action version increment and duplicate rejection against local PostgreSQL, then removes only the records it created.
+`npm run test:api:database` requires a loopback PostgreSQL server with CREATE DATABASE permission. It creates a uniquely named disposable database, deploys every migration, exercises the actual Prisma pending-snapshot write, nested rows, action version increment, immutable audit and duplicate rejection, then drops only that disposable database. It never deletes audit rows from the normal local database. `API_TEST_DATABASE_URL`, or the CI-provided `DATABASE_URL`, may select another explicit loopback port but cannot point to a remote host or another base database.

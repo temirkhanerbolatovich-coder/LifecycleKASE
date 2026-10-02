@@ -35,7 +35,7 @@ jobs:
 
   repository-checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       DATABASE_PORT: "0"
     steps:
@@ -53,6 +53,12 @@ jobs:
 
       - name: Validate repository
         run: npm run check
+
+      - name: Audit deployed dependency graph
+        run: npm audit --omit=dev
+
+      - name: Build deployable workspaces
+        run: npm run build
 
       - name: Validate Compose configuration
         run: docker compose config --quiet
@@ -89,3 +95,6 @@ jobs:
 
       - name: Test API snapshot persistence
         run: npm run test:api:database
+
+      - name: Test authenticated registries and instrument drafts
+        run: npm run test:registry:database

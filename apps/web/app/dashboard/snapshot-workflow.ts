@@ -68,10 +68,20 @@ export function preparedSnapshot(payload: Record<string, unknown>, actionId: str
   }
   if (typeof payload.serializedTransactionBase64 !== "string") throw invalid();
   const plan = payload as PreparedSnapshot;
-  const bytes = unsignedTransactionBytes(plan.serializedTransactionBase64);
-  // The backend serializer uses one zeroed signature, a v0 message and a single fee-payer signer.
-  if (bytes[66] !== 1 || encodeBase58(bytes.slice(70, 102)) !== walletAddress) throw invalid();
+  try { unsignedTransactionForSigner(plan.serializedTransactionBase64, walletAddress); }
+  catch { throw invalid(); }
   return plan;
+}
+
+/** Validate the unsigned v0 wire transaction and its only required signer before opening a wallet prompt. */
+export function unsignedTransactionForSigner(base64: string, walletAddress: string): Uint8Array {
+  const bytes = unsignedTransactionBytes(base64);
+  // The backend serializer uses one zeroed signature, a v0 message and a single fee-payer signer.
+  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(walletAddress) || bytes[66] !== 1 ||
+      encodeBase58(bytes.slice(70, 102)) !== walletAddress) {
+    throw new Error("Fee payer транзакции не совпадает с выбранным кошельком.");
+  }
+  return bytes;
 }
 
 export function unsignedTransactionBytes(base64: string): Uint8Array {

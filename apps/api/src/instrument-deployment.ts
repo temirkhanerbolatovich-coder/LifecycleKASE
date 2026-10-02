@@ -18,6 +18,16 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const SIGNATURE = /^[1-9A-HJ-NP-Za-km-z]{64,88}$/;
 const CONFIRMABLE = ["PREPARED", "SUBMITTED", "UNKNOWN_CONFIRMATION"] as const;
 
+type StoredMintSetupAttempt = {
+  id: string;
+  status: string;
+  preparedTransactionBase64: string | null;
+  requiredSigner: string | null;
+  networkGenesisHash: string | null;
+  recentBlockhash: string | null;
+  lastValidBlockHeight: bigint | null;
+};
+
 export class InstrumentDeploymentError extends Error {
   constructor(public readonly code: string, message: string, public readonly status = 409) {
     super(message); this.name = "InstrumentDeploymentError";
@@ -67,6 +77,18 @@ function safeNumber(value: unknown, message = "Solana RPC numeric value is inval
   return value as number;
 }
 
+function preparedResponse(existing: StoredMintSetupAttempt, cluster: "localnet" | "devnet") {
+  if (!existing.preparedTransactionBase64 || !existing.requiredSigner || !existing.networkGenesisHash ||
+      !existing.recentBlockhash || existing.lastValidBlockHeight === null) {
+    throw new InstrumentDeploymentError("DEPLOYMENT_ATTEMPT_INVALID", "Stored mint setup attempt is incomplete");
+  }
+  return { operationId: existing.id, phase: "MINT_SETUP" as const, cluster,
+    requiredSigner: existing.requiredSigner, networkGenesisHash: existing.networkGenesisHash,
+    recentBlockhash: existing.recentBlockhash, lastValidBlockHeight: Number(existing.lastValidBlockHeight),
+    serializedTransactionBase64: existing.preparedTransactionBase64,
+    transactionFormat: "SOLANA_V0_WIRE_TRANSACTION_BASE64" as const, resumed: true };
+}
+
 async function planFor(database: PrismaClient, rpc: SolanaRpc, instrumentId: string, actor: InstrumentActor, options: InstrumentDeploymentOptions) {
   if (!UUID.test(instrumentId)) throw new InstrumentDeploymentError("INVALID_REQUEST", "Instrument identifier is invalid", 400);
   const instrument = await database.instrument.findUnique({ where: { id: instrumentId }, include: { settlementAsset: true } });
@@ -97,11 +119,7 @@ export async function prepareInstrumentMintSetup(database: PrismaClient, rpc: So
         !existing.recentBlockhash || existing.lastValidBlockHeight === null) throw new InstrumentDeploymentError("DEPLOYMENT_ATTEMPT_INVALID", "Stored mint setup attempt is incomplete");
     const lastValidBlockHeight = Number(existing.lastValidBlockHeight);
     if (existing.status !== "PREPARED" || safeNumber(await rpc.request("getBlockHeight", [{ commitment: "finalized" }])) <= lastValidBlockHeight) {
-      return { operationId: existing.id, phase: "MINT_SETUP" as const, cluster: options.cluster,
-        requiredSigner: existing.requiredSigner, networkGenesisHash: existing.networkGenesisHash,
-        recentBlockhash: existing.recentBlockhash, lastValidBlockHeight,
-        serializedTransactionBase64: existing.preparedTransactionBase64, transactionFormat: "SOLANA_V0_WIRE_TRANSACTION_BASE64" as const,
-        resumed: true };
+      return preparedResponse(existing, options.cluster);
     }
     await database.blockchainTransaction.updateMany({ where: { id: existing.id, status: "PREPARED" },
       data: { status: "FAILED", lastErrorCode: "BLOCKHASH_EXPIRED" } });
@@ -114,17 +132,27 @@ export async function prepareInstrumentMintSetup(database: PrismaClient, rpc: So
   if (typeof recentBlockhash !== "string") throw new InstrumentDeploymentError("INVALID_RPC_RESPONSE", "Latest blockhash is invalid", 503);
   const serializedTransactionBase64 = serializeUnsignedInstructionsTransaction({ instructions: plan.instructions,
     feePayer: actor.walletAddress, recentBlockhash, lastValidBlockHeight });
-  const operation = await database.$transaction(async transaction => {
-    const row = await transaction.blockchainTransaction.create({ data: { instrumentId, operationType: "INSTRUMENT_MINT_SETUP",
-      status: "PREPARED", recentBlockhash, lastValidBlockHeight: BigInt(lastValidBlockHeight), requiredSigner: actor.walletAddress,
-      networkGenesisHash: options.expectedGenesisHash, preparedTransactionBase64: serializedTransactionBase64 } });
-    await transaction.auditLog.create({ data: { actorId: actor.id, actorWallet: actor.walletAddress,
-      event: "INSTRUMENT_MINT_SETUP_PREPARED", entityType: "BlockchainTransaction", entityId: row.id,
-      correlationId: actor.correlationId, blockchainTransactionId: row.id,
-      metadataJson: { instrumentId, bondMint: plan.bondMint, settlementMint: plan.settlementMint,
-        treasuryTokenAccount: plan.treasuryTokenAccount, totalSupply: "35", onChain: false } } });
-    return row;
-  });
+  let operation: { id: string };
+  try {
+    operation = await database.$transaction(async transaction => {
+      const row = await transaction.blockchainTransaction.create({ data: { instrumentId, operationType: "INSTRUMENT_MINT_SETUP",
+        status: "PREPARED", recentBlockhash, lastValidBlockHeight: BigInt(lastValidBlockHeight), requiredSigner: actor.walletAddress,
+        networkGenesisHash: options.expectedGenesisHash, preparedTransactionBase64: serializedTransactionBase64 } });
+      await transaction.auditLog.create({ data: { actorId: actor.id, actorWallet: actor.walletAddress,
+        event: "INSTRUMENT_MINT_SETUP_PREPARED", entityType: "BlockchainTransaction", entityId: row.id,
+        correlationId: actor.correlationId, blockchainTransactionId: row.id,
+        metadataJson: { instrumentId, bondMint: plan.bondMint, settlementMint: plan.settlementMint,
+          treasuryTokenAccount: plan.treasuryTokenAccount, totalSupply: "35", onChain: false } } });
+      return row;
+    });
+  } catch (error) {
+    const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+    if (code !== "P2002") throw error;
+    const concurrent = await database.blockchainTransaction.findFirst({ where: { instrumentId,
+      operationType: "INSTRUMENT_MINT_SETUP", status: { in: [...CONFIRMABLE] } }, orderBy: { createdAt: "desc" } });
+    if (!concurrent) throw error;
+    return preparedResponse(concurrent, options.cluster);
+  }
   return { operationId: operation.id, phase: "MINT_SETUP" as const, cluster: options.cluster,
     requiredSigner: actor.walletAddress, networkGenesisHash: options.expectedGenesisHash, recentBlockhash,
     lastValidBlockHeight, serializedTransactionBase64, transactionFormat: "SOLANA_V0_WIRE_TRANSACTION_BASE64" as const,

@@ -64,3 +64,34 @@ test("prepares and audits an exact unsigned mint setup without changing the inst
   assert.equal(created[1]?.["event"], "INSTRUMENT_MINT_SETUP_PREPARED");
   assert.equal(calls.filter(call => call.method === "getAccountInfo").length, 3);
 });
+
+test("resumes the winning mint setup attempt when concurrent prepare hits the active-attempt constraint", async () => {
+  const instrumentId = "00000000-0000-4000-8000-000000000002";
+  const operationId = "00000000-0000-4000-8000-000000000004";
+  const actor = { id: "00000000-0000-4000-8000-000000000001", walletAddress: KEY,
+    correlationId: "00000000-0000-4000-8000-000000000003" };
+  let reads = 0;
+  const stored = { id: operationId, status: "PREPARED", preparedTransactionBase64: Buffer.alloc(200).toString("base64"),
+    requiredSigner: KEY, networkGenesisHash: KEY, recentBlockhash: KEY, lastValidBlockHeight: 9n };
+  const database = {
+    blockchainTransaction: { findFirst: async () => ++reads === 1 ? null : stored },
+    instrument: { findUnique: async () => ({ id: instrumentId, status: "DRAFT", mintAddress: null,
+      issuerAuthority: KEY, totalSupply: 35n, circulatingSupply: 0n, settlementAsset: { mintAddress: null } }) },
+    $transaction: async () => { throw Object.assign(new Error("unique"), { code: "P2002" }); }
+  };
+  const rpc = { request: async (method: string, params: readonly unknown[]) => {
+    if (method === "getGenesisHash") return KEY;
+    if (method === "getMinimumBalanceForRentExemption") return params[0] === 202 ? 2_000_000 : 1_500_000;
+    if (method === "getAccountInfo") return { value: null };
+    if (method === "getLatestBlockhash") return { value: { blockhash: KEY, lastValidBlockHeight: 9 } };
+    throw new Error(`unexpected RPC method ${method}`);
+  } };
+
+  const result = await prepareInstrumentMintSetup(database as never, rpc, instrumentId, actor, {
+    cluster: "localnet", rpcEndpoint: "http://127.0.0.1:8899", rpcTimeoutMs: 15_000,
+    expectedGenesisHash: KEY, programId: PROGRAM
+  });
+  assert.equal(result.operationId, operationId);
+  assert.equal(result.resumed, true);
+  assert.equal(reads, 2);
+});
