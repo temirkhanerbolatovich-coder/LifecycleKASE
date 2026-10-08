@@ -22,8 +22,11 @@ Scaffold validation now requires 32 paths, including the scanner configuration a
 - `cargo +1.98.1 clippy -p lifecycle_kase --all-targets --locked --features devnet -- -D warnings`: passed in WSL.
 - Gitleaks full-history scan: 71 existing commits passed after the narrow public-address exceptions. Additional staged changes are scanned before publication.
 - Disposable scanner acceptance: exact public-address fixtures pass; a random synthetic generic API key in a reviewed test file is rejected even with an inline allow comment; the same public issuer value outside its reviewed paths is also rejected.
+- Final documentation pass: 32 required paths and links/fences in 62 Markdown files passed; staged diff checks passed. After publication, a fresh full-history scan passed all 72 commits.
 
-The new GitHub CI run is a separate publication check. The previously verified Render application remains `adc0cff`; this batch does not deploy an application release or change saved Render service settings. The Blueprint command is behaviorally equivalent to the existing saved domain/client/web sequence.
+Implementation commit `d7b8ae11a733bc76f3428495301ec05aee9746b1` was pushed to GitHub. [CI run 37839415452](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/actions/runs/37839415452) completed successfully: secret-checks, program-checks and repository-checks all passed, including the new clean-build and Devnet-Clippy steps. This is separate from the local checks above.
+
+The previously verified Render application remains `adc0cff`; this batch does not deploy an application release or change saved Render service settings. The Blueprint command is behaviorally equivalent to the existing saved domain/client/web sequence. No new Render revision or financial operation is claimed.
 
 ## Remaining work
 

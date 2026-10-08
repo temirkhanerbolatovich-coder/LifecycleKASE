@@ -8,7 +8,7 @@ Continuation reviewed: 2026-10-07. [Recovery and candidate evidence](../testing/
 Owner-approved active mode: local MVP first. Public Devnet funding/deployment is deferred until MVP approval under [ADR-014](../decisions/ADR-014-local-mvp-before-public-network.md); numbered network stages below are retained as later gates, not current blockers.
 The [implementation status](../IMPLEMENTED_VS_SIMULATED.md) and [requirements](../requirements/PRODUCT_REQUIREMENTS.md) remain authoritative for current evidence and target scope.
 
-2026-10-09 quick delivery batch: six subitems are completed and locally verified in the [follow-up record](../testing/quick-wins-2026-10-09.md): data-flow/security/testing documentation, full-history secret CI, Devnet Clippy CI and clean service-order web build CI. These partially advance rows 14 and 16 below; financial and owner-signature gates remain open.
+2026-10-09 quick delivery batch: six subitems are completed and locally verified in the [follow-up record](../testing/quick-wins-2026-10-09.md): data-flow/security/testing documentation, full-history secret CI, Devnet Clippy CI and clean service-order web build CI. Implementation commit `d7b8ae1` passed all three jobs in GitHub CI run `37839415452`. These partially advance rows 14 and 16 below; financial and owner-signature gates remain open.
 
 ## Ordered stages
 
