@@ -97,4 +97,6 @@ Render API deploy `dep-db3vfn7f3r2c73do5vv0` and web deploy `dep-db3vfhqd0e5s73f
 
 ## Next concrete action
 
+Follow-up: a bounded [quick delivery batch](testing/quick-wins-2026-10-09.md) completed current data-flow/security/testing documentation, a full-history secret CI gate, Devnet Clippy and a clean standalone web-build gate. The 238-test check, proxy, production audit, clean build and new Clippy/scanner checks passed locally. This advances engineering subitems; the financial priorities below remain pending.
+
 After repository publication and rollout verification, prepare a reviewable Phantom-compatible owner-program upgrade procedure. Do not combine it with funding, approval, or payment. The first owner-chain acceptance after the upgrade should be entitlement REGISTER/FINALIZE with exact transaction, account, database, and audit reconciliation.

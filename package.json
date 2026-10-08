@@ -17,6 +17,7 @@
     "monitor:telegram": "node scripts/telegram-monitor.mjs",
     "test:telegram": "node --test test/telegram-monitor.test.mjs",
     "build": "npm run build --workspaces --if-present",
+    "build:web": "npm run build --workspace @lifecycle-kase/domain && npm run build --workspace @lifecycle-kase/solana-client && npm run build --workspace @lifecycle-kase/web",
     "check": "npm run validate && npm run prisma:validate && npm run typecheck && npm test",
     "check:toolchain": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-toolchain.ps1",
     "devnet:preflight": "npm run build --workspace @lifecycle-kase/solana-client && node scripts/check-devnet-readiness.mjs",

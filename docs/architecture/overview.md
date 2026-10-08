@@ -1,7 +1,7 @@
 # Architecture overview
 
 Status: live Localnet issuance/snapshot, local calculation/review and coupon funding; execution remains pending
-Last updated: 2026-10-08
+Last updated: 2026-10-09
 
 ## Components
 
@@ -24,7 +24,7 @@ The [administrator Telegram watchdog](../features/telegram-monitoring.md) runs i
 3. The API returns an unsigned transaction with expected accounts and constraints.
 4. The administrator wallet signs the transaction. Devnet submission remains wallet-owned; for Localnet instrument/action/snapshot workflows the API verifies and broadcasts only the exact signed prepared bytes through its configured loopback RPC.
 5. The API confirms the signature at `finalized`, reads the resulting accounts, and updates PostgreSQL projections.
-6. Reconciliation detects and reports any divergence between PostgreSQL and Solana.
+6. Each implemented confirmation checks its expected accounts before atomically saving the projection and audit. Full settlement reconciliation, durable watchers and reindex remain pending.
 
 Snapshot construction is a special case: the API reads Token-2022 accounts at the current finalized slot, creates canonical JSON, computes SHA-256, persists the payload, and commits the hash and slot on-chain. Historical reconstruction is intentionally unsupported in the MVP.
 
@@ -53,3 +53,5 @@ The separate Localnet coupon funding service validates stored calculations, ACTI
 The accepted decisions are indexed in [Architecture decisions](../decisions/README.md).
 
 The current relational model and its remaining migration-level guarantees are described in [Persistence architecture](persistence.md).
+
+Detailed flows and proof limits are in [Data flow](data-flow.md); security controls and validation layers are in the [security model](../security/security-model.md) and [testing strategy](../testing/testing-strategy.md).

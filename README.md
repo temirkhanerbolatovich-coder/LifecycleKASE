@@ -23,6 +23,9 @@ The binding requirements are:
 - [Solana toolchain setup](docs/development/toolchain.md)
 - [Domain contracts and test vectors](docs/testing/domain-contracts.md)
 - [Persistence architecture](docs/architecture/persistence.md)
+- [Data flow and evidence boundaries](docs/architecture/data-flow.md)
+- [Security model and remaining controls](docs/security/security-model.md)
+- [Testing strategy and acceptance levels](docs/testing/testing-strategy.md)
 - [Implemented, simulated, and pending scope](docs/IMPLEMENTED_VS_SIMULATED.md)
 - [Current full project audit](docs/PROJECT_AUDIT_2026-10-09.md)
 - [Disposable Render staging deployment](docs/deployment/render-staging.md)
@@ -61,6 +64,7 @@ npm run check:toolchain
 
 ```powershell
 npm install
+npm run build:web
 npm run check
 docker compose up -d postgres
 npm run prisma:migrate:deploy

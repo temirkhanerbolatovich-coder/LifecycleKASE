@@ -1,0 +1,20 @@
+title = "LifecycleKASE secret scanning"
+
+[extend]
+useDefault = true
+
+# These are public Solana addresses, not credentials. Keep exceptions constrained
+# by rule, exact extracted value and the reviewed test paths, including history.
+[[allowlists]]
+description = "Public issuer address used in deterministic transaction tests"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^(apps/api/src/(onchain-entitlements|instrument-deployment)|packages/solana-client/src/entitlement-registration)\.test\.ts$''']
+regexes = ['''^5Nn5WtR1dzVamAJYAheUBucFu6wUuJLbCUr2VwTTJzMM$''']
+
+[[allowlists]]
+description = "Public treasury token-account address asserted by the mint setup test"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^packages/solana-client/src/instrument-mint-setup\.test\.ts$''']
+regexes = ['''^FbCaQHM2nCe1gLoqBLciC86socdSmHvnN9MiiFa8t2Mj$''']
