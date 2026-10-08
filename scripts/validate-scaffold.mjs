@@ -36,6 +36,8 @@ const requiredPaths = [
   "programs/lifecycle_kase/README.md",
   "scripts/test-solana-validator.ps1",
   "scripts/run-prisma.mjs",
+  "scripts/check-owner-upgrade.mjs",
+  "docs/deployment/owner-localnet-upgrade-plan.json",
   "tsconfig.base.json"
 ];
 

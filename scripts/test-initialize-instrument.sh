@@ -132,19 +132,26 @@ if [[ -n "$upgrade_candidate_path" ]]; then
             fi
             sleep 0.2
         done
-        if solana program deploy \
+        solana-keygen new --no-bip39-passphrase --silent --outfile "$run_path/buffer.json" >/dev/null 2>&1
+        buffer_pubkey="$(solana-keygen pubkey "$run_path/buffer.json")"
+        if solana program write-buffer \
             --url "http://$wsl_ip:$rpc_port" \
             --ws "ws://$wsl_ip:$((rpc_port + 1))" \
             --commitment finalized \
             --use-rpc \
             --keypair "$run_path/admin.json" \
             --fee-payer "$run_path/admin.json" \
-            --upgrade-authority "$run_path/admin.json" \
-            --program-id "$program_id" \
+            --buffer "$run_path/buffer.json" \
+            --buffer-authority "$run_path/admin.json" \
             --output json \
             "$upgrade_candidate_path" \
             >"$run_path/upgrade.stdout.log" \
-            2>"$run_path/upgrade.stderr.log"; then
+            2>"$run_path/upgrade.stderr.log" && \
+            node.exe "$(wslpath -w "$repo_root/tools/solana-integration/upgrade-program.mjs")" \
+                "http://$wsl_ip:$rpc_port" "$(wslpath -w "$run_path/admin.json")" \
+                "$program_id" "$buffer_pubkey" "$(wslpath -w "$upgrade_candidate_path")" \
+                >>"$run_path/upgrade.stdout.log" 2>>"$run_path/upgrade.stderr.log"; then
+            cat "$run_path/upgrade.stdout.log"
             touch "$run_path/upgrade.success"
         else
             touch "$run_path/upgrade.failed"
@@ -167,16 +174,17 @@ while ((SECONDS < deadline)); do
         "http://$wsl_ip:$rpc_port" 2>/dev/null \
         | grep -Eq '"result"[[:space:]]*:[[:space:]]*"ok"'; then
         cd "$repo_root"
+        client_status=0
         node.exe "$(wslpath -w "$repo_root/tools/solana-integration/test-initialize-instrument.mjs")" \
             "http://$wsl_ip:$rpc_port" "$(wslpath -w "$run_path/admin.json")" "$(wslpath -w "$idl_path")" \
-            "$([[ -n "$upgrade_candidate_path" ]] && wslpath -w "$run_path" || true)"
+            "$([[ -n "$upgrade_candidate_path" ]] && wslpath -w "$run_path" || true)" || client_status=$?
         if [[ -f "$run_path/upgrade.failed" ]]; then
             echo "Disposable program upgrade failed:" >&2
             sed -n '1,120p' "$run_path/upgrade.stdout.log" >&2
             sed -n '1,120p' "$run_path/upgrade.stderr.log" >&2
             exit 1
         fi
-        exit 0
+        exit "$client_status"
     fi
     sleep 0.5
 done

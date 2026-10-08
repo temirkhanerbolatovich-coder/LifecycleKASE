@@ -30,6 +30,7 @@ The binding requirements are:
 - [Current full project audit](docs/PROJECT_AUDIT_2026-10-09.md)
 - [Disposable Render staging deployment](docs/deployment/render-staging.md)
 - [Ordered Devnet-to-MVP checklist and read-only preflight](docs/deployment/DEVNET_TO_MVP_CHECKLIST.md)
+- [Owner Localnet upgrade package and read-only program preflight](docs/deployment/owner-localnet-program-upgrade.md)
 
 ## Repository layout
 

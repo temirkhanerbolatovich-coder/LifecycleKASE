@@ -1,0 +1,15 @@
+{
+  "cluster": "localnet",
+  "rpcUrl": "http://127.0.0.1:8899",
+  "expectedGenesisHash": "B8qepCnZ7JrtzYcH65m3Eqc6Uwp8DPE9NMYhXberNqhF",
+  "programId": "6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo",
+  "programData": "7NagSKwRazhqVzfPm6wYJbMAUsb5Gaovz4AM5UpADukF",
+  "upgradeAuthority": "5Nn5WtR1dzVamAJYAheUBucFu6wUuJLbCUr2VwTTJzMM",
+  "retainedArtifact": "target/deploy/lifecycle_kase.so",
+  "retainedBytes": 290136,
+  "retainedSha256": "cd502cfd217036548700c334b472b544ee7275ef1585870e4268bb34492e049b",
+  "candidateArtifact": "generated/localnet-candidate-reset-20261008/lifecycle_kase.so",
+  "candidateBytes": 344640,
+  "candidateSha256": "62562a427b9da9af9c7c2ac0976b073484b40bf9a48ad2b5f9af6b1d556ca05d",
+  "feeReserveLamports": 5000000
+}

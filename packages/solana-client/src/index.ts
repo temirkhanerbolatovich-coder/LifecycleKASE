@@ -6,6 +6,7 @@ export * from "./holder-registry.js";
 export * from "./instrument-distribution.js";
 export * from "./instrument-lifecycle.js";
 export * from "./instrument-mint-setup.js";
+export * from "./program-upgrade.js";
 export * from "./rpc.js";
 export * from "./snapshot-registration.js";
 export * from "./snapshot-confirmation.js";

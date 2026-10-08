@@ -10,6 +10,8 @@ The [implementation status](../IMPLEMENTED_VS_SIMULATED.md) and [requirements](.
 
 2026-10-09 quick delivery batch: six subitems are completed and locally verified in the [follow-up record](../testing/quick-wins-2026-10-09.md): data-flow/security/testing documentation, full-history secret CI, Devnet Clippy CI and clean service-order web build CI. Implementation commit `d7b8ae1` passed all three jobs in GitHub CI run `37839415452`. These partially advance rows 14 and 16 below; financial and owner-signature gates remain open.
 
+2026-10-09 owner-upgrade preparation: pinned program manifest, read-only `localnet:upgrade:preflight` and single-signer EXTEND/UPGRADE phase builders are implemented. Fresh owner read-back matches retained/candidate hashes and requires 54504 additional bytes; funding remains unsigned. The loader requires separate transactions and a later finalized slot between phases. The [signing procedure](owner-localnet-program-upgrade.md) and [ADR-021](../decisions/ADR-021-phantom-localnet-program-upgrade.md) distinguish this preparation from pending authenticated signing/attempt/audit integration, buffer staging and actual owner upgrade. No owner signing gate is closed by preflight.
+
 ## Ordered stages
 
 1. **Deployment preparation**
@@ -83,7 +85,7 @@ Production/mainnet, real KYC/bank/KASE integration, legal issuance, multisig gov
 | --- | --- | --- |
 | 0 | Audit repository/specs/tests, GitHub/Render and preserved owner checkpoint; distinguish fixture/runtime/owner evidence | Audit completed; refresh evidence for each stage |
 | 1 | Fix deployable dependency gate and unsigned funding recovery; restore/backup owner environment | Code/checks and DB restore complete; Phantom recovery acceptance pending; isolated legacy tool advisories remain |
-| 2 | Entitlement PDA + full calculation reconciliation; exact-message API/UI preparation/confirmation and safe recovery | Program/client/API/UI and pre-review RESET pass disposable-validator acceptance; owner upgrade package and old→new dry-run complete; Phantom signing procedure and live owner acceptance pending |
+| 2 | Entitlement PDA + full calculation reconciliation; exact-message API/UI preparation/confirmation and safe recovery | Program/client/API/UI and pre-review RESET pass disposable-validator acceptance; owner manifest/read-only preflight and separate EXTEND/UPGRADE plans are implemented. Authenticated upgrade signing with persisted attempts/audit, buffer staging, Phantom owner upgrade and owner entitlement acceptance remain pending |
 | 3 | Explicit approver authority and action-specific funded reserve; separate calculation/review/funding facts | Pending; must precede payout. An issuer treasury balance cannot fund two open actions simultaneously |
 | 4 | Coupon: 500/1000/250, three finalized exact payments, no burn, atomic record/counters and replay denial | Pending; owner funding signature also deferred |
 | 5 | Maturity: current source balances, atomic payment/full burn, supply 0, REDEEMED only after all records | Pending; accelerated disposable demo needed; preserve existing dates/ledger |

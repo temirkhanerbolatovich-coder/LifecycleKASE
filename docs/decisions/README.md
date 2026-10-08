@@ -20,3 +20,4 @@
 - [ADR-018: Exact wallet-signed Localnet coupon treasury funding](ADR-018-localnet-coupon-funding.md)
 - [ADR-019: Immutable on-chain calculations before approval](ADR-019-on-chain-calculation-registration.md)
 - [ADR-020: Independent outbound Telegram watchdog](ADR-020-independent-telegram-monitor.md)
+- [ADR-021: Phased Phantom Localnet loader upgrade](ADR-021-phantom-localnet-program-upgrade.md)
