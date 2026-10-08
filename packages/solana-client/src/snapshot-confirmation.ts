@@ -1,6 +1,6 @@
-import { createHash } from "node:crypto";
+import { createHash, createPublicKey, verify } from "node:crypto";
 
-import { getSignatureFromTransaction, getTransactionDecoder, signature } from "@solana/kit";
+import { getBase58Encoder, getSignatureFromTransaction, getTransactionDecoder, signature } from "@solana/kit";
 
 import { decodePublicKey, encodePublicKey } from "./base58.js";
 
@@ -52,6 +52,36 @@ export function verifyFinalizedTransaction(input: {
 }
 
 export const verifyFinalizedSnapshotTransaction = verifyFinalizedTransaction;
+
+/** Validates a wallet-signed wire transaction before a trusted RPC broadcasts it. */
+export function verifySignedPreparedTransaction(input: {
+  expectedUnsignedTransactionBase64: string;
+  signedTransactionBase64: string;
+  requiredSigner: string;
+}): string {
+  const decoder = getTransactionDecoder();
+  const signed = decoder.decode(decodeBase64(input.signedTransactionBase64, "Signed transaction"));
+  const transactionSignature = getSignatureFromTransaction(signed);
+  verifyFinalizedTransaction({
+    expectedUnsignedTransactionBase64: input.expectedUnsignedTransactionBase64,
+    finalizedTransactionBase64: input.signedTransactionBase64,
+    requiredSigner: input.requiredSigner,
+    signature: transactionSignature
+  });
+  const publicKey = createPublicKey({
+    key: Buffer.concat([
+      Buffer.from("302a300506032b6570032100", "hex"),
+      Buffer.from(decodePublicKey(input.requiredSigner))
+    ]),
+    format: "der",
+    type: "spki"
+  });
+  const signatureBytes = Buffer.from(getBase58Encoder().encode(transactionSignature));
+  if (signatureBytes.length !== 64 || !verify(null, Buffer.from(signed.messageBytes), publicKey, signatureBytes)) {
+    throw new Error("Signed transaction signature is invalid");
+  }
+  return transactionSignature;
+}
 
 function requireBytes(data: Buffer, offset: number, length: number): void {
   if (offset < 0 || length < 0 || offset + length > data.length) {

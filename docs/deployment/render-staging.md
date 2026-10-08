@@ -1,8 +1,26 @@
 # Disposable Render staging
 
-Status: disposable demo staging updated and health-verified on 2026-10-02. Earlier operator login was owner-accepted; authenticated browser flows were not repeated after this deployment. The historical entries below remain as an evidence trail.
+Status: the 2026-10-02 audit observed GitHub and both Live Render services at `112bdb1`. A 2026-10-09 pre-publication check still found that revision serving successfully. The current release candidate adds the Localnet action/snapshot/entitlement/funding workflows and monitoring described in the [current audit](../PROJECT_AUDIT_2026-10-09.md); its GitHub CI and Render rollout must be recorded separately after publication. Earlier operator login was owner-accepted; authenticated browser flows were not repeated in this audit. The historical entries below remain as an evidence trail.
 
-## Repository synchronization — 2026-10-02
+## 2026-10-09 pre-publication checkpoint
+
+Before publishing the current release candidate, GitHub `master` was still `112bdb14edd04fd0a76f153e627e14ebb857b850` and Actions run `36985707987` remained successful for that SHA. Render API liveness/readiness and web liveness/dashboard returned HTTP 200. These checks prove availability of the older published revision only. They do not prove the candidate routes, exact deployed SHA, authenticated wallet behavior, owner Localnet state, or any financial execution.
+
+The release candidate passed 238 JavaScript/TypeScript tests, production builds, the proxy suite, isolated PostgreSQL acceptance, both Rust profiles, and a disposable retained-to-candidate program upgrade. Next.js 16.4.0 leaves the root production dependency audit at zero. The isolated legacy Solana integration dependency graph still has 12 advisories and remains test-only. Post-publication GitHub Actions and Render rollout evidence are required before this candidate can be called deployed.
+
+## Recheck after 22:39 UTC+5 — 2026-10-02
+
+GitHub remote/API and both Render deployment pages still show `112bdb1`; current API/web deploys remain Live and Manual, without a newer deploy. The latest GitHub CI run and both jobs are successful for that published commit. The local working tree has additional issuance recovery, action/snapshot workflows and migration 17; none have been committed/pushed/deployed.
+
+Public API live/ready and web live/dashboard returned expected HTTP 200. Web session/instruments without a cookie returned 401 SESSION_REQUIRED. The new action-list route `/api/v1/corporate-actions` returned 404, consistent with its absence from the published version. Cold requests took 33–44 seconds; warm checks took 0.6–0.8 seconds. API deploy logs show successful migrations/build/startup; no direct SQL migration count was obtained. No environment secrets, session cookies, funding, push or deploy were performed. Localnet on the owner's computer remains separate from cloud staging; health/readiness does not prove a chain transaction.
+
+## Latest audit observation — 2026-10-02
+
+GitHub `master` and local HEAD were `112bdb14edd04fd0a76f153e627e14ebb857b850`; both jobs passed in [CI run 36985707987](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/actions/runs/36985707987). Render showed API deployment `dep-davmujk9v7es738ds4d0` and web deployment `dep-davmunrncjis73f0kvng` Live at that revision. Startup migration application and public health/readiness were observed; a direct SQL migration count was not verified. See the [project audit](../PROJECT_AUDIT_2026-10-02.md).
+
+The subsequent four-phase [Localnet issuance acceptance](../testing/localnet-instrument-acceptance.md) belongs to the local acceptance database and persistent validator. These fixes were not pushed or deployed to Render, and Render cannot reach the workstation's loopback validator.
+
+## Earlier repository synchronization — 2026-10-02
 
 GitHub `master` commit `6dd98fe170967e349bc675a651a476275c1829f8` passed both `repository-checks` and `program-checks` in [CI run 36966669189](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/actions/runs/36966669189). Render does not auto-deploy these Blueprint-managed services, so API and web were updated manually from that exact commit after CI succeeded.
 
@@ -12,7 +30,7 @@ Post-deploy public checks returned HTTP 200 with the expected JSON for web liven
 
 The `lifecyclekase-staging` Blueprint in the separate `LifecycleKASE` Hobby workspace deployed commit `626cc326800e0c84eff1796088a735cdee6e14e3` from `master`. Its initial sync created the free `lifecyclekase-staging-db`, `lifecyclekase-api`, and `lifecyclekase-web` resources without changing the separate VKO workspace.
 
-The last deployment whose revision was explicitly verified ran commit `635312c0334d33dad59e16e1518a284309d05977`. Both services were manually deployed from the existing master branch on 2026-09-30: web deployment `dep-daul7ql9fdbs739dc910` succeeded in 1m10s, and API deployment `dep-daul838u01pc7385pv6g` succeeded in 1m15s. The API includes the exact dashboard CORS origin, bounded single-instance auth/mutation limits and one trusted Render proxy hop while keeping operator authentication disabled. No pending migrations were reported in the API deployment log.
+The September 30 deployment whose revision was explicitly verified ran commit `635312c0334d33dad59e16e1518a284309d05977`. Both services were manually deployed from the existing master branch on 2026-09-30: web deployment `dep-daul7ql9fdbs739dc910` succeeded in 1m10s, and API deployment `dep-daul838u01pc7385pv6g` succeeded in 1m15s. The API includes the exact dashboard CORS origin, bounded single-instance auth/mutation limits and one trusted Render proxy hop while keeping operator authentication disabled. No pending migrations were reported in the API deployment log.
 
 The Devnet snapshot wallet UI was subsequently published in commit `dba8da2` on 2026-09-30. Local validation passed 85 tests, type/schema/docs checks, the production web build, and production HTTP smoke checks. The post-push public dashboard and API readiness requests each exceeded a 30-second timeout. This neither establishes the deployed revision nor diagnoses an outage; Render deployment status and new-version health still need verification. Authentication was not enabled, and no real wallet/Devnet acceptance was performed.
 

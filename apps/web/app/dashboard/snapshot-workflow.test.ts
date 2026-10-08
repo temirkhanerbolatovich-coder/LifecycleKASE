@@ -1,10 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { encodeBase58, isActionId, preparedSnapshot, requireFinalizedResponse, transactionSignature, unsignedTransactionBytes, unsignedTransactionForSigner, walletChainForCluster } from "./snapshot-workflow.js";
+import { encodeBase58, isActionId, preparedSnapshot, requireFinalizedResponse, resumedDeploymentSignature, signedPreparedTransaction, transactionSignature, unsignedTransactionBytes, unsignedTransactionForSigner, walletChainForCluster } from "./snapshot-workflow.js";
 
 const ACTION = "00000000-0000-4000-8000-000000000001";
 const OPERATION = "00000000-0000-4000-8000-000000000002";
 const KEY = "11111111111111111111111111111111";
+
+test("resumed signed deployments recover their signature and cannot become a new signing prompt", () => {
+  const signature = "2".repeat(64);
+  assert.equal(resumedDeploymentSignature({ resumed: false }), null);
+  assert.equal(resumedDeploymentSignature({ resumed: true, status: "PREPARED", signature: null }), null);
+  for (const status of ["SUBMITTED", "UNKNOWN_CONFIRMATION"]) {
+    assert.equal(resumedDeploymentSignature({ resumed: true, status, signature }), signature);
+  }
+  for (const payload of [
+    { resumed: true }, { resumed: true, status: "SUBMITTED", signature: null },
+    { resumed: true, status: "UNKNOWN_CONFIRMATION", signature: "invalid" },
+    { resumed: true, status: "PREPARED", signature }, { resumed: true, status: "FAILED", signature }
+  ]) assert.throws(() => resumedDeploymentSignature(payload), /повторная отправка остановлена/);
+});
 function fixture(): Record<string, unknown> {
   const wire = new Uint8Array(200);
   wire[0] = 1; wire[65] = 128; wire[66] = 1; wire[69] = 2;
@@ -58,6 +72,18 @@ test("encodes wallet signatures to base58 with leading zero preservation", () =>
   assert.equal(transactionSignature(signature), "1".repeat(63) + "2");
   assert.throws(() => transactionSignature(new Uint8Array(32)));
   assert.throws(() => transactionSignature(new Uint8Array(64)));
+});
+test("accepts only a signature over the exact prepared transaction", () => {
+  const unsignedBase64 = fixture().serializedTransactionBase64 as string;
+  const signed = Buffer.from(unsignedBase64, "base64");
+  signed.fill(7, 1, 65);
+  const result = signedPreparedTransaction(signed, unsignedBase64, KEY);
+  assert.equal(result.signedTransactionBase64, signed.toString("base64"));
+  assert.equal(result.signature, encodeBase58(signed.subarray(1, 65)));
+  const changed = Buffer.from(signed); changed[changed.length - 1]! ^= 1;
+  assert.throws(() => signedPreparedTransaction(changed, unsignedBase64, KEY), /изменил/);
+  signed.fill(0, 1, 65);
+  assert.throws(() => signedPreparedTransaction(signed, unsignedBase64, KEY), /подпись/);
 });
 test("submission is not treated as finalization; response must match operation and signature", () => {
   const response = { status: "FINALIZED", operationId: OPERATION, signature: "signed" };

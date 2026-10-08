@@ -1,4 +1,7 @@
 export * from "./base58.js";
+export * from "./corporate-action.js";
+export * from "./coupon-funding.js";
+export * from "./entitlement-registration.js";
 export * from "./holder-registry.js";
 export * from "./instrument-distribution.js";
 export * from "./instrument-lifecycle.js";

@@ -1,10 +1,12 @@
 "use client";
 
-import { SolanaSignAndSendTransaction, type SolanaSignAndSendTransactionFeature } from "@solana/wallet-standard-features";
+import { SolanaSignAndSendTransaction, type SolanaSignAndSendTransactionFeature,
+  SolanaSignTransaction, type SolanaSignTransactionFeature } from "@solana/wallet-standard-features";
 import type { Wallet, WalletWithFeatures } from "@wallet-standard/base";
 import { StandardConnect, type StandardConnectFeature } from "@wallet-standard/features";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { transactionSignature, unsignedTransactionForSigner, walletChainForCluster, type SupportedSnapshotCluster } from "./snapshot-workflow";
+import { resumedDeploymentSignature, signedPreparedTransaction, transactionSignature, unsignedTransactionForSigner, walletChainForCluster,
+  type SupportedSnapshotCluster } from "./snapshot-workflow";
 
 type Instrument = {
   id: string; name: string; ticker: string; network: string; status: string; issuerAuthority: string;
@@ -14,7 +16,8 @@ type Instrument = {
   settlementAsset: { code: string; name: string; mintAddress: string | null; disclaimer: string };
 };
 type Request = (path: string, init?: RequestInit) => Promise<Record<string, unknown>>;
-type TransactionWallet = WalletWithFeatures<StandardConnectFeature & SolanaSignAndSendTransactionFeature>;
+type SendingWallet = WalletWithFeatures<StandardConnectFeature & SolanaSignAndSendTransactionFeature>;
+type SigningWallet = WalletWithFeatures<StandardConnectFeature & SolanaSignTransactionFeature>;
 type DistributionAllocation = { investorId: string; walletAddress: string; tokenAccount: string; amount: string };
 type DistributionCandidate = { investorId: string; displayName: string; walletAddress: string };
 type DistributionDraft = { instrument: Instrument; candidates: DistributionCandidate[]; selections: Record<string, string> };
@@ -24,10 +27,15 @@ type DeploymentPlan = { operationId: string; phase: DeploymentPhase; cluster: Su
   bondMint?: string; settlementMint?: string; treasuryTokenAccount?: string; instrumentAddress?: string;
   allocations?: DistributionAllocation[] };
 
-function transactionWallet(wallet: Wallet | undefined, cluster: SupportedSnapshotCluster): wallet is TransactionWallet {
-  const feature = wallet?.features[SolanaSignAndSendTransaction] as SolanaSignAndSendTransactionFeature[typeof SolanaSignAndSendTransaction] | undefined;
-  return typeof feature?.signAndSendTransaction === "function" && feature.supportedTransactionVersions.includes(0) &&
-    wallet?.chains.includes(walletChainForCluster(cluster)) === true;
+function transactionWallet(wallet: Wallet | undefined, cluster: SupportedSnapshotCluster): boolean {
+  const connectFeature = wallet?.features[StandardConnect] as StandardConnectFeature[typeof StandardConnect] | undefined;
+  if (!wallet?.chains.includes(walletChainForCluster(cluster)) || typeof connectFeature?.connect !== "function") return false;
+  if (cluster === "localnet") {
+    const feature = wallet.features[SolanaSignTransaction] as SolanaSignTransactionFeature[typeof SolanaSignTransaction] | undefined;
+    return typeof feature?.signTransaction === "function" && feature.supportedTransactionVersions.includes(0);
+  }
+  const feature = wallet.features[SolanaSignAndSendTransaction] as SolanaSignAndSendTransactionFeature[typeof SolanaSignAndSendTransaction] | undefined;
+  return typeof feature?.signAndSendTransaction === "function" && feature.supportedTransactionVersions.includes(0);
 }
 
 function deploymentPlan(value: Record<string, unknown>, instrument: Instrument, walletAddress: string): DeploymentPlan {
@@ -99,12 +107,22 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
     finally { inFlight.current = false; setBusy(false); onBusyChange(false); }
   }
 
+  function acceptPreparedPlan(response: Record<string, unknown>, instrument: Instrument): boolean {
+    const prepared = deploymentPlan(response, instrument, walletAddress);
+    const previousSignature = resumedDeploymentSignature(response);
+    setPlan(prepared); setDeployInstrumentId(instrument.id); setSignature(previousSignature ?? "");
+    setReviewed(previousSignature !== null); setSendAttempted(previousSignature !== null);
+    return previousSignature !== null;
+  }
+
   async function prepareDeployment(instrument: Instrument) {
     const response = await request(`/api/v1/instruments/${instrument.id}/deploy/prepare`, {
       method: "POST", body: JSON.stringify({ phase: "MINT_SETUP" })
     });
-    const prepared = deploymentPlan(response, instrument, walletAddress);
-    setPlan(prepared); setDeployInstrumentId(instrument.id); setSignature(""); setReviewed(false); setSendAttempted(false);
+    if (acceptPreparedPlan(response, instrument)) {
+      setMessage("Восстановлена подписанная попытка. Повторите только проверку finalized; новая подпись не нужна.");
+      return;
+    }
     setMessage("Фаза MINT_SETUP подготовлена. Проверьте сеть и адреса перед подписью Phantom.");
   }
 
@@ -112,8 +130,10 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
     const response = await request(`/api/v1/instruments/${instrument.id}/deploy/prepare`, {
       method: "POST", body: JSON.stringify({ phase })
     });
-    const prepared = deploymentPlan(response, instrument, walletAddress);
-    setPlan(prepared); setDeployInstrumentId(instrument.id); setSignature(""); setReviewed(false); setSendAttempted(false);
+    if (acceptPreparedPlan(response, instrument)) {
+      setMessage("Восстановлена подписанная попытка. Повторите только проверку finalized; новая подпись не нужна.");
+      return;
+    }
     setMessage(phase === "INITIALIZE"
       ? "Фаза INITIALIZE подготовлена. Проверьте Instrument PDA и параметры перед подписью."
       : "Фаза ACTIVATE подготовлена после повторной проверки investor eligibility и балансов 10/20/5.");
@@ -154,27 +174,52 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
         walletAddress: distributionDraft.selections[amount], amount
       })) })
     });
-    const prepared = deploymentPlan(response, distributionDraft.instrument, walletAddress);
-    setPlan(prepared); setDeployInstrumentId(distributionDraft.instrument.id); setDistributionDraft(null);
-    setSignature(""); setReviewed(false); setSendAttempted(false);
+    const resumed = acceptPreparedPlan(response, distributionDraft.instrument);
+    setDistributionDraft(null);
+    if (resumed) {
+      setMessage("Восстановлена подписанная DISTRIBUTION. Повторите только проверку finalized; новая подпись не нужна.");
+      return;
+    }
     setMessage("Фаза DISTRIBUTION подготовлена. Проверьте три адреса и доли 10/20/5 перед подписью.");
   }
 
   async function sendDeployment() {
     if (!plan || !reviewed || sendAttempted || !transactionWallet(wallet, plan.cluster)) throw new Error("Нужен проверенный план и совместимый кошелёк транзакций v0.");
     const chain = walletChainForCluster(plan.cluster);
-    const connected = await wallet.features[StandardConnect].connect();
-    const account = connected.accounts.find(candidate => candidate.address === walletAddress && candidate.chains.includes(chain) && candidate.features.includes(SolanaSignAndSendTransaction));
+    const connected = await (wallet as WalletWithFeatures<StandardConnectFeature>).features[StandardConnect].connect();
+    const requiredFeature = plan.cluster === "localnet" ? SolanaSignTransaction : SolanaSignAndSendTransaction;
+    const account = connected.accounts.find(candidate => candidate.address === walletAddress &&
+      candidate.chains.includes(chain) && candidate.features.includes(requiredFeature));
     if (!account) throw new Error("Выбранный аккаунт Phantom не совпадает с issuer кошельком сессии.");
-    setSendAttempted(true);
     setMessage(`Проверьте транзакцию ${plan.phase} в Phantom. При неясном результате не отправляйте её повторно вслепую.`);
-    const [output] = await wallet.features[SolanaSignAndSendTransaction].signAndSendTransaction({
-      account, chain, transaction: unsignedTransactionForSigner(plan.serializedTransactionBase64, walletAddress),
+    const unsignedTransaction = unsignedTransactionForSigner(plan.serializedTransactionBase64, walletAddress);
+    if (plan.cluster === "localnet") {
+      const signingWallet = wallet as SigningWallet;
+      const [output] = await signingWallet.features[SolanaSignTransaction].signTransaction({
+        account, chain, transaction: unsignedTransaction, options: { preflightCommitment: "confirmed" }
+      });
+      if (!output) throw new Error("Кошелёк не вернул подписанную транзакцию.");
+      const signed = signedPreparedTransaction(output.signedTransaction, plan.serializedTransactionBase64, walletAddress);
+      setSignature(signed.signature); setSendAttempted(true);
+      const response = await request(`/api/v1/instruments/${deployInstrumentId}/deploy/submit`, {
+        method: "POST", body: JSON.stringify({ phase: plan.phase, operationId: plan.operationId,
+          signedTransactionBase64: signed.signedTransactionBase64 })
+      });
+      if (response["operationId"] !== plan.operationId || response["signature"] !== signed.signature ||
+          !["SUBMITTED", "FINALIZED"].includes(String(response["status"]))) {
+        throw new Error("API не подтвердил отправку точной подписанной транзакции.");
+      }
+      setMessage("Phantom подписал точный план, API отправил его в Localnet. Теперь подтвердите finalized и on-chain состояние.");
+      return;
+    }
+    const sendingWallet = wallet as SendingWallet;
+    const [output] = await sendingWallet.features[SolanaSignAndSendTransaction].signAndSendTransaction({
+      account, chain, transaction: unsignedTransaction,
       options: { preflightCommitment: "confirmed", skipPreflight: false }
     });
     if (!output) throw new Error("Кошелёк не вернул подпись. Проверьте историю Phantom.");
-    setSignature(transactionSignature(output.signature));
-    setMessage("Транзакция отправлена. Теперь отдельно подтвердите finalized через API.");
+    setSignature(transactionSignature(output.signature)); setSendAttempted(true);
+    setMessage("Транзакция отправлена кошельком. Теперь отдельно подтвердите finalized через API.");
   }
 
   async function confirmDeployment() {

@@ -1,5 +1,5 @@
 param(
-    [int]$RpcPort = 18899,
+    [ValidateRange(1, 65532)][int]$RpcPort = 18899,
     [int]$StartupTimeoutSeconds = 30,
     [string]$WslDistribution = "Ubuntu"
 )

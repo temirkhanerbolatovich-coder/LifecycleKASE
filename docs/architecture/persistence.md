@@ -1,7 +1,7 @@
 # Persistence architecture
 
-Status: schema foundation with guarded snapshot and instrument deployment attempts
-Last updated: 2026-10-02
+Status: guarded snapshot, issuance/action/funding attempts and stored entitlements/review
+Last updated: 2026-10-03
 
 ## Responsibility
 
@@ -25,6 +25,8 @@ It does not override Solana ownership, mint supply, program state, snapshot comm
 ## Immutability
 
 Every `MINT_SETUP`, `DISTRIBUTION`, `INITIALIZE` and `ACTIVATE` attempt is attached directly to an instrument. A database check requires its prepared wire transaction, signer and genesis hash, and partial unique indexes allow only one active attempt of each phase per instrument. Finalized confirmation compare-and-sets the attempt, instrument projection and audit atomically. `prepared_payload` retains the non-personal distribution/PDA evidence needed for later reconciliation.
+
+Migration 18 similarly requires action/instrument, signer/genesis and exact wire/payload for COUPON_FUNDING. Its partial unique index permits one unresolved attempt per issuer, including across instruments sharing that issuer. Preparation/finalization audit is atomic with the attempt. Funding leaves application approval and entitlements untouched; actual chain token history, not a saved treasury balance alone, proves the mint delta.
 
 A snapshot and all investor/wallet/token-account rows are first written atomically in `PENDING_REGISTRATION`. After finalized on-chain commitment verification, the snapshot moves to `FINALIZED`. PostgreSQL triggers then reject mutation or deletion of the snapshot and its child rows, and reject new child rows.
 

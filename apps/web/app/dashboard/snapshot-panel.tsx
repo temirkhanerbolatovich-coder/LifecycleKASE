@@ -1,24 +1,19 @@
 "use client";
 
-import { SolanaSignAndSendTransaction, type SolanaSignAndSendTransactionFeature } from "@solana/wallet-standard-features";
-import type { Wallet, WalletWithFeatures } from "@wallet-standard/base";
-import { StandardConnect, type StandardConnectFeature } from "@wallet-standard/features";
+import type { Wallet } from "@wallet-standard/base";
 import { useRef, useState } from "react";
-import { isActionId, preparedSnapshot, requireFinalizedResponse, transactionSignature, unsignedTransactionBytes, walletChainForCluster, type PreparedSnapshot, type SupportedSnapshotCluster } from "./snapshot-workflow";
+import { isActionId, preparedSnapshot, requireFinalizedResponse, resumedDeploymentSignature, walletChainForCluster, type PreparedSnapshot, type SupportedSnapshotCluster } from "./snapshot-workflow";
+import { signAndSubmitPrepared, supportsPreparedTransaction } from "./wallet-transaction";
+import { waitForFinalizedCheck } from "./finalized-check";
 
-type TransactionWallet = WalletWithFeatures<StandardConnectFeature & SolanaSignAndSendTransactionFeature>;
 type Props = {
   wallet: Wallet | undefined;
   walletAddress: string;
   request: (path: string, init?: RequestInit) => Promise<Record<string, unknown>>;
   onBusyChange: (busy: boolean) => void;
+  selectedActionId?: string;
+  onConfirmed?: () => void;
 };
-
-function transactionWallet(wallet: Wallet | undefined, cluster: SupportedSnapshotCluster): wallet is TransactionWallet {
-  const feature = wallet?.features[SolanaSignAndSendTransaction] as SolanaSignAndSendTransactionFeature[typeof SolanaSignAndSendTransaction] | undefined;
-  return typeof feature?.signAndSendTransaction === "function" && feature.supportedTransactionVersions.includes(0) &&
-    wallet?.chains.includes(walletChainForCluster(cluster)) === true;
-}
 
 function networkDescription(cluster: SupportedSnapshotCluster): string {
   return cluster === "localnet"
@@ -26,8 +21,8 @@ function networkDescription(cluster: SupportedSnapshotCluster): string {
     : "Devnet — публичная тестовая сеть; комиссия оплачивается тестовым SOL.";
 }
 
-export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange }: Props) {
-  const [actionId, setActionId] = useState("");
+export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange, selectedActionId, onConfirmed }: Props) {
+  const [actionId, setActionId] = useState(selectedActionId ?? "");
   const [plan, setPlan] = useState<PreparedSnapshot | null>(null);
   const [operationId, setOperationId] = useState("");
   const [signature, setSignature] = useState("");
@@ -52,34 +47,26 @@ export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange }: 
     if (!isActionId(actionId)) throw new Error("Введите корректный UUID корпоративного действия.");
     const response = await request(`/api/v1/corporate-actions/${actionId}/snapshot/prepare`, { method: "POST", body: "{}" });
     const prepared = preparedSnapshot(response, actionId, walletAddress);
+    const existingSignature = resumedDeploymentSignature(response);
     setPlan(prepared);
     setOperationId(prepared.operationId);
-    setSignature("");
-    setReviewed(false);
-    setSendAttempted(false);
+    setSignature(existingSignature ?? "");
+    setReviewed(existingSignature !== null);
+    setSendAttempted(existingSignature !== null);
     setFinalized(false);
-    setMessage("План подготовлен. Проверьте параметры и окно record date перед подписью.");
+    setMessage(existingSignature ? "Восстановлена подписанная попытка. Повторите только finalized-проверку." : "План подготовлен. Проверьте параметры и окно record date перед подписью.");
   }
 
   async function send() {
-    if (!plan || !reviewed || sendAttempted || !transactionWallet(wallet, plan.cluster)) {
+    if (!plan || !reviewed || sendAttempted || !supportsPreparedTransaction(wallet, plan.cluster)) {
       throw new Error("Нужен проверенный план и кошелёк с поддержкой его сети и транзакций v0.");
     }
-    const chain = walletChainForCluster(plan.cluster);
-    const connected = await wallet.features[StandardConnect].connect();
-    const account = connected.accounts.find((candidate) => candidate.address === walletAddress &&
-      candidate.chains.includes(chain) && candidate.features.includes(SolanaSignAndSendTransaction));
-    if (!account || account.address !== plan.requiredSigner) throw new Error("Выбранный аккаунт не совпадает с кошельком сессии и issuer signer.");
-    // Once the wallet is invoked, a failure can mean submission succeeded but its response was lost.
-    setSendAttempted(true);
-    setMessage("Проверьте запрос кошелька. При ошибке проверьте его историю; не отправляйте транзакцию повторно вслепую.");
     try {
-      const [output] = await wallet.features[SolanaSignAndSendTransaction].signAndSendTransaction({
-        account, chain, transaction: unsignedTransactionBytes(plan.serializedTransactionBase64),
-        options: { preflightCommitment: "confirmed", skipPreflight: false }
+      await signAndSubmitPrepared({ wallet, walletAddress, plan, request,
+        submitPath: `/api/v1/corporate-actions/${actionId}/snapshot/submit`,
+        onSigning: () => { setSendAttempted(true); setMessage("Проверьте запрос Phantom. При ошибке повторяйте только finalized-проверку."); },
+        onSignature: setSignature
       });
-      if (!output) throw new Error("Кошелёк не вернул результат отправки.");
-      setSignature(transactionSignature(output.signature));
       setMessage("Подпись получена. Сохраните UUID попытки и подпись; затем проверьте финализацию через API.");
     } catch (error) {
       throw new Error(`${error instanceof Error ? error.message : "Нет результата кошелька."} Проверьте историю кошелька и используйте восстановление ниже. Повторная отправка отключена.`);
@@ -90,11 +77,12 @@ export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange }: 
     if (!isActionId(actionId) || !isActionId(operationId) || !/^[1-9A-HJ-NP-Za-km-z]{64,88}$/.test(signature)) {
       throw new Error("Для проверки нужны UUID действия, UUID попытки и подпись транзакции из кошелька.");
     }
-    const response = await request(`/api/v1/corporate-actions/${actionId}/snapshot/confirm`, {
+    const response = await waitForFinalizedCheck(() => request(`/api/v1/corporate-actions/${actionId}/snapshot/confirm`, {
       method: "POST", body: JSON.stringify({ operationId, signature })
-    });
+    }), operationId, signature, () => setMessage("Ожидаем finalized по прежней подписи. Транзакция повторно не отправляется; проверка может занять около минуты."));
     requireFinalizedResponse(response, operationId, signature);
     setFinalized(true);
+    onConfirmed?.();
     setMessage("FINALIZED: API проверил точную транзакцию и Action PDA. Snapshot подтверждён; выплат не было.");
   }
 
@@ -110,7 +98,7 @@ export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange }: 
       </ol>
       <p className="mt-2 text-xs leading-5 text-[#8a5b18]">DEMO_CAPTURE_SLOT фиксирует фактический finalized slot, а не доказывает владение на более раннюю дату. Регистрация не выполняет выплату.</p>
       <label className="mt-4 block text-sm">UUID корпоративного действия
-        <input className={inputClass} value={actionId} maxLength={36} disabled={busy || finalized || plan !== null} onChange={(event) => setActionId(event.target.value.trim())} />
+        <input className={inputClass} value={actionId} maxLength={36} disabled={Boolean(selectedActionId) || busy || finalized || plan !== null} onChange={(event) => setActionId(event.target.value.trim())} />
       </label>
       <button className={`mt-3 ${buttonClass}`} disabled={busy || sendAttempted || finalized || signature !== "" || !plan && operationId !== "" || !isActionId(actionId)} onClick={() => void run(prepare)}>Подготовить / обновить неподписанный план</button>
       {plan && (
@@ -125,8 +113,8 @@ export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange }: 
             ))}
           </dl>
           <label className="mt-4 flex gap-2 text-xs"><input type="checkbox" checked={reviewed} disabled={busy || sendAttempted} onChange={(event) => setReviewed(event.target.checked)} />Проверил параметры, тестовую сеть и окно регистрации</label>
-          <button className={`mt-3 ${buttonClass}`} disabled={busy || !reviewed || sendAttempted || finalized || !transactionWallet(wallet, plan.cluster)} onClick={() => void run(send)}>Подписать и отправить через кошелёк</button>
-          {!transactionWallet(wallet, plan.cluster) && <p className="mt-2 text-xs">Текущий кошелёк не объявляет поддержку {walletChainForCluster(plan.cluster)}, solana:signAndSendTransaction и v0. Выберите совместимый кошелёк или сеть.</p>}
+          <button className={`mt-3 ${buttonClass}`} disabled={busy || !reviewed || sendAttempted || finalized || !supportsPreparedTransaction(wallet, plan.cluster)} onClick={() => void run(send)}>Подписать и отправить через Phantom</button>
+          {!supportsPreparedTransaction(wallet, plan.cluster) && <p className="mt-2 text-xs">Нужен кошелёк с поддержкой {walletChainForCluster(plan.cluster)}, v0 и подписи транзакций.</p>}
         </div>
       )}
       <details className="mt-4" open={signature !== "" || sendAttempted}>

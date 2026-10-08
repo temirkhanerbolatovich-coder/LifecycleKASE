@@ -88,6 +88,7 @@ test("creates a domain-bound challenge and one-time operator session", async () 
   assert.match(challenge.message, /does not submit a transaction or authorize a payment/);
   assert.equal(challenge.message.includes(challenge.nonce), true);
   const storedChallenge = setup.challenges.get(challenge.challengeId);
+  assert.equal(storedChallenge.createdAt.getTime(), NOW.getTime());
   assert.notEqual(Buffer.from(storedChallenge.nonceHash).toString("hex"), challenge.nonce);
   assert.equal(
     Buffer.from(storedChallenge.nonceHash).toString("hex"),
@@ -104,6 +105,9 @@ test("creates a domain-bound challenge and one-time operator session", async () 
   }, options);
   assert.equal(verified.user.role, "ADMINISTRATOR");
   assert.equal(setup.sessions.size, 1);
+  const storedSession = [...setup.sessions.values()][0];
+  assert.equal(storedSession.createdAt.getTime(), Date.parse("2026-09-30T10:01:00.000Z"));
+  assert.equal(storedSession.expiresAt.getTime() - storedSession.createdAt.getTime(), options.sessionTtlSeconds * 1000);
   assert.equal([...setup.sessions.keys()][0], createHash("sha256").update(verified.sessionToken).digest("hex"));
 
   const session = await readOperatorSession(

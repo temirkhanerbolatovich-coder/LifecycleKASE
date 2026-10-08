@@ -1,9 +1,12 @@
-import type { PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import { decodePublicKey, type SolanaRpc } from "@lifecycle-kase/solana-client";
 
 import { MAX_SNAPSHOT_GRACE_SECONDS, prepareSnapshotCandidate, SnapshotPreparationError } from "./snapshot-candidate.js";
 import { persistSnapshotCandidate } from "./snapshot-persistence.js";
 import { preparePendingSnapshotRegistration } from "./snapshot-registration.js";
+import { requireActionIssuer, workflowDatabaseError } from "./corporate-action-registry.js";
+import { ACTIVE_TRANSACTION_STATUSES, requireWorkflowNetwork, resumeWorkflowAttempt, rpcObject,
+  TransactionWorkflowError } from "./transaction-workflow.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -76,9 +79,34 @@ export async function prepareSnapshotRegistrationForAction(
   actionId: string,
   actor: { id: string; walletAddress: string; correlationId: string },
   options: Omit<SnapshotHttpOptions, "rpcEndpoint" | "rpcTimeoutMs"> & { now: Date }
-) {
+): Promise<Awaited<ReturnType<typeof preparePendingSnapshotRegistration>> & {
+  operationId: string; recordAt: string; effectiveBlockTime: string; effectiveSlot: string;
+  recordPointMode: "DEMO_CAPTURE_SLOT"; transactionFormat: "SOLANA_V0_WIRE_TRANSACTION_BASE64";
+  signature: string | null; status: string; resumed: boolean;
+}> {
   if (!UUID_PATTERN.test(actionId) || !UUID_PATTERN.test(actor.id) || !UUID_PATTERN.test(actor.correlationId)) {
     throw new SnapshotPreparationError("INVALID_REQUEST", "Action, actor, or correlation identifier is invalid");
+  }
+  const action = await database.corporateAction.findUnique({ where: { id: actionId }, include: { instrument: true } });
+  if (!action) throw new SnapshotPreparationError("ACTION_NOT_FOUND", "Corporate action was not found");
+  requireActionIssuer(action.instrument, actor);
+  await requireWorkflowNetwork(rpc, options.expectedGenesisHash);
+  const pendingCancellation = await database.blockchainTransaction.findFirst({ where: { corporateActionId: actionId,
+    operationType: "ACTION_CANCEL", status: { in: [...ACTIVE_TRANSACTION_STATUSES] } } });
+  if (pendingCancellation && await resumeWorkflowAttempt(database, rpc, pendingCancellation, actor, options.expectedGenesisHash)) {
+    throw new TransactionWorkflowError("ACTION_CANCEL_PENDING", "Confirm the existing cancellation before snapshot capture");
+  }
+  const attempt = await database.blockchainTransaction.findFirst({ where: { corporateActionId: actionId,
+    operationType: "REGISTER_SNAPSHOT", status: { in: [...ACTIVE_TRANSACTION_STATUSES] } }, orderBy: { createdAt: "desc" } });
+  if (attempt && await resumeWorkflowAttempt(database, rpc, attempt, actor, options.expectedGenesisHash)) {
+    const stored = rpcObject(attempt.preparedPayload);
+    if (stored["corporateActionId"] !== actionId || stored["cluster"] !== options.cluster ||
+        stored["requiredSigner"] !== actor.walletAddress || stored["networkGenesisHash"] !== options.expectedGenesisHash ||
+        stored["serializedTransactionBase64"] !== attempt.preparedTransactionBase64) {
+      throw new TransactionWorkflowError("PREPARED_ATTEMPT_INVALID", "Snapshot attempt payload differs from the stored message/network");
+    }
+    return { ...stored, operationId: attempt.id, signature: attempt.signature,
+      status: attempt.status, resumed: true } as unknown as Awaited<ReturnType<typeof prepareSnapshotRegistrationForAction>>;
   }
   const existing = await database.snapshot.findUnique({
     where: { corporateActionId: actionId },
@@ -131,11 +159,24 @@ export async function prepareSnapshotRegistrationForAction(
     throw new SnapshotPreparationError("WRONG_SOLANA_NETWORK", "Persisted snapshot cluster does not match configuration");
   }
   const prepared = await database.$transaction(async (transaction) => {
+    const current = await transaction.corporateAction.findUnique({ where: { id: actionId }, include: { instrument: true } });
+    if (!current || current.status !== "SCHEDULED" || current.instrument.issuerAuthority !== actor.walletAddress ||
+        await transaction.blockchainTransaction.findFirst({ where: { corporateActionId: actionId,
+          operationType: "ACTION_CANCEL", status: { in: [...ACTIVE_TRANSACTION_STATUSES] } } })) {
+      throw new TransactionWorkflowError("ACTION_CONFLICT", "Action changed or cancellation is pending");
+    }
     const operation = await transaction.blockchainTransaction.create({
       data: {
         corporateActionId: actionId,
         operationType: "REGISTER_SNAPSHOT",
         status: "PREPARED",
+        createdAt: options.now,
+        instrumentId: action.instrumentId,
+        requiredSigner: registration.requiredSigner,
+        networkGenesisHash: registration.networkGenesisHash,
+        preparedTransactionBase64: registration.serializedTransactionBase64,
+        preparedPayload: { ...registration, recordAt, effectiveBlockTime, effectiveSlot,
+          recordPointMode: "DEMO_CAPTURE_SLOT", transactionFormat: "SOLANA_V0_WIRE_TRANSACTION_BASE64" },
         recentBlockhash: registration.recentBlockhash,
         lastValidBlockHeight: BigInt(registration.lastValidBlockHeight)
       },
@@ -160,7 +201,7 @@ export async function prepareSnapshotRegistrationForAction(
       }
     });
     return operation;
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).catch(workflowDatabaseError);
   return {
     ...registration,
     operationId: prepared.id,
@@ -169,6 +210,8 @@ export async function prepareSnapshotRegistrationForAction(
     effectiveSlot,
     recordPointMode: "DEMO_CAPTURE_SLOT" as const,
     transactionFormat: "SOLANA_V0_WIRE_TRANSACTION_BASE64" as const,
+    signature: null,
+    status: "PREPARED",
     resumed
   };
 }

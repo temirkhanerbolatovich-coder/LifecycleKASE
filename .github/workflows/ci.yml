@@ -60,6 +60,9 @@ jobs:
       - name: Build deployable workspaces
         run: npm run build
 
+      - name: Test production operator proxy transport
+        run: npm run test:web:proxy
+
       - name: Validate Compose configuration
         run: docker compose config --quiet
 
@@ -98,3 +101,6 @@ jobs:
 
       - name: Test authenticated registries and instrument drafts
         run: npm run test:registry:database
+
+      - name: Test corporate-action HTTP and database boundaries
+        run: npm run test:actions:database

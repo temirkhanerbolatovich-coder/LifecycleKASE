@@ -6,18 +6,23 @@ export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
 rpc_port="${1:-18899}"
 startup_timeout_seconds="${2:-30}"
 
-if [[ ! "$rpc_port" =~ ^[0-9]+$ ]] || ((10#$rpc_port < 1 || 10#$rpc_port > 65535)); then
-    echo "RPC port must be an integer between 1 and 65535" >&2
+if [[ ! "$rpc_port" =~ ^[0-9]+$ ]] || ((10#$rpc_port < 1 || 10#$rpc_port > 65532)); then
+    echo "RPC port must be an integer between 1 and 65532 (RPC, websocket, faucet and gossip use adjacent ports)" >&2
     exit 1
 fi
 if [[ ! "$startup_timeout_seconds" =~ ^[0-9]+$ ]] || ((10#$startup_timeout_seconds < 1)); then
     echo "Startup timeout must be a positive integer" >&2
     exit 1
 fi
-if (echo > "/dev/tcp/127.0.0.1/$rpc_port") >/dev/null 2>&1; then
-    echo "RPC port $rpc_port is already in use" >&2
-    exit 1
-fi
+rpc_port=$((10#$rpc_port))
+faucet_port=$((rpc_port + 2))
+gossip_port=$((rpc_port + 3))
+for port in "$rpc_port" "$((rpc_port + 1))" "$faucet_port" "$gossip_port"; do
+    if (echo > "/dev/tcp/127.0.0.1/$port") >/dev/null 2>&1; then
+        echo "Validator port $port is already in use" >&2
+        exit 1
+    fi
+done
 
 if ! command -v solana-test-validator >/dev/null 2>&1; then
     echo "solana-test-validator is missing from the WSL PATH" >&2
@@ -43,6 +48,8 @@ solana-test-validator \
     --reset \
     --quiet \
     --rpc-port "$rpc_port" \
+    --faucet-port "$faucet_port" \
+    --gossip-port "$gossip_port" \
     >"$run_path/validator.stdout.log" \
     2>"$run_path/validator.stderr.log" &
 validator_pid=$!
@@ -51,7 +58,11 @@ deadline=$((SECONDS + startup_timeout_seconds))
 while ((SECONDS < deadline)); do
     if ! kill -0 "$validator_pid" 2>/dev/null; then
         echo "Solana validator exited before becoming healthy:" >&2
+        sed -n '1,40p' "$run_path/validator.stdout.log" >&2
         sed -n '1,40p' "$run_path/validator.stderr.log" >&2
+        if [[ -f "$run_path/ledger/validator.log" ]]; then
+            tail -n 30 "$run_path/ledger/validator.log" >&2
+        fi
         exit 1
     fi
 
@@ -67,5 +78,6 @@ while ((SECONDS < deadline)); do
 done
 
 echo "Solana validator did not become healthy within $startup_timeout_seconds seconds" >&2
+sed -n '1,40p' "$run_path/validator.stdout.log" >&2
 sed -n '1,40p' "$run_path/validator.stderr.log" >&2
 exit 1

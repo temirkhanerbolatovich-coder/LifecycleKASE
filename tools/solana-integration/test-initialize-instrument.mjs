@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { access, readFile, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
-import { buildSnapshotRegistrationInstruction } from "../../packages/solana-client/dist/index.js";
+import { buildSnapshotRegistrationInstruction, buildInstrumentMintSetup, buildInstrumentDistribution,
+  buildInstrumentInitialization, buildInstrumentActivation, serializeUnsignedInstructionsTransaction,
+  verifySignedPreparedTransaction, verifyFinalizedTransaction, buildCorporateActionSchedule,
+  buildCorporateActionCancellation, decodeConfirmedCorporateAction, decodeConfirmedSnapshotAccount,
+  buildEntitlementRegistration, buildCalculationFinalization, buildCalculationReset } from "../../packages/solana-client/dist/index.js";
 import anchor from "@anchor-lang/core";
 import {
   Connection,
@@ -9,6 +15,7 @@ import {
   PublicKey,
   SystemProgram,
   Transaction,
+  VersionedTransaction,
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
 import {
@@ -24,6 +31,9 @@ import {
   createTransferCheckedInstruction,
   getAssociatedTokenAddressSync,
   getMintLen,
+  getMint,
+  getAccount,
+  getPermanentDelegate,
 } from "@solana/spl-token";
 
 const { BN, Program } = anchor;
@@ -39,6 +49,7 @@ if (!administratorKeyPath) {
 
 const idlPath = process.argv[4]
   ?? fileURLToPath(new URL("../../target/idl/lifecycle_kase.json", import.meta.url));
+const upgradeHookDirectory = process.argv[5] || null;
 const idl = JSON.parse(await readFile(idlPath, "utf8"));
 const programId = new PublicKey(idl.address);
 const connection = new Connection(rpcUrl, "finalized");
@@ -46,6 +57,7 @@ const administrator = Keypair.fromSecretKey(
   Uint8Array.from(JSON.parse(await readFile(administratorKeyPath, "utf8"))),
 );
 const outsider = Keypair.generate();
+const calculationAuthority = Keypair.generate();
 const upgradeableLoader = new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111");
 const [programData] = PublicKey.findProgramAddressSync(
   [programId.toBuffer()], upgradeableLoader,
@@ -60,6 +72,39 @@ const [instrumentAuthority] = PublicKey.findProgramAddressSync(
   programId,
 );
 const program = new Program(idl, { connection });
+
+async function waitForDisposableUpgrade() {
+  if (!upgradeHookDirectory) return;
+  const before = await connection.getAccountInfo(wireSnapshotActionAddress, "finalized");
+  assert.ok(before, "The pre-upgrade Action PDA must exist");
+  await writeFile(`${upgradeHookDirectory}/upgrade.request`, "upgrade retained program\n", { flag: "wx" });
+  const deadline = Date.now() + 180_000;
+  while (Date.now() < deadline) {
+    try {
+      await access(`${upgradeHookDirectory}/upgrade.success`);
+      const after = await connection.getAccountInfo(wireSnapshotActionAddress, "finalized");
+      assert.ok(after, "The Action PDA must still exist after the upgrade");
+      assert.deepEqual(after.data, before.data, "The upgrade must not mutate existing Action PDA bytes");
+      assert.equal(after.owner.toBase58(), programId.toBase58());
+      assert.deepEqual(
+        Object.keys((await program.account.corporateAction.fetch(wireSnapshotActionAddress)).status),
+        ["snapshotCreated"],
+      );
+      console.log("PASS retained-program upgrade preserves an existing SNAPSHOT_CREATED Action PDA byte-for-byte");
+      return;
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+    try {
+      await access(`${upgradeHookDirectory}/upgrade.failed`);
+      throw new Error("Disposable program upgrade failed; inspect the validator wrapper logs");
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  throw new Error("Disposable program upgrade did not finish within 180 seconds");
+}
 
 async function sendWith(signer, ...instructions) {
   return sendAndConfirmTransaction(
@@ -134,7 +179,7 @@ function terms(id = instrumentId, supply = 35) {
   return {
     instrumentId: [...id],
     complianceAuthority: Keypair.generate().publicKey,
-    corporateActionAuthority: Keypair.generate().publicKey,
+    corporateActionAuthority: calculationAuthority.publicKey,
     faceValueMinor: new BN(100_000),
     couponRateBps: 1_000,
     paymentsPerYear: 2,
@@ -239,6 +284,154 @@ const airdrop = await connection.requestAirdrop(administrator.publicKey, 10_000_
 await connection.confirmTransaction(airdrop, "finalized");
 const outsiderAirdrop = await connection.requestAirdrop(outsider.publicKey, 1_000_000_000);
 await connection.confirmTransaction(outsiderAirdrop, "finalized");
+
+// Exercise the actual application serializer, not only Anchor/SPL-generated instructions.
+async function sendPreparedInstructions(instructions, signer = administrator) {
+  const latest = await connection.getLatestBlockhash("finalized");
+  const unsigned = serializeUnsignedInstructionsTransaction({ instructions,
+    feePayer: signer.publicKey.toBase58(), recentBlockhash: latest.blockhash,
+    lastValidBlockHeight: latest.lastValidBlockHeight });
+  const transaction = VersionedTransaction.deserialize(Buffer.from(unsigned, "base64"));
+  transaction.sign([signer]);
+  const signed = transaction.serialize();
+  const signature = verifySignedPreparedTransaction({ expectedUnsignedTransactionBase64: unsigned,
+    signedTransactionBase64: Buffer.from(signed).toString("base64"), requiredSigner: signer.publicKey.toBase58() });
+  assert.equal(await connection.sendRawTransaction(signed, { skipPreflight: false }), signature);
+  const confirmation = await connection.confirmTransaction({ ...latest, signature }, "finalized");
+  assert.equal(confirmation.value.err, null);
+  const finalized = await connection.getTransaction(signature, { commitment: "finalized", maxSupportedTransactionVersion: 0 });
+  assert.ok(finalized);
+  const finalizedWire = new VersionedTransaction(finalized.transaction.message, finalized.transaction.signatures.map(
+    value => Uint8Array.from(anchor.utils.bytes.bs58.decode(value))));
+  verifyFinalizedTransaction({ expectedUnsignedTransactionBase64: unsigned,
+    finalizedTransactionBase64: Buffer.from(finalizedWire.serialize()).toString("base64"),
+    requiredSigner: signer.publicKey.toBase58(), signature });
+}
+
+const wireId = new Uint8Array(16).fill(211);
+wireId[6] = 0x43; wireId[8] = 0x93; // A valid UUID-v4 for the optional real API/database acceptance.
+const wireIssuer = administrator.publicKey.toBase58();
+const wireSetup = await buildInstrumentMintSetup({ programId: programId.toBase58(), instrumentId: wireId,
+  administrator: wireIssuer, totalSupply: 35n,
+  bondRentLamports: BigInt(await connection.getMinimumBalanceForRentExemption(202)),
+  settlementRentLamports: BigInt(await connection.getMinimumBalanceForRentExemption(82)) });
+await sendPreparedInstructions(wireSetup.instructions);
+const wireMint = await getMint(connection, new PublicKey(wireSetup.bondMint), "finalized", TOKEN_2022_PROGRAM_ID);
+assert.equal(wireMint.supply, 35n);
+assert.equal(wireMint.decimals, 0);
+assert.equal(wireMint.mintAuthority, null);
+assert.equal(wireMint.freezeAuthority, null);
+assert.equal(getPermanentDelegate(wireMint).delegate.toBase58(), wireSetup.instrumentAuthority);
+const wireSettlement = await getMint(connection, new PublicKey(wireSetup.settlementMint), "finalized", TOKEN_2022_PROGRAM_ID);
+assert.equal(wireSettlement.decimals, 6);
+assert.equal(wireSettlement.supply, 0n);
+assert.equal(wireSettlement.mintAuthority.toBase58(), wireIssuer);
+assert.equal(wireSettlement.freezeAuthority, null);
+console.log("PASS prepared v0 MINT_SETUP finalizes with explicit compute budget, fixed supply and revoked authority");
+
+const wireDistribution = await buildInstrumentDistribution({ administrator: wireIssuer, bondMint: wireSetup.bondMint,
+  allocations: [10n, 20n, 5n].map(amount => ({ walletAddress: Keypair.generate().publicKey.toBase58(), amount })) });
+await sendPreparedInstructions(wireDistribution.instructions);
+for (const allocation of wireDistribution.allocations) {
+  const account = await getAccount(connection, new PublicKey(allocation.tokenAccount), "finalized", TOKEN_2022_PROGRAM_ID);
+  assert.equal(account.amount, allocation.amount);
+  assert.equal(account.owner.toBase58(), allocation.walletAddress);
+}
+assert.equal((await getAccount(connection, new PublicKey(wireDistribution.treasuryTokenAccount), "finalized", TOKEN_2022_PROGRAM_ID)).amount, 0n);
+console.log("PASS prepared v0 DISTRIBUTION finalizes exact 10/20/5 and empty treasury");
+
+const wireInitialization = await buildInstrumentInitialization({ programId: programId.toBase58(), instrumentId: wireId,
+  administrator: wireIssuer, bondMint: wireSetup.bondMint, settlementMint: wireSetup.settlementMint,
+  complianceAuthority: wireIssuer, corporateActionAuthority: wireIssuer, faceValueMinor: 1_000_000_000n,
+  couponRateBps: 1000, paymentsPerYear: 2, issueAt: 1_700_000_000n, maturityAt: 1_800_000_000n, totalSupply: 35n });
+await sendPreparedInstructions([wireInitialization.instruction]);
+const wireAddress = new PublicKey(wireInitialization.instrumentAddress);
+assert.deepEqual(Object.keys((await program.account.instrument.fetch(wireAddress)).status), ["deploying"]);
+console.log("PASS prepared v0 INITIALIZE finalizes the expected Deploying PDA");
+const wireActivation = await buildInstrumentActivation({ programId: programId.toBase58(), instrumentId: wireId,
+  issuerAuthority: wireIssuer, bondMint: wireSetup.bondMint,
+  holderTokenAccounts: wireDistribution.allocations.map(allocation => allocation.tokenAccount) });
+await sendPreparedInstructions([wireActivation.instruction]);
+assert.deepEqual(Object.keys((await program.account.instrument.fetch(wireAddress)).status), ["active"]);
+console.log("PASS prepared v0 ACTIVATE finalizes the expected Active PDA");
+
+const wireNow = BigInt(Math.floor(Date.now() / 1000));
+for (const [index, type] of ["COUPON_PAYMENT", "BOND_REDEMPTION", "EARLY_REDEMPTION"].entries()) {
+  const action = await buildCorporateActionSchedule({ programId: programId.toBase58(), instrumentId: wireId,
+    actionId: new Uint8Array(16).fill(212 + index), issuerAuthority: wireIssuer, type,
+    recordAt: wireNow + 120n, executeAt: type === "BOND_REDEMPTION" ? 1_800_000_000n : wireNow + 240n,
+    redemptionPercentageBps: type === "EARLY_REDEMPTION" ? 2000 : null,
+    redemptionPriceMinor: type === "EARLY_REDEMPTION" ? 1_000_000_000n : null });
+  await sendPreparedInstructions([action.instruction]);
+  const data = await connection.getAccountInfo(new PublicKey(action.actionAddress), "finalized");
+  const decoded = decodeConfirmedCorporateAction(data.data.toString("base64"));
+  assert.equal(decoded.type, type); assert.equal(decoded.status, "SCHEDULED");
+  assert.equal(decoded.recordAt, wireNow + 120n); assert.equal(decoded.instrumentAddress, wireInitialization.instrumentAddress);
+  if (type === "EARLY_REDEMPTION") { assert.equal(decoded.redemptionPercentageBps, 2000); assert.equal(decoded.redemptionPriceMinor, 1_000_000_000n); }
+  if (index === 0) {
+    const cancellation = await buildCorporateActionCancellation({ programId: programId.toBase58(), instrumentId: wireId,
+      actionId: new Uint8Array(16).fill(212), issuerAuthority: wireIssuer });
+    await sendPreparedInstructions([cancellation.instruction]);
+    const cancelled = decodeConfirmedCorporateAction((await connection.getAccountInfo(new PublicKey(action.actionAddress), "finalized")).data.toString("base64"));
+    assert.equal(cancelled.status, "CANCELLED"); assert.ok(cancelled.completedAt !== null);
+  }
+}
+console.log("PASS prepared v0 action schedule/cancel: all three types, exact terms and decoded PDA state");
+
+const wireSnapshotId = new Uint8Array(16).fill(215);
+const wireRecordAt = BigInt(Math.floor(Date.now() / 1000)) + 8n;
+const wireSnapshotAction = await buildCorporateActionSchedule({ programId: programId.toBase58(), instrumentId: wireId,
+  actionId: wireSnapshotId, issuerAuthority: wireIssuer, type: "COUPON_PAYMENT", recordAt: wireRecordAt,
+  executeAt: wireRecordAt + 120n, redemptionPercentageBps: null, redemptionPriceMinor: null });
+const wireSnapshotActionAddress = new PublicKey(wireSnapshotAction.actionAddress);
+await sendPreparedInstructions([wireSnapshotAction.instruction]);
+let wireSlot;
+for (let attempt = 0; attempt < 30; attempt++) {
+  wireSlot = await connection.getSlot("finalized");
+  const time = await connection.getBlockTime(wireSlot);
+  if (time !== null && BigInt(time) >= wireRecordAt) break;
+  if (attempt === 29) throw new Error("Validator did not reach the snapshot record time");
+  await new Promise(resolve => setTimeout(resolve, 500));
+}
+const wireSnapshot = await buildSnapshotRegistrationInstruction({ programId: programId.toBase58(), instrumentId: wireId,
+  actionId: wireSnapshotId, issuerAuthority: wireIssuer, bondMint: wireSetup.bondMint, snapshotHash: "ef".repeat(32),
+  snapshotSlot: BigInt(wireSlot), investorCount: 3, walletCount: 3, totalBalance: 35n, mintSupply: 35n });
+await sendPreparedInstructions([wireSnapshot]);
+const wireCommitment = decodeConfirmedSnapshotAccount((await connection.getAccountInfo(new PublicKey(wireSnapshot.actionAddress), "finalized")).data.toString("base64"));
+assert.equal(wireCommitment.status, "SNAPSHOT_CREATED"); assert.equal(wireCommitment.snapshotHash, "ef".repeat(32));
+assert.equal(wireCommitment.snapshotSlot, BigInt(wireSlot)); assert.equal(wireCommitment.totalBalance, 35n);
+console.log("PASS prepared v0 snapshot finalizes an exact immutable commitment in the live record window");
+
+await waitForDisposableUpgrade();
+
+if (process.env.ACTION_TEST_DATABASE_URL) {
+  // Keep production RPC's loopback-only HTTP policy intact when WSL uses a private IP.
+  const relay = createServer(async (request, response) => {
+    try {
+      if (request.method !== "POST" || request.url !== "/") { response.writeHead(404).end(); return; }
+      let body = "";
+      for await (const chunk of request) {
+        body += chunk;
+        if (body.length > 2_000_000) { response.writeHead(413).end(); return; }
+      }
+      const upstream = await fetch(rpcUrl, { method: "POST", headers: { "content-type": "application/json" }, body,
+        redirect: "error", signal: AbortSignal.timeout(15_000) });
+      response.writeHead(upstream.status, { "content-type": "application/json" }).end(await upstream.text());
+    } catch { response.writeHead(503).end(); }
+  });
+  await new Promise(resolve => relay.listen(0, "127.0.0.1", resolve));
+  const hex = Buffer.from(wireId).toString("hex");
+  const fixture = { rpcUrl: `http://127.0.0.1:${relay.address().port}`, programId: programId.toBase58(),
+    instrumentId: `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`,
+    bondMint: wireSetup.bondMint, settlementMint: wireSetup.settlementMint,
+    allocations: wireDistribution.allocations.map(row => ({ walletAddress: row.walletAddress, amount: row.amount.toString() })) };
+  try {
+    const acceptance = spawn(process.execPath, [fileURLToPath(new URL("../../scripts/test-corporate-actions.mjs", import.meta.url)), JSON.stringify(fixture), administratorKeyPath],
+      { stdio: "inherit", env: process.env });
+    const status = await new Promise((resolve, reject) => { acceptance.once("error", reject); acceptance.once("exit", resolve); });
+    if (status !== 0) throw new Error("Action API/database/validator acceptance failed");
+  } finally { relay.closeAllConnections(); await new Promise(resolve => relay.close(resolve)); }
+}
 
 const bondMint = await createBondMint(instrumentAuthority, true);
 const settlementMint = await createMint(6);
@@ -563,3 +756,110 @@ const unrevokedMint = await createBondMint(unrevokedAuthority, false);
 await assert.rejects(initialize(unrevokedMint, settlementMint, unrevokedId));
 assert.equal(await connection.getAccountInfo(unrevokedAddress), null);
 console.log("PASS initialize_instrument rejects an active mint authority without creating a PDA");
+
+if (program.methods.registerEntitlement && program.methods.finalizeCalculation && program.methods.resetCalculation) {
+  const calculationIdentity = { programId: programId.toBase58(), instrumentId: wireId,
+    actionId: wireSnapshotId, corporateActionAuthority: wireIssuer };
+  const investorIds = [1, 2, 3].map(value => new Uint8Array(16).fill(value));
+  const registrations = await Promise.all(wireDistribution.allocations.map((row, index) =>
+    buildEntitlementRegistration({ ...calculationIdentity, investorId: investorIds[index], snapshotHash: "ef".repeat(32),
+      settlementWallet: row.walletAddress, balanceAtSnapshot: row.amount, eligible: true,
+      paymentAmountMinor: row.amount * 50_000_000n, tokensToRedeem: 0n })));
+  const anchorEntitlement = await program.methods.registerEntitlement({ investorId: [...investorIds[0]],
+    snapshotHash: Array(32).fill(239), settlementWallet: new PublicKey(wireDistribution.allocations[0].walletAddress),
+    balanceAtSnapshot: new BN(10), eligible: true, paymentAmountMinor: new BN(500_000_000), tokensToRedeem: new BN(0)
+  }).accountsStrict({ corporateActionAuthority: administrator.publicKey, instrument: wireAddress,
+    corporateAction: new PublicKey(registrations[0].actionAddress), entitlement: new PublicKey(registrations[0].entitlementAddress),
+    systemProgram: SystemProgram.programId }).instruction();
+  assert.deepEqual(Buffer.from(registrations[0].instruction.data), anchorEntitlement.data);
+  assert.deepEqual(registrations[0].instruction.accounts.map(a => [a.address, a.isSigner, a.isWritable]),
+    anchorEntitlement.keys.map(a => [a.pubkey.toBase58(), a.isSigner, a.isWritable]));
+  const rejectsProgram = pattern => error => pattern.test(`${error.message} ${JSON.stringify(error.logs ?? error.transactionLogs ?? [])}`);
+  const badSigner = await buildEntitlementRegistration({ ...calculationIdentity, corporateActionAuthority: outsider.publicKey.toBase58(),
+    investorId: investorIds[0], snapshotHash: "ef".repeat(32), settlementWallet: wireIssuer, balanceAtSnapshot: 10n,
+    eligible: true, paymentAmountMinor: 500_000_000n, tokensToRedeem: 0n });
+  await assert.rejects(sendPreparedInstructions([badSigner.instruction], outsider), rejectsProgram(/UnauthorizedCorporateActionAuthority/));
+  const badHash = await buildEntitlementRegistration({ ...calculationIdentity,
+    investorId: investorIds[0], snapshotHash: "aa".repeat(32), settlementWallet: wireIssuer, balanceAtSnapshot: 10n,
+    eligible: true, paymentAmountMinor: 500_000_000n, tokensToRedeem: 0n });
+  await assert.rejects(sendPreparedInstructions([badHash.instruction]), rejectsProgram(/InvalidSnapshotHash/));
+  const badAmount = await buildEntitlementRegistration({ ...calculationIdentity,
+    investorId: investorIds[0], snapshotHash: "ef".repeat(32), settlementWallet: wireIssuer, balanceAtSnapshot: 10n,
+    eligible: true, paymentAmountMinor: 500_000_001n, tokensToRedeem: 0n });
+  await assert.rejects(sendPreparedInstructions([badAmount.instruction]), rejectsProgram(/InvalidEntitlement/));
+  assert.equal(await connection.getAccountInfo(new PublicKey(registrations[0].entitlementAddress)), null);
+  console.log("PASS entitlement wire matches Anchor; wrong authority, hash and amount roll back without an account");
+  const finalization = await buildCalculationFinalization({ ...calculationIdentity, investorIds });
+  await assert.rejects(sendPreparedInstructions([finalization.instruction]), rejectsProgram(/InvalidActionStatus/));
+  await sendPreparedInstructions([registrations[0].instruction]);
+  await assert.rejects(sendPreparedInstructions([registrations[0].instruction]));
+  const reset = await buildCalculationReset({ ...calculationIdentity, investorIds: investorIds.slice(0, 1) });
+  const anchorReset = await program.methods.resetCalculation().accountsStrict({
+    corporateActionAuthority: administrator.publicKey, instrument: wireAddress,
+    corporateAction: new PublicKey(reset.actionAddress),
+  }).remainingAccounts(reset.entitlementAddresses.map(address => ({ pubkey: new PublicKey(address), isSigner: false, isWritable: true }))).instruction();
+  assert.deepEqual(Buffer.from(reset.instruction.data), anchorReset.data);
+  assert.deepEqual(reset.instruction.accounts.map(a => [a.address, a.isSigner, a.isWritable]),
+    anchorReset.keys.map(a => [a.pubkey.toBase58(), a.isSigner, a.isWritable]));
+  await sendPreparedInstructions([reset.instruction]);
+  assert.equal(await connection.getAccountInfo(new PublicKey(registrations[0].entitlementAddress)), null);
+  const resetAction = await program.account.corporateAction.fetch(new PublicKey(reset.actionAddress));
+  assert.deepEqual(Object.keys(resetAction.status), ["snapshotCreated"]);
+  assert.equal(resetAction.registeredEntitlements, 0);
+  assert.equal(resetAction.totalAmountMinor.toString(), "0");
+  await assert.rejects(sendPreparedInstructions([reset.instruction]), rejectsProgram(/InvalidActionStatus/));
+  await sendPreparedInstructions([registrations[0].instruction]);
+  console.log("PASS partial calculation reset closes the complete supplied set and allows exact re-registration");
+  await assert.rejects(sendPreparedInstructions([finalization.instruction]), rejectsProgram(/IncompleteCalculation/));
+  for (const plan of registrations.slice(1)) await sendPreparedInstructions([plan.instruction]);
+  const incompleteReset = await buildCalculationReset({ ...calculationIdentity, investorIds: investorIds.slice(0, 1) });
+  await assert.rejects(sendPreparedInstructions([incompleteReset.instruction]), rejectsProgram(/IncompleteCalculation/));
+  const registeredAction = await program.account.corporateAction.fetch(new PublicKey(finalization.actionAddress));
+  assert.deepEqual(Object.keys(registeredAction.status), ["calculated"]);
+  assert.equal(registeredAction.registeredEntitlements, 3);
+  assert.equal(registeredAction.totalAmountMinor.toString(), "1750000000");
+  for (const [index, plan] of registrations.entries()) {
+    const row = await program.account.entitlement.fetch(new PublicKey(plan.entitlementAddress));
+    assert.deepEqual([...row.investorId], [...investorIds[index]]);
+    assert.deepEqual([...row.snapshotHash], Array(32).fill(239));
+    assert.equal(row.settlementWallet.toBase58(), wireDistribution.allocations[index].walletAddress);
+    assert.equal(row.paymentAmountMinor.toString(), ["500000000", "1000000000", "250000000"][index]);
+    assert.deepEqual(Object.keys(row.status), ["ready"]);
+    assert.equal(row.executedAt, null);
+  }
+  console.log("PASS immutable coupon entitlements 500/1000/250 total 1750; duplicate and incomplete registration/reset rejected");
+  const duplicate = { ...finalization.instruction, accounts: [...finalization.instruction.accounts] };
+  duplicate.accounts[5] = duplicate.accounts[3];
+  await assert.rejects(sendPreparedInstructions([duplicate]), rejectsProgram(/InvalidEntitlement/));
+  const foreign = { ...finalization.instruction, accounts: [...finalization.instruction.accounts] };
+  foreign.accounts[5] = { address: instrumentAddress.toBase58(), isSigner: false, isWritable: false };
+  await assert.rejects(sendPreparedInstructions([foreign]));
+  const badFinalSigner = await buildCalculationFinalization({ ...calculationIdentity, corporateActionAuthority: outsider.publicKey.toBase58(), investorIds });
+  await assert.rejects(sendPreparedInstructions([badFinalSigner.instruction], outsider), rejectsProgram(/UnauthorizedCorporateActionAuthority/));
+  await sendPreparedInstructions([finalization.instruction]);
+  const completedCalculation = decodeConfirmedCorporateAction((await connection.getAccountInfo(new PublicKey(finalization.actionAddress))).data.toString("base64"));
+  assert.equal(completedCalculation.status, "UNDER_REVIEW");
+  assert.equal(completedCalculation.totalAmountMinor, 1_750_000_000n);
+  await assert.rejects(sendPreparedInstructions([finalization.instruction]), rejectsProgram(/InvalidActionStatus/));
+  console.log("PASS full calculation finalizes UNDER_REVIEW; duplicate, foreign, wrong signer and replay rejected");
+
+  // A distinct CA authority is mandatory even when the issuer owns the instrument.
+  await send(SystemProgram.transfer({ fromPubkey: administrator.publicKey, toPubkey: calculationAuthority.publicKey, lamports: 100_000_000 }));
+  const separateIdentity = { programId: programId.toBase58(), instrumentId, actionId: snapshotActionId,
+    corporateActionAuthority: calculationAuthority.publicKey.toBase58() };
+  const separateRows = await Promise.all(holders.map((holder, index) => buildEntitlementRegistration({ ...separateIdentity,
+    investorId: investorIds[index], snapshotHash: Buffer.from(snapshotHash).toString("hex"), settlementWallet: holder.wallet.toBase58(),
+    balanceAtSnapshot: BigInt(index === 2 ? 4 : holder.amount), eligible: true,
+    paymentAmountMinor: BigInt(index === 2 ? 4 : holder.amount) * 5000n, tokensToRedeem: 0n })));
+  const issuerPlan = await buildEntitlementRegistration({ ...separateIdentity, corporateActionAuthority: wireIssuer,
+    investorId: investorIds[0], snapshotHash: Buffer.from(snapshotHash).toString("hex"), settlementWallet: wireIssuer,
+    balanceAtSnapshot: 10n, eligible: true, paymentAmountMinor: 50_000n, tokensToRedeem: 0n });
+  await assert.rejects(sendPreparedInstructions([issuerPlan.instruction]), rejectsProgram(/UnauthorizedCorporateActionAuthority/));
+  for (const row of separateRows) await sendPreparedInstructions([row.instruction], calculationAuthority);
+  const incompleteCoverage = await buildCalculationFinalization({ ...separateIdentity, investorIds });
+  await assert.rejects(sendPreparedInstructions([incompleteCoverage.instruction], calculationAuthority), rejectsProgram(/IncompleteCalculation/));
+  assert.deepEqual(Object.keys((await program.account.corporateAction.fetch(snapshotActionAddress)).status), ["calculated"]);
+  console.log("PASS separate CA authority enforced; full count with balance 34/35 cannot finalize");
+} else {
+  console.log("SKIP entitlement candidate acceptance: retained artifact does not expose new instructions");
+}

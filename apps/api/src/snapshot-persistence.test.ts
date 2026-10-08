@@ -21,6 +21,7 @@ function fixture(overrides: {
   verifiedAt?: Date;
   lockCount?: number;
   now?: Date;
+  pendingCancellation?: boolean;
 } = {}) {
   const commitment = createSnapshotV2Commitment({
     actionId: ACTION_ID,
@@ -75,6 +76,7 @@ function fixture(overrides: {
   }];
   const calls: { lock?: unknown; create?: unknown; audit?: unknown } = {};
   const tx = {
+    blockchainTransaction: { findFirst: async () => overrides.pendingCancellation ? { id: ACTION_ID } : null },
     corporateAction: {
       findUnique: async () => action,
       updateMany: async (args: unknown) => {
@@ -131,6 +133,13 @@ test("persists all snapshot rows atomically while action stays scheduled", async
       effectiveBlockTime: "2026-09-29T00:01:00.000Z"
     }
   });
+});
+
+test("blocks capture when an action cancellation is pending", async () => {
+  const setup = fixture({ pendingCancellation: true });
+  await assert.rejects(persistSnapshotCandidate(setup.database, setup.candidate, setup.options),
+    (error: unknown) => error instanceof SnapshotPreparationError && error.code === "CANDIDATE_STALE");
+  assert.equal(setup.calls.create, undefined);
 });
 
 test("rejects changed candidate, action, wallet, and compare-and-set conflict", async () => {

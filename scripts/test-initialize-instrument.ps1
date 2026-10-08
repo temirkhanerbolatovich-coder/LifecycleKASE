@@ -1,8 +1,9 @@
 param(
-    [ValidateRange(1, 65535)][int]$RpcPort = 18898,
+    [ValidateRange(1, 65532)][int]$RpcPort = 18898,
     [string]$WslDistribution = "Ubuntu",
     [string]$WslUser = "",
-    [ValidateSet("localnet", "devnet")][string]$Profile = "localnet"
+    [ValidatePattern("^(localnet|devnet|localnet-candidate(?:-[a-z0-9-]+)?)$")][string]$Profile = "localnet",
+    [ValidatePattern("^$|^localnet-candidate(?:-[a-z0-9-]+)?$")][string]$UpgradeCandidateProfile = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -26,7 +27,7 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($linuxScriptPath)) {
     throw "Could not resolve the integration test path inside WSL/$WslDistribution."
 }
 
-& wsl @wslArguments -- bash $linuxScriptPath $RpcPort $Profile
+& wsl @wslArguments -- bash $linuxScriptPath $RpcPort $Profile $UpgradeCandidateProfile
 if ($LASTEXITCODE -ne 0) {
     throw "Local-validator integration test failed in WSL/$WslDistribution."
 }

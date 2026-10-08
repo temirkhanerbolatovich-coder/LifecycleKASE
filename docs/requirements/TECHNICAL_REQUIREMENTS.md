@@ -764,6 +764,7 @@ GET  /instruments/:id
 GET  /instruments/:id/holders
 GET  /instruments/:id/timeline
 POST /instruments/:id/deploy/prepare
+POST /instruments/:id/deploy/submit
 POST /instruments/:id/deploy/confirm
 POST /instruments/:id/reconcile
 GET  /investors
@@ -774,7 +775,7 @@ POST /investors/:id/wallets/:walletId/verify
 POST /investors/:id/wallets/:walletId/revoke
 ```
 
-`POST /instruments` создаёт database draft и не объявляет instrument on-chain. `deploy/prepare`/`deploy/confirm` выполняются по явным фазам. `MINT_SETUP` возвращает wallet-signed transaction для двух mint, bond treasury, supply 35 и отзыва mint authority; confirm проверяет точное finalized message и итоговые mint/treasury authorities/supply. `DISTRIBUTION` требует явное сопоставление 10/20/5 с тремя разными active, signature-verified, non-revoked wallets трёх active `ELIGIBLE` investors, сохраняет план вместе с exact transaction и при confirm сверяет treasury=0 и три точных owner/mint/balance. `INITIALIZE` создаёт Instrument PDA и переводит database projection в `DEPLOYING` только после exact finalized message и полного read-back PDA. `ACTIVATE` повторно проверяет eligibility и 10/20/5 balances до prepare и confirm, затем требует `Active` PDA перед database `ACTIVE`.
+`POST /instruments` создаёт database draft и не объявляет instrument on-chain. `deploy/prepare`/`deploy/confirm` выполняются по явным фазам. Для Localnet `deploy/submit` принимает только exact wallet-signed prepared bytes, криптографически проверяет Ed25519-подпись и signer, сверяет genesis и отправляет через настроенный loopback RPC; для Devnet этот серверный transport запрещён. `MINT_SETUP` возвращает wallet-signed transaction для двух mint, bond treasury, supply 35 и отзыва mint authority; confirm проверяет точное finalized message и итоговые mint/treasury authorities/supply. `DISTRIBUTION` требует явное сопоставление 10/20/5 с тремя разными active, signature-verified, non-revoked wallets трёх active `ELIGIBLE` investors, сохраняет план вместе с exact transaction и при confirm сверяет treasury=0 и три точных owner/mint/balance. `INITIALIZE` создаёт Instrument PDA и переводит database projection в `DEPLOYING` только после exact finalized message и полного read-back PDA. `ACTIVATE` повторно проверяет eligibility и 10/20/5 balances до prepare и confirm, затем требует `Active` PDA перед database `ACTIVE`.
 
 ### 10.4. Corporate actions
 

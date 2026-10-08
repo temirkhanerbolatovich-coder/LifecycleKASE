@@ -180,7 +180,8 @@ export async function createOperatorChallenge(
       nonceHash: digest(nonce),
       domain: options.domain,
       origin,
-      expiresAt
+      expiresAt,
+      createdAt: input.now
     }
   });
   return { challengeId, walletAddress, message, nonce, expiresAt: expiresAt.toISOString() };
@@ -267,7 +268,8 @@ export async function verifyOperatorChallenge(
         userId: wallet.user.id,
         walletAddress: challenge.walletAddress,
         tokenHash: digest(sessionToken),
-        expiresAt
+        expiresAt,
+        createdAt: input.now
       },
       select: { id: true }
     });

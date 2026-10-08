@@ -8,7 +8,9 @@ import { useEffect, useMemo, useState } from "react";
 import { SnapshotPanel } from "./snapshot-panel";
 import { InvestorPanel } from "./investor-panel";
 import { InstrumentPanel } from "./instrument-panel";
+import { CorporateActionPanel } from "./corporate-action-panel";
 import { accountForAddress, accountOptionLabel, messageAccounts, reconcileAccountSelection, shortWalletAddress } from "./wallet-account-selection";
+import { apiRequest, createOperatorRequest } from "./operator-api";
 
 type LoginWallet = WalletWithFeatures<StandardConnectFeature & SolanaSignMessageFeature>;
 type OperatorUser = { id: string; displayName: string; role: string };
@@ -26,80 +28,21 @@ function canonicalBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-async function responseJson(response: Response): Promise<Record<string, unknown>> {
-  try {
-    const value: unknown = await response.json();
-    return value && typeof value === "object" ? value as Record<string, unknown> : {};
-  } catch {
-    return {};
-  }
-}
-
-function errorMessage(payload: Record<string, unknown>, fallback: string): string {
-  switch (payload["code"]) {
-    case "AUTH_NOT_CONFIGURED":
-      return "Вход операторов пока не включён в этой среде.";
-    case "UNAUTHORIZED_WALLET":
-      return "Этот кошелёк не зарегистрирован как кошелёк оператора.";
-    case "ORIGIN_NOT_ALLOWED":
-      return "Текущий адрес приложения не разрешён сервером.";
-    case "INVALID_CHALLENGE":
-      return "Запрос на вход истёк. Повторите подключение.";
-    case "INVALID_SIGNATURE":
-      return "Подпись не соответствует выбранному адресу. Выберите нужный аккаунт Phantom и повторите.";
-    case "TRANSACTION_NOT_FINALIZED":
-      return "Транзакция ещё не финализирована. Подождите и повторите только проверку.";
-    case "AUTH_RATE_LIMITED":
-      return "Слишком много запросов. Подождите перед следующей проверкой.";
-    case "REGISTRY_CAPTURE_LOCKED":
-      return "Изменения реестра временно заблокированы на время формирования snapshot.";
-    case "VERIFIED_WALLET_REQUIRED":
-      return "Сначала подтвердите хотя бы один кошелёк инвестора.";
-    case "ELIGIBILITY_ALREADY_DECIDED":
-      return "Решение по допуску уже принято. Обновите реестр.";
-    case "WALLET_ALREADY_REVOKED":
-      return "Кошелёк уже отозван. Обновите реестр.";
-    case "INSTRUMENT_CONFLICT":
-      return "Эмитент или тикер уже зарегистрирован. Обновите список инструментов.";
-    case "SETTLEMENT_ASSET_CONFLICT":
-      return "Настройка KZT-Test не соответствует выбранной тестовой сети.";
-    case "WALLET_MISMATCH":
-      return "Кошелёк сессии не совпадает с issuer authority инструмента.";
-    case "MINT_ADDRESS_OCCUPIED":
-      return "Расчётный адрес mint уже занят. Не отправляйте транзакцию; проверьте предыдущую попытку.";
-    case "TRANSACTION_MISMATCH":
-      return "Finalized-транзакция не совпадает с подготовленным планом.";
-    case "MINT_STATE_MISMATCH":
-    case "TREASURY_STATE_MISMATCH":
-      return "On-chain состояние mint или treasury не прошло обязательную сверку.";
-    default:
-      return typeof payload["message"] === "string" ? payload["message"] : fallback;
-  }
-}
-
-async function apiRequest(path: string, init?: RequestInit): Promise<Record<string, unknown>> {
-  const response = await fetch(path, {
-    ...init,
-    credentials: "include",
-    cache: "no-store",
-    headers: { "content-type": "application/json", ...init?.headers },
-    signal: init?.signal ?? AbortSignal.timeout(15_000)
-  });
-  const payload = await responseJson(response);
-  if (!response.ok) throw new Error(errorMessage(payload, "API отклонил запрос."));
-  return payload;
-}
-
 export function WalletLogin() {
   const [wallets, setWallets] = useState<readonly LoginWallet[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [user, setUser] = useState<OperatorUser | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [availableAccounts, setAvailableAccounts] = useState<readonly WalletAccount[]>([]);
   const [selectedAccountAddress, setSelectedAccountAddress] = useState("");
   const [message, setMessage] = useState("Проверяем активную сессию…");
   const [busy, setBusy] = useState(true);
   const selectedWallet = useMemo(() => wallets[selectedIndex], [wallets, selectedIndex]);
+  const operatorRequest = useMemo(() => createOperatorRequest(() => {
+    setSessionExpired(true);
+    setMessage("Сессия истекла. Восстановите вход тем же кошельком; подписанная попытка остаётся на экране.");
+  }), []);
 
   useEffect(() => {
     const walletRegistry = getWallets();
@@ -149,7 +92,7 @@ export function WalletLogin() {
     });
   }, [selectedWallet]);
 
-  async function login(): Promise<void> {
+  async function login(requiredWalletAddress?: string): Promise<void> {
     if (!selectedWallet) {
       setMessage("Совместимый Solana Wallet Standard кошелёк не найден.");
       return;
@@ -160,9 +103,12 @@ export function WalletLogin() {
       const connected = await selectedWallet.features[StandardConnect].connect();
       const accounts = messageAccounts(availableAccounts, [...connected.accounts, ...selectedWallet.accounts]);
       setAvailableAccounts(accounts);
-      const nextSelection = reconcileAccountSelection(accounts, selectedAccountAddress);
+      const nextSelection = requiredWalletAddress ?? reconcileAccountSelection(accounts, selectedAccountAddress);
       setSelectedAccountAddress(nextSelection);
       const account = accountForAddress(accounts, nextSelection);
+      if (requiredWalletAddress && !account) {
+        throw new Error("Для восстановления сессии выберите в Phantom тот же кошелёк оператора и повторите вход.");
+      }
       if (!account && accounts.length > 1) {
         setSelectedAccountAddress("");
         setMessage("Phantom подключил несколько аккаунтов. Выберите адрес оператора и нажмите вход ещё раз.");
@@ -198,6 +144,7 @@ export function WalletLogin() {
         throw new Error("Сервер не вернул профиль оператора.");
       }
       setUser(verified["user"] as OperatorUser);
+      setSessionExpired(false);
       setWalletAddress(account.address);
       setSelectedAccountAddress(account.address);
       setMessage("Вход выполнен.");
@@ -213,6 +160,7 @@ export function WalletLogin() {
     try {
       await apiRequest("/api/v1/auth/logout", { method: "POST", body: "{}" });
       setUser(null);
+      setSessionExpired(false);
       setWalletAddress(null);
       setMessage("Сессия завершена.");
     } catch (error) {
@@ -248,13 +196,18 @@ export function WalletLogin() {
           <div className="rounded-xl border border-[#b9dec8] bg-[#eff9f2] p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#28744a]">Сессия оператора активна</p>
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#28744a]">{sessionExpired ? "Сессия оператора истекла" : "Сессия оператора активна"}</p>
                 <p className="mt-1 font-semibold">{user.displayName || "Оператор"}</p>
               </div>
               <span className="status-ready">{user.role === "ADMINISTRATOR" ? "Администратор" : "Аудитор"}</span>
             </div>
-            <p className="mt-3 text-xs text-[#53695d]">Вход выполнен адресом <span className="font-mono font-semibold" title={walletAddress ?? undefined}>{walletAddress ? shortWalletAddress(walletAddress) : "подтверждённый кошелёк"}</span></p>
+            <p className="mt-3 text-xs text-[#53695d]">Кошелёк оператора <span className="font-mono font-semibold" title={walletAddress ?? undefined}>{walletAddress ? shortWalletAddress(walletAddress) : "подтверждённый кошелёк"}</span></p>
           </div>
+          {sessionExpired && <div role="alert" className="mt-3 rounded-xl border border-[#efd29d] bg-[#fff8eb] p-4 text-sm">
+            <p>Восстановите сессию тем же кошельком. Подпись входа не отправляет транзакцию. Затем повторите только проверку finalized уже подписанной попытки.</p>
+            <button type="button" className="mt-3 rounded-lg border px-4 py-2 font-semibold disabled:opacity-50"
+              disabled={busy || !walletAddress} onClick={() => void login(walletAddress ?? undefined)}>Восстановить сессию через Phantom</button>
+          </div>}
           {selectedAccountAddress && (
             <div className={`mt-3 rounded-xl border p-4 ${selectedAccountAddress === walletAddress ? "border-[#dbe5df] bg-[#f7faf8]" : "border-[#efd29d] bg-[#fff8eb]"}`}>
               <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#61746a]">Сейчас выбран в Phantom</p>
@@ -276,11 +229,15 @@ export function WalletLogin() {
             </label>
           )}
           {walletAddress && ["ADMINISTRATOR", "AUDITOR"].includes(user.role) && (
-            <InstrumentPanel key={`instruments-${user.id}`} role={user.role} request={apiRequest}
+            <InstrumentPanel key={`instruments-${user.id}`} role={user.role} request={operatorRequest}
               wallet={selectedWallet} walletAddress={walletAddress} onBusyChange={setBusy} />
           )}
           {["ADMINISTRATOR", "AUDITOR"].includes(user.role) && (
-            <InvestorPanel key={user.id} role={user.role} request={apiRequest}
+            <CorporateActionPanel key={`actions-${user.id}`} role={user.role} request={operatorRequest}
+              wallet={selectedWallet} walletAddress={walletAddress ?? ""} onBusyChange={setBusy} />
+          )}
+          {["ADMINISTRATOR", "AUDITOR"].includes(user.role) && (
+            <InvestorPanel key={user.id} role={user.role} request={operatorRequest}
               activeWalletAddress={selectedAccountAddress}
               signWalletMessage={user.role === "ADMINISTRATOR" ? signInvestorWalletMessage : undefined} />
           )}
@@ -288,7 +245,7 @@ export function WalletLogin() {
             <details className="mt-6 rounded-xl border border-[#dbe5df] bg-[#f8faf9] px-4">
               <summary className="cursor-pointer py-4 text-sm font-semibold">Расширенные операции · Snapshot Localnet / Devnet</summary>
               <p className="text-xs leading-5 text-[#61746a]">Откройте этот раздел только для подготовленного корпоративного действия с известным UUID. Сеть определяется сервером и повторно проверяется перед подписью.</p>
-              <SnapshotPanel key={walletAddress} wallet={selectedWallet} walletAddress={walletAddress} request={apiRequest} onBusyChange={setBusy} />
+              <SnapshotPanel key={walletAddress} wallet={selectedWallet} walletAddress={walletAddress} request={operatorRequest} onBusyChange={setBusy} />
             </details>
           )}
           <button className="mt-5 rounded-lg border border-[#cbd8d0] px-4 py-2 text-sm font-semibold disabled:opacity-50" disabled={busy} onClick={() => void logout()}>

@@ -10,11 +10,14 @@ import {
 
 import { SnapshotPreparationError } from "./snapshot-candidate.js";
 import { uuidBytes } from "./snapshot-registration.js";
+import { requireActionIssuer } from "./corporate-action-registry.js";
+import { unavailableWorkflowTransaction } from "./transaction-workflow.js";
 
 const CONFIRMABLE_STATUSES = ["PREPARED", "SUBMITTED", "UNKNOWN_CONFIRMATION"] as const;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-type ConfirmationActor = { id: string; walletAddress: string; correlationId: string };
+type ConfirmationActor = { id: string; walletAddress: string; correlationId: string;
+  confirmationSource?: "HTTP" | "CONTROLLED_LOCALNET_CLI" };
 
 function objectValue(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
@@ -60,9 +63,13 @@ export async function confirmSnapshotRegistration(
   if (!operation || !action || action.id !== actionId || operation.operationType !== "REGISTER_SNAPSHOT" || !snapshot) {
     throw new SnapshotPreparationError("REGISTRATION_NOT_FOUND", "Snapshot registration attempt was not found");
   }
+  requireActionIssuer(action.instrument, actor);
+  if (operation.requiredSigner && operation.requiredSigner !== actor.walletAddress) {
+    throw new SnapshotPreparationError("WALLET_MISMATCH", "Session wallet does not match the prepared signer");
+  }
   if (operation.status === "FINALIZED") {
     if (operation.signature !== transactionSignature || snapshot.status !== "FINALIZED" ||
-        action.status !== "SNAPSHOT_CREATED") {
+        ["DRAFT", "SCHEDULED", "SNAPSHOT_MISSED"].includes(action.status)) {
       throw new SnapshotPreparationError("REGISTRATION_CONFLICT", "Finalized registration does not match the request");
     }
     return { operationId, signature: transactionSignature, snapshotId: snapshot.id, status: "FINALIZED" as const };
@@ -78,7 +85,8 @@ export async function confirmSnapshotRegistration(
     throw new SnapshotPreparationError("REGISTRATION_NOT_READY", "Prepared block height is invalid");
   }
   const genesisHash = await rpc.request("getGenesisHash", []);
-  if (genesisHash !== expectedGenesisHash || snapshot.networkGenesisHash !== expectedGenesisHash) {
+  if (genesisHash !== expectedGenesisHash || snapshot.networkGenesisHash !== expectedGenesisHash ||
+      operation.networkGenesisHash && operation.networkGenesisHash !== expectedGenesisHash) {
     throw new SnapshotPreparationError("WRONG_SOLANA_NETWORK", "Confirmation RPC does not match the snapshot network");
   }
   const instruction = await buildSnapshotRegistrationInstruction({
@@ -100,10 +108,14 @@ export async function confirmSnapshotRegistration(
     recentBlockhash: operation.recentBlockhash,
     lastValidBlockHeight: Number(operation.lastValidBlockHeight)
   });
+  if (operation.preparedTransactionBase64 && operation.preparedTransactionBase64 !== expectedTransaction) {
+    throw new SnapshotPreparationError("REGISTRATION_NOT_READY", "Persisted exact message no longer matches the snapshot terms");
+  }
   const rpcTransaction = await rpc.request("getTransaction", [transactionSignature, {
     commitment: "finalized", encoding: "base64", maxSupportedTransactionVersion: 0
   }]);
   if (rpcTransaction === null) {
+    if (operation.preparedTransactionBase64) return unavailableWorkflowTransaction(database, rpc, operation, transactionSignature);
     await database.blockchainTransaction.updateMany({
       where: { id: operationId, status: { in: [...CONFIRMABLE_STATUSES] } },
       data: { signature: transactionSignature, status: "UNKNOWN_CONFIRMATION", submittedAt: now,
@@ -116,10 +128,6 @@ export async function confirmSnapshotRegistration(
   const slot = transactionResult?.["slot"];
   if (!transactionResult || !meta || !Number.isSafeInteger(slot) || (slot as number) < Number(snapshot.solanaSlot)) {
     throw new SnapshotPreparationError("INVALID_RPC_RESPONSE", "Finalized transaction response is invalid");
-  }
-  if (meta["err"] !== null) {
-    await recordTerminalFailure(database, operationId, transactionSignature, "TRANSACTION_FAILED");
-    throw new SnapshotPreparationError("TRANSACTION_FAILED", "Snapshot registration transaction failed on chain");
   }
   const transactionTuple = transactionResult["transaction"];
   if (!Array.isArray(transactionTuple) || transactionTuple.length !== 2 ||
@@ -136,6 +144,10 @@ export async function confirmSnapshotRegistration(
   } catch {
     throw new SnapshotPreparationError("TRANSACTION_MISMATCH", "Finalized transaction does not match the prepared registration");
   }
+  if (meta["err"] !== null) {
+    await recordTerminalFailure(database, operationId, transactionSignature, "TRANSACTION_FAILED");
+    throw new SnapshotPreparationError("TRANSACTION_FAILED", "Snapshot registration transaction failed on chain");
+  }
   const accountInfoResult = objectValue(await rpc.request("getAccountInfo", [instruction.actionAddress, {
     commitment: "finalized", encoding: "base64"
   }]));
@@ -143,7 +155,7 @@ export async function confirmSnapshotRegistration(
   const account = objectValue(accountInfoResult?.["value"]);
   const accountData = account?.["data"];
   if (!context || !Number.isSafeInteger(context["slot"]) || (context["slot"] as number) < (slot as number) ||
-      !account || account["owner"] !== action.instrument.programId || !Array.isArray(accountData) ||
+      !account || account["owner"] !== action.instrument.programId || account["executable"] !== false || !Array.isArray(accountData) ||
       accountData.length !== 2 || typeof accountData[0] !== "string" || accountData[1] !== "base64") {
     throw new SnapshotPreparationError("ACTION_ACCOUNT_MISMATCH", "Finalized Action PDA response is invalid");
   }
@@ -190,6 +202,7 @@ export async function confirmSnapshotRegistration(
         blockchainTransactionId: operationId,
         metadataJson: {
           signature: transactionSignature,
+          confirmationSource: actor.confirmationSource ?? "HTTP",
           actionAddress: instruction.actionAddress,
           finalizedSlot: slot as number,
           snapshotHash: confirmed.snapshotHash

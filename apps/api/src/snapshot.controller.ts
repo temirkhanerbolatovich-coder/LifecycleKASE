@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, HttpException, Param, Post, Req, Res } from "@nestjs/common";
+import { Body, Controller, Header, Headers, HttpException, Param, Post, Req, Res } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 
 import { HttpSolanaRpc, SolanaRpcError } from "@lifecycle-kase/solana-client";
@@ -16,6 +16,9 @@ import { PrismaService } from "./prisma.service.js";
 import { SnapshotPreparationError } from "./snapshot-candidate.js";
 import { confirmSnapshotRegistration } from "./snapshot-confirmation.js";
 import { prepareSnapshotRegistrationForAction, snapshotHttpOptionsFromEnvironment } from "./snapshot-http.js";
+import { submitSnapshotRegistration } from "./snapshot-submission.js";
+import { TransactionWorkflowError } from "./transaction-workflow.js";
+import { instrumentDeploymentOptions } from "./instrument-deployment.js";
 
 type HttpRequest = {
   headers?: { cookie?: string };
@@ -26,6 +29,7 @@ type HttpResponse = { setHeader(name: string, value: string): void };
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function httpError(error: unknown, response?: HttpResponse): never {
+  if (error instanceof TransactionWorkflowError) throw new HttpException({ code: error.code, message: error.message }, error.status);
   if (error instanceof AuthFlowError) {
     if (error instanceof AuthRateLimitError && response) {
       response.setHeader("Retry-After", String(error.retryAfterSeconds));
@@ -55,6 +59,7 @@ export class SnapshotController {
   ) {}
 
   @Post(":id/snapshot/prepare")
+  @Header("Cache-Control", "no-store")
   async prepare(
     @Param("id") actionId: string,
     @Req() request: HttpRequest,
@@ -93,6 +98,7 @@ export class SnapshotController {
   }
 
   @Post(":id/snapshot/confirm")
+  @Header("Cache-Control", "no-store")
   async confirm(
     @Param("id") actionId: string,
     @Body() body: unknown,
@@ -140,5 +146,22 @@ export class SnapshotController {
     } catch (error) {
       httpError(error, response);
     }
+  }
+
+  @Post(":id/snapshot/submit")
+  @Header("Cache-Control", "no-store")
+  async submit(@Param("id") actionId: string, @Body() body: unknown, @Req() request: HttpRequest,
+    @Res({ passthrough: true }) response: HttpResponse, @Headers("origin") origin?: string) {
+    try {
+      requireAuthenticationEnabled();
+      requireRequestOrigin(origin, authOptionsFromEnvironment());
+      this.rateLimit.consumeMutation(authenticationClientKey(request));
+      const session = await readOperatorSession(this.prisma, sessionTokenFromCookieHeader(request.headers?.cookie), new Date());
+      if (session.user.role !== "ADMINISTRATOR") throw new AuthFlowError("ROLE_FORBIDDEN", "Administrator role is required", 403);
+      const options = instrumentDeploymentOptions(); const correlationId = randomUUID();
+      response.setHeader("X-Correlation-ID", correlationId);
+      return await submitSnapshotRegistration(this.prisma, new HttpSolanaRpc(options.rpcEndpoint, options.rpcTimeoutMs), actionId, body,
+        { id: session.user.id, walletAddress: session.walletAddress, correlationId }, options);
+    } catch (error) { httpError(error, response); }
   }
 }

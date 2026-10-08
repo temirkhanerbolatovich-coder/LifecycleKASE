@@ -14,7 +14,8 @@ export function validateProgramIdentity({ rustSource, anchorConfig, plan, idl })
       anchorAddress("devnet") !== devnet || plan?.programId !== devnet || idl?.address !== devnet) {
     throw new Error("Program identity mismatch across source, Anchor, Devnet plan or built IDL");
   }
-  const expected = ["initialize_instrument", "activate_instrument", "create_corporate_action", "cancel_action", "register_snapshot"];
+  const expected = ["initialize_instrument", "activate_instrument", "create_corporate_action", "cancel_action", "register_snapshot",
+    "register_entitlement", "finalize_calculation", "reset_calculation"];
   if (!Array.isArray(idl.instructions) || expected.some(name => !idl.instructions.some(i => i.name === name))) {
     throw new Error("Devnet IDL is missing an implemented instruction");
   }

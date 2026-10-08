@@ -7,10 +7,13 @@ export interface InvestorEligibilityInput {
   payoutWalletStatus: "PENDING" | "ACTIVE" | "BLOCKED" | "REVOKED";
   payoutWalletVerified: boolean;
   payoutWalletBelongsToInvestor: boolean;
+  /** Synthetic Localnet review; never substitutes for KYC on a public network. */
+  localDemoReview?: { network: string; reasonCode: string | null; reviewed: boolean };
 }
 
 export type EligibilityReason =
   | "ELIGIBLE"
+  | "LOCAL_DEMO_ELIGIBLE"
   | "NOT_ELIGIBLE_AT_RECORD_DATE"
   | "INVESTOR_NOT_ACTIVE"
   | "KYC_NOT_VERIFIED"
@@ -29,7 +32,10 @@ export function evaluateInvestorEligibility(
   if (input.investorStatus !== "ACTIVE") {
     return { eligible: false, reason: "INVESTOR_NOT_ACTIVE" };
   }
-  if (input.kycStatus !== "VERIFIED") {
+  const localDemo = input.kycStatus === "NOT_STARTED" &&
+    input.localDemoReview?.network === "SOLANA_LOCALNET" &&
+    input.localDemoReview.reasonCode === "DEMO_CRITERIA_MET" && input.localDemoReview.reviewed;
+  if (input.kycStatus !== "VERIFIED" && !localDemo) {
     return { eligible: false, reason: "KYC_NOT_VERIFIED" };
   }
   if (input.currentEligibility !== "ELIGIBLE") {
@@ -47,5 +53,5 @@ export function evaluateInvestorEligibility(
   if (!input.payoutWalletVerified) {
     return { eligible: false, reason: "PAYOUT_WALLET_NOT_VERIFIED" };
   }
-  return { eligible: true, reason: "ELIGIBLE" };
+  return { eligible: true, reason: localDemo ? "LOCAL_DEMO_ELIGIBLE" : "ELIGIBLE" };
 }

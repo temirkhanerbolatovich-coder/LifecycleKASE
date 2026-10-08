@@ -13,6 +13,7 @@ import {
   SETTLEMENT_MINT_SIZE,
   TOKEN_2022_PROGRAM_ID,
   verifyFinalizedTransaction,
+  verifySignedPreparedTransaction,
   type SolanaRpc
 } from "@lifecycle-kase/solana-client";
 
@@ -26,6 +27,8 @@ const CONFIRMABLE = ["PREPARED", "SUBMITTED", "UNKNOWN_CONFIRMATION"] as const;
 type StoredMintSetupAttempt = {
   id: string;
   status: string;
+  signature?: string | null;
+  lastErrorCode?: string | null;
   preparedTransactionBase64: string | null;
   requiredSigner: string | null;
   networkGenesisHash: string | null;
@@ -49,6 +52,14 @@ type DistributionPayload = {
 
 type InitializationPayload = { instrumentAddress: string };
 type ActivationPayload = { instrumentAddress: string; allocations: DistributionAllocation[] };
+export type InstrumentDeploymentPhase = "MINT_SETUP" | "DISTRIBUTION" | "INITIALIZE" | "ACTIVATE";
+
+const OPERATION_TYPE_BY_PHASE: Record<InstrumentDeploymentPhase, string> = {
+  MINT_SETUP: "INSTRUMENT_MINT_SETUP",
+  DISTRIBUTION: "INSTRUMENT_DISTRIBUTION",
+  INITIALIZE: "INSTRUMENT_INITIALIZE",
+  ACTIVATE: "INSTRUMENT_ACTIVATE"
+};
 
 export class InstrumentDeploymentError extends Error {
   constructor(public readonly code: string, message: string, public readonly status = 409) {
@@ -89,6 +100,100 @@ export function instrumentDeploymentOptions(environment: NodeJS.ProcessEnv = pro
     rpcTimeoutMs: positiveInteger(environment.SOLANA_RPC_TIMEOUT_MS, 15_000, "SOLANA_RPC_TIMEOUT_MS") };
 }
 
+/**
+ * Broadcasts an exact wallet-signed prepared transaction through the trusted Localnet RPC.
+ * Localnet wallets sign, but the API owns transport because browser wallets do not expose
+ * an arbitrary Localnet RPC. The prepared message, signer, and Ed25519 signature are all
+ * verified before the RPC receives any bytes.
+ */
+export async function submitInstrumentDeployment(
+  database: PrismaClient,
+  rpc: SolanaRpc,
+  instrumentId: string,
+  operationId: string,
+  phase: InstrumentDeploymentPhase,
+  signedTransactionBase64: string,
+  actor: InstrumentActor,
+  options: InstrumentDeploymentOptions,
+  now = new Date()
+) {
+  if (!UUID.test(instrumentId) || !UUID.test(operationId) ||
+      typeof signedTransactionBase64 !== "string" || signedTransactionBase64.length > 2_000) {
+    throw new InstrumentDeploymentError("INVALID_REQUEST", "Instrument, operation, or signed transaction is invalid", 400);
+  }
+  if (options.cluster !== "localnet") {
+    throw new InstrumentDeploymentError("TRUSTED_BROADCAST_NOT_AVAILABLE", "API broadcast is available only for Localnet", 409);
+  }
+  const operation = await database.blockchainTransaction.findUnique({
+    where: { id: operationId }, include: { instrument: true }
+  });
+  const instrument = operation?.instrument;
+  if (!operation || !instrument || instrument.id !== instrumentId ||
+      operation.operationType !== OPERATION_TYPE_BY_PHASE[phase]) {
+    throw new InstrumentDeploymentError("DEPLOYMENT_ATTEMPT_NOT_FOUND", "Deployment attempt was not found", 404);
+  }
+  if (actor.walletAddress !== instrument.issuerAuthority || operation.requiredSigner !== actor.walletAddress) {
+    throw new InstrumentDeploymentError("WALLET_MISMATCH", "Session wallet does not match the prepared signer", 403);
+  }
+  if (operation.status === "FINALIZED") {
+    if (!operation.signature) throw new InstrumentDeploymentError("DEPLOYMENT_ATTEMPT_INVALID", "Finalized deployment signature is missing");
+    return { operationId, phase, signature: operation.signature, status: "FINALIZED" as const };
+  }
+  if (!CONFIRMABLE.includes(operation.status as typeof CONFIRMABLE[number]) ||
+      !operation.preparedTransactionBase64 || operation.networkGenesisHash !== options.expectedGenesisHash) {
+    throw new InstrumentDeploymentError("DEPLOYMENT_NOT_SUBMITTABLE", "Deployment attempt is not submittable");
+  }
+  let transactionSignature: string;
+  try {
+    transactionSignature = verifySignedPreparedTransaction({
+      expectedUnsignedTransactionBase64: operation.preparedTransactionBase64,
+      signedTransactionBase64,
+      requiredSigner: actor.walletAddress
+    });
+  } catch {
+    throw new InstrumentDeploymentError("SIGNED_TRANSACTION_INVALID",
+      "Signed transaction does not match the prepared transaction or signer", 400);
+  }
+  if (operation.signature && operation.signature !== transactionSignature) {
+    throw new InstrumentDeploymentError("DEPLOYMENT_CONFLICT", "Deployment attempt already has another signature");
+  }
+  if (await rpc.request("getGenesisHash", []) !== operation.networkGenesisHash) {
+    throw new InstrumentDeploymentError("WRONG_SOLANA_NETWORK", "Submission RPC is on another network", 503);
+  }
+  await database.$transaction(async transaction => {
+    const updated = await transaction.blockchainTransaction.updateMany({
+      where: { id: operationId, status: { in: [...CONFIRMABLE] },
+        OR: [{ signature: null }, { signature: transactionSignature }] },
+      data: { signature: transactionSignature, status: "SUBMITTED", submittedAt: now, lastErrorCode: null }
+    });
+    if (updated.count !== 1) {
+      throw new InstrumentDeploymentError("DEPLOYMENT_CONFLICT", "Deployment state changed concurrently");
+    }
+    await transaction.auditLog.create({ data: {
+      actorId: actor.id, actorWallet: actor.walletAddress,
+      event: "INSTRUMENT_TRANSACTION_SUBMISSION_REQUESTED", entityType: "BlockchainTransaction",
+      entityId: operationId, correlationId: actor.correlationId, blockchainTransactionId: operationId,
+      metadataJson: { instrumentId, phase, signature: transactionSignature, cluster: options.cluster }
+    } });
+  });
+  let rpcSignature: unknown;
+  try {
+    rpcSignature = await rpc.request("sendTransaction", [signedTransactionBase64, {
+      encoding: "base64", skipPreflight: false, preflightCommitment: "confirmed", maxRetries: 3
+    }]);
+  } catch (error) {
+    await database.blockchainTransaction.updateMany({ where: { id: operationId, status: "SUBMITTED",
+      signature: transactionSignature }, data: { status: "UNKNOWN_CONFIRMATION", lastErrorCode: "SUBMISSION_RESPONSE_UNKNOWN" } });
+    throw error;
+  }
+  if (rpcSignature !== transactionSignature) {
+    await database.blockchainTransaction.updateMany({ where: { id: operationId, status: "SUBMITTED",
+      signature: transactionSignature }, data: { status: "UNKNOWN_CONFIRMATION", lastErrorCode: "INVALID_RPC_RESPONSE" } });
+    throw new InstrumentDeploymentError("INVALID_RPC_RESPONSE", "Submission RPC returned another signature", 503);
+  }
+  return { operationId, phase, signature: transactionSignature, status: "SUBMITTED" as const };
+}
+
 function object(value: unknown, message = "Solana RPC response is invalid"): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new InstrumentDeploymentError("INVALID_RPC_RESPONSE", message, 503);
   return value as Record<string, unknown>;
@@ -99,16 +204,88 @@ function safeNumber(value: unknown, message = "Solana RPC numeric value is inval
   return value as number;
 }
 
+async function recordUnavailableTransaction(database: PrismaClient, rpc: SolanaRpc,
+  operation: { id: string; recentBlockhash?: string | null }, transactionSignature: string): Promise<never> {
+  const response = object(await rpc.request("getSignatureStatuses", [[transactionSignature], { searchTransactionHistory: true }]));
+  const values = response["value"];
+  if (!Array.isArray(values) || values.length !== 1) {
+    throw new InstrumentDeploymentError("INVALID_RPC_RESPONSE", "Signature status response is invalid", 503);
+  }
+  let code = "TRANSACTION_NOT_FINALIZED";
+  if (values[0] !== null && object(values[0])["confirmationStatus"] === "finalized") {
+    code = "TRANSACTION_HISTORY_UNAVAILABLE";
+  } else if (values[0] === null && operation.recentBlockhash) {
+    const validity = object(await rpc.request("isBlockhashValid", [operation.recentBlockhash, { commitment: "finalized" }]));
+    if (typeof validity["value"] !== "boolean") {
+      throw new InstrumentDeploymentError("INVALID_RPC_RESPONSE", "Blockhash validity response is invalid", 503);
+    }
+    if (!validity["value"]) code = "TRANSACTION_UNAVAILABLE";
+  }
+  // Missing history cannot prove failure: the transaction may already have changed accounts.
+  const updated = await database.blockchainTransaction.updateMany({ where: { id: operation.id, status: { in: [...CONFIRMABLE] },
+    OR: [{ signature: null }, { signature: transactionSignature }] },
+    data: { signature: transactionSignature, status: "UNKNOWN_CONFIRMATION", lastErrorCode: code } });
+  if (updated.count !== 1) {
+    throw new InstrumentDeploymentError("DEPLOYMENT_CONFLICT", "Deployment state changed concurrently");
+  }
+  throw new InstrumentDeploymentError(code, code === "TRANSACTION_NOT_FINALIZED"
+    ? "Transaction is not finalized yet"
+    : "Transaction bytes are unavailable; reconcile RPC history and on-chain state before any new submission");
+}
+
 function preparedResponse(existing: StoredMintSetupAttempt, cluster: "localnet" | "devnet") {
   if (!existing.preparedTransactionBase64 || !existing.requiredSigner || !existing.networkGenesisHash ||
       !existing.recentBlockhash || existing.lastValidBlockHeight === null) {
     throw new InstrumentDeploymentError("DEPLOYMENT_ATTEMPT_INVALID", "Stored mint setup attempt is incomplete");
   }
   return { operationId: existing.id, phase: "MINT_SETUP" as const, cluster,
+    signature: existing.signature ?? null, status: existing.status,
     requiredSigner: existing.requiredSigner, networkGenesisHash: existing.networkGenesisHash,
     recentBlockhash: existing.recentBlockhash, lastValidBlockHeight: Number(existing.lastValidBlockHeight),
     serializedTransactionBase64: existing.preparedTransactionBase64,
     transactionFormat: "SOLANA_V0_WIRE_TRANSACTION_BASE64" as const, resumed: true };
+}
+
+async function activeAttemptCanResume(
+  database: PrismaClient,
+  rpc: SolanaRpc,
+  existing: StoredMintSetupAttempt,
+  expectedGenesisHash: string
+): Promise<boolean> {
+  if (existing.networkGenesisHash !== expectedGenesisHash) {
+    await database.blockchainTransaction.updateMany({
+      where: { id: existing.id, status: { in: [...CONFIRMABLE] } },
+      data: { status: "FAILED", lastErrorCode: "NETWORK_GENESIS_CHANGED" }
+    });
+    return false;
+  }
+  if (existing.lastErrorCode === "TRANSACTION_UNAVAILABLE" || existing.lastErrorCode === "TRANSACTION_HISTORY_UNAVAILABLE") {
+    throw new InstrumentDeploymentError("TRANSACTION_HISTORY_UNAVAILABLE",
+      "Reconcile the existing transaction and on-chain state before preparing another attempt");
+  }
+  if (existing.lastValidBlockHeight === null) {
+    throw new InstrumentDeploymentError("DEPLOYMENT_ATTEMPT_INVALID", "Stored deployment attempt is incomplete");
+  }
+  const currentHeight = safeNumber(await rpc.request("getBlockHeight", [{ commitment: "finalized" }]));
+  if (currentHeight <= Number(existing.lastValidBlockHeight)) return true;
+
+  if (existing.status !== "PREPARED" && existing.signature) {
+    const result = object(await rpc.request("getSignatureStatuses", [
+      [existing.signature],
+      { searchTransactionHistory: true }
+    ]));
+    const values = result["value"];
+    if (!Array.isArray(values) || values.length !== 1) {
+      throw new InstrumentDeploymentError("INVALID_RPC_RESPONSE", "Signature status response is invalid", 503);
+    }
+    if (values[0] !== null) return true;
+  }
+
+  await database.blockchainTransaction.updateMany({
+    where: { id: existing.id, status: { in: [...CONFIRMABLE] } },
+    data: { status: "FAILED", lastErrorCode: "BLOCKHASH_EXPIRED_UNCONFIRMED" }
+  });
+  return false;
 }
 
 function distributionPayload(value: unknown): DistributionPayload {
@@ -150,6 +327,7 @@ function preparedDistributionResponse(existing: StoredMintSetupAttempt, cluster:
   }
   const payload = distributionPayload(existing.preparedPayload);
   return { operationId: existing.id, phase: "DISTRIBUTION" as const, cluster,
+    signature: existing.signature ?? null, status: existing.status,
     requiredSigner: existing.requiredSigner, networkGenesisHash: existing.networkGenesisHash,
     recentBlockhash: existing.recentBlockhash, lastValidBlockHeight: Number(existing.lastValidBlockHeight),
     serializedTransactionBase64: existing.preparedTransactionBase64,
@@ -206,12 +384,9 @@ export async function prepareInstrumentMintSetup(database: PrismaClient, rpc: So
   if (existing) {
     if (!existing.preparedTransactionBase64 || !existing.requiredSigner || !existing.networkGenesisHash ||
         !existing.recentBlockhash || existing.lastValidBlockHeight === null) throw new InstrumentDeploymentError("DEPLOYMENT_ATTEMPT_INVALID", "Stored mint setup attempt is incomplete");
-    const lastValidBlockHeight = Number(existing.lastValidBlockHeight);
-    if (existing.status !== "PREPARED" || safeNumber(await rpc.request("getBlockHeight", [{ commitment: "finalized" }])) <= lastValidBlockHeight) {
+    if (await activeAttemptCanResume(database, rpc, existing, options.expectedGenesisHash)) {
       return preparedResponse(existing, options.cluster);
     }
-    await database.blockchainTransaction.updateMany({ where: { id: existing.id, status: "PREPARED" },
-      data: { status: "FAILED", lastErrorCode: "BLOCKHASH_EXPIRED" } });
   }
   const { plan } = await planFor(database, rpc, instrumentId, actor, options);
   const latest = object(await rpc.request("getLatestBlockhash", [{ commitment: "finalized" }]));
@@ -260,8 +435,11 @@ function accountData(response: unknown, minimumSlot: number): Buffer {
   return Buffer.from(data[0], "base64");
 }
 
-function verifyMint(data: Buffer, input: { decimals: number; supply: bigint; permanentDelegate?: string }) {
-  if (data.length < 82 || data.readUInt32LE(0) !== 0 || data.readBigUInt64LE(36) !== input.supply ||
+function verifyMint(data: Buffer, input: { decimals: number; supply: bigint; permanentDelegate?: string; mintAuthority?: string }) {
+  const expectedAuthorityTag = input.mintAuthority ? 1 : 0;
+  if (data.length < 82 || data.readUInt32LE(0) !== expectedAuthorityTag ||
+      (input.mintAuthority && encodePublicKey(data.subarray(4, 36)) !== input.mintAuthority) ||
+      data.readBigUInt64LE(36) !== input.supply ||
       data[44] !== input.decimals || data[45] !== 1 || data.readUInt32LE(46) !== 0) {
     throw new InstrumentDeploymentError("MINT_STATE_MISMATCH", "Finalized mint supply, decimals, or authorities do not match");
   }
@@ -301,13 +479,9 @@ export async function prepareInstrumentDistribution(database: PrismaClient, rpc:
   const existing = await database.blockchainTransaction.findFirst({ where: { instrumentId, operationType: "INSTRUMENT_DISTRIBUTION",
     status: { in: [...CONFIRMABLE] } }, orderBy: { createdAt: "desc" } });
   if (existing) {
-    const lastValidBlockHeight = existing.lastValidBlockHeight === null ? null : Number(existing.lastValidBlockHeight);
-    if (lastValidBlockHeight === null) throw new InstrumentDeploymentError("DEPLOYMENT_ATTEMPT_INVALID", "Stored distribution attempt is incomplete");
-    if (existing.status !== "PREPARED" || safeNumber(await rpc.request("getBlockHeight", [{ commitment: "finalized" }])) <= lastValidBlockHeight) {
+    if (await activeAttemptCanResume(database, rpc, existing, options.expectedGenesisHash)) {
       return preparedDistributionResponse(existing, options.cluster);
     }
-    await database.blockchainTransaction.updateMany({ where: { id: existing.id, status: "PREPARED" },
-      data: { status: "FAILED", lastErrorCode: "BLOCKHASH_EXPIRED" } });
   }
   const instrument = await database.instrument.findUnique({ where: { id: instrumentId }, include: { settlementAsset: true } });
   if (!instrument) throw new InstrumentDeploymentError("INSTRUMENT_NOT_FOUND", "Instrument was not found", 404);
@@ -418,9 +592,7 @@ export async function confirmInstrumentDistribution(database: PrismaClient, rpc:
   const rpcTransaction = await rpc.request("getTransaction", [transactionSignature,
     { commitment: "finalized", encoding: "base64", maxSupportedTransactionVersion: 0 }]);
   if (rpcTransaction === null) {
-    await database.blockchainTransaction.updateMany({ where: { id: operationId, status: { in: [...CONFIRMABLE] } },
-      data: { signature: transactionSignature, status: "UNKNOWN_CONFIRMATION", submittedAt: now, lastErrorCode: "TRANSACTION_NOT_FINALIZED" } });
-    throw new InstrumentDeploymentError("TRANSACTION_NOT_FINALIZED", "Transaction is not finalized yet");
+    return recordUnavailableTransaction(database, rpc, operation, transactionSignature);
   }
   const result = object(rpcTransaction);
   const meta = object(result["meta"]);
@@ -479,9 +651,7 @@ export async function confirmInstrumentMintSetup(database: PrismaClient, rpc: So
   if (await rpc.request("getGenesisHash", []) !== operation.networkGenesisHash) throw new InstrumentDeploymentError("WRONG_SOLANA_NETWORK", "Confirmation RPC is on another network", 503);
   const rpcTransaction = await rpc.request("getTransaction", [transactionSignature, { commitment: "finalized", encoding: "base64", maxSupportedTransactionVersion: 0 }]);
   if (rpcTransaction === null) {
-    await database.blockchainTransaction.updateMany({ where: { id: operationId, status: { in: [...CONFIRMABLE] } },
-      data: { signature: transactionSignature, status: "UNKNOWN_CONFIRMATION", submittedAt: now, lastErrorCode: "TRANSACTION_NOT_FINALIZED" } });
-    throw new InstrumentDeploymentError("TRANSACTION_NOT_FINALIZED", "Transaction is not finalized yet");
+    return recordUnavailableTransaction(database, rpc, operation, transactionSignature);
   }
   const result = object(rpcTransaction); const meta = object(result["meta"]); const slot = safeNumber(result["slot"]);
   if (meta["err"] !== null) {
@@ -499,7 +669,8 @@ export async function confirmInstrumentMintSetup(database: PrismaClient, rpc: So
   const [bondData, settlementData, treasuryData] = await Promise.all([plan.bondMint, plan.settlementMint, plan.treasuryTokenAccount].map(address =>
     rpc.request("getAccountInfo", [address, { commitment: "finalized", encoding: "base64", minContextSlot: slot }])));
   verifyMint(accountData(bondData, slot), { decimals: 0, supply: instrument.totalSupply, permanentDelegate: plan.instrumentAuthority });
-  verifyMint(accountData(settlementData, slot), { decimals: 6, supply: 0n });
+  // KZT-Test must retain the issuer authority so a later settlement can be test-funded.
+  verifyMint(accountData(settlementData, slot), { decimals: 6, supply: 0n, mintAuthority: actor.walletAddress });
   const treasury = accountData(treasuryData, slot);
   if (treasury.length < 165 || encodePublicKey(treasury.subarray(0, 32)) !== plan.bondMint ||
       encodePublicKey(treasury.subarray(32, 64)) !== actor.walletAddress || treasury.readBigUInt64LE(64) !== instrument.totalSupply) {
@@ -545,6 +716,7 @@ function preparedLifecycleResponse(existing: StoredMintSetupAttempt, cluster: "l
   }
   const payload = lifecyclePayload(existing.preparedPayload, phase);
   return { operationId: existing.id, phase, cluster, requiredSigner: existing.requiredSigner,
+    signature: existing.signature ?? null, status: existing.status,
     networkGenesisHash: existing.networkGenesisHash, recentBlockhash: existing.recentBlockhash,
     lastValidBlockHeight: Number(existing.lastValidBlockHeight),
     serializedTransactionBase64: existing.preparedTransactionBase64,
@@ -563,15 +735,9 @@ async function expireOrResumeLifecycle(database: PrismaClient, rpc: SolanaRpc, i
   if (existing.networkGenesisHash !== options.expectedGenesisHash) {
     throw new InstrumentDeploymentError("WRONG_SOLANA_NETWORK", "Stored attempt belongs to another network", 409);
   }
-  if (existing.lastValidBlockHeight === null) {
-    throw new InstrumentDeploymentError("DEPLOYMENT_ATTEMPT_INVALID", `Stored ${phase.toLowerCase()} attempt is incomplete`);
-  }
-  if (existing.status !== "PREPARED" ||
-      safeNumber(await rpc.request("getBlockHeight", [{ commitment: "finalized" }])) <= Number(existing.lastValidBlockHeight)) {
+  if (await activeAttemptCanResume(database, rpc, existing, options.expectedGenesisHash)) {
     return preparedLifecycleResponse(existing, options.cluster, phase);
   }
-  await database.blockchainTransaction.updateMany({ where: { id: existing.id, status: "PREPARED" },
-    data: { status: "FAILED", lastErrorCode: "BLOCKHASH_EXPIRED" } });
   return null;
 }
 
@@ -614,7 +780,7 @@ function contextualProgramAccount(response: unknown, minimumSlot: number, progra
   return data[0];
 }
 
-function verifyConfirmedInstrument(dataBase64: string, instrument: {
+export function verifyConfirmedInstrument(dataBase64: string, instrument: {
   id: string; issuerAuthority: string; complianceAuthority: string; corporateActionAuthority: string;
   mintAddress: string | null; faceValueMinor: bigint; couponRateBps: number; paymentsPerYear: number;
   issueAt: Date; maturityAt: Date; totalSupply: bigint; settlementAsset: { mintAddress: string | null };
@@ -694,6 +860,7 @@ export async function prepareInstrumentInitialization(database: PrismaClient, rp
 async function finalizedTransaction(database: PrismaClient, rpc: SolanaRpc, operation: {
   id: string; status: string; signature: string | null; preparedTransactionBase64: string | null;
   networkGenesisHash: string | null;
+  recentBlockhash?: string | null;
 }, transactionSignature: string, actor: InstrumentActor, now: Date, failureLabel: string) {
   if (!CONFIRMABLE.includes(operation.status as typeof CONFIRMABLE[number]) || !operation.preparedTransactionBase64) {
     throw new InstrumentDeploymentError("DEPLOYMENT_NOT_CONFIRMABLE", `${failureLabel} attempt is not confirmable`);
@@ -704,9 +871,7 @@ async function finalizedTransaction(database: PrismaClient, rpc: SolanaRpc, oper
   const response = await rpc.request("getTransaction", [transactionSignature,
     { commitment: "finalized", encoding: "base64", maxSupportedTransactionVersion: 0 }]);
   if (response === null) {
-    await database.blockchainTransaction.updateMany({ where: { id: operation.id, status: { in: [...CONFIRMABLE] } },
-      data: { signature: transactionSignature, status: "UNKNOWN_CONFIRMATION", submittedAt: now, lastErrorCode: "TRANSACTION_NOT_FINALIZED" } });
-    throw new InstrumentDeploymentError("TRANSACTION_NOT_FINALIZED", "Transaction is not finalized yet");
+    return recordUnavailableTransaction(database, rpc, operation, transactionSignature);
   }
   const result = object(response); const meta = object(result["meta"]); const slot = safeNumber(result["slot"]);
   if (meta["err"] !== null) {

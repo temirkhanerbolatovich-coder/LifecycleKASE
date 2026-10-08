@@ -41,7 +41,7 @@ export default async function Dashboard() {
           <div>
             <p className="mb-4 text-xs font-bold uppercase tracking-[0.22em] text-[#28744a]">Обзор платформы</p>
             <h1 className="max-w-2xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">Прозрачный жизненный цикл токенизированных ценных бумаг.</h1>
-            <p className="mt-6 max-w-xl text-base leading-7 text-[#586c60]">Рабочее место администратора корпоративных действий: статус сервиса, вход через кошелёк, реестр инвесторов и регистрация snapshot в настроенной тестовой сети. Выпуск и выплаты пока не доступны пользователям.</p>
+            <p className="mt-6 max-w-xl text-base leading-7 text-[#586c60]">Рабочее место администратора: вход через кошелёк, реестр инвесторов, четырёхфазный выпуск инструмента и регистрация snapshot в настроенной тестовой сети. Корпоративные выплаты пока не доступны.</p>
           </div>
           <div className="rounded-2xl border border-[#dbe5df] bg-white p-7 shadow-[0_14px_50px_-30px_rgba(16,35,28,0.3)]">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#708278]">Состояние окружения</p>
@@ -69,8 +69,8 @@ export default async function Dashboard() {
 
         <section className="border-t border-[#dbe5df] py-10">
           <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-            <div><p className="text-xs font-bold uppercase tracking-[0.22em] text-[#28744a]">Дорожная карта</p><h2 className="mt-2 text-2xl font-semibold">Что будет доступно дальше</h2></div>
-            <span className="text-sm text-[#718279]">Вход реализован; рабочие операции добавляются поэтапно</span>
+            <div><p className="text-xs font-bold uppercase tracking-[0.22em] text-[#28744a]">Дорожная карта</p><h2 className="mt-2 text-2xl font-semibold">Что уже работает и что дальше</h2></div>
+            <span className="text-sm text-[#718279]">Реестр и выпуск реализованы; корпоративные действия добавляются поэтапно</span>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             {[

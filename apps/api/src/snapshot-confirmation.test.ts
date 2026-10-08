@@ -44,7 +44,7 @@ function uuidBytes(value: string): Buffer {
   return Buffer.from(value.replaceAll("-", ""), "hex");
 }
 
-async function fixture(transactionResult: "finalized" | "missing" | "changed" = "finalized") {
+async function fixture(transactionResult: "finalized" | "missing" | "changed" = "finalized", transactionError: unknown = null) {
   const instruction = await buildSnapshotRegistrationInstruction({
     programId: PROGRAM,
     instrumentId: uuidBytes(INSTRUMENT_ID),
@@ -85,7 +85,7 @@ async function fixture(transactionResult: "finalized" | "missing" | "changed" = 
     id: OPERATION_ID,
     corporateActionId: ACTION_ID,
     operationType: "REGISTER_SNAPSHOT",
-    signature: null,
+    signature: null as string | null,
     status: "PREPARED",
     recentBlockhash: MINT,
     lastValidBlockHeight: 200n,
@@ -129,20 +129,31 @@ async function fixture(transactionResult: "finalized" | "missing" | "changed" = 
       if (method === "getGenesisHash") return KEY;
       if (method === "getTransaction") return transactionResult === "missing" ? null : {
         slot: 102,
-        meta: { err: null },
+        meta: { err: transactionError },
         transaction: [signed.toString("base64"), "base64"]
       };
       if (method === "getAccountInfo") return {
         context: { slot: 102 },
-        value: { owner: PROGRAM, data: [accountData.toString("base64"), "base64"] }
+        value: { owner: PROGRAM, executable: false, data: [accountData.toString("base64"), "base64"] }
       };
       throw new Error("Unexpected RPC method " + method);
     }
   };
-  return { database, rpc, calls, methods, transactionSignature, instruction };
+  return { database, rpc, calls, methods, transactionSignature, instruction, operation };
 }
 
 const actor = { id: ACTOR_ID, walletAddress: KEY, correlationId: CORRELATION_ID };
+
+test("a finalized snapshot stays confirmable after calculation and review advance the application status", async () => {
+  const setup = await fixture(); setup.operation.status = "FINALIZED"; setup.operation.signature = setup.transactionSignature;
+  setup.operation.corporateAction.snapshot.status = "FINALIZED";
+  for (const status of ["SNAPSHOT_CREATED", "CALCULATED", "UNDER_REVIEW", "RETURNED_FOR_REVISION", "APPROVED", "REJECTED"]) {
+    setup.operation.corporateAction.status = status;
+    const result = await confirmSnapshotRegistration(setup.database, setup.rpc, ACTION_ID, OPERATION_ID, setup.transactionSignature,
+      actor, KEY, new Date()); assert.equal(result.status, "FINALIZED");
+  }
+  assert.deepEqual(setup.methods, []); assert.deepEqual(setup.calls, {});
+});
 
 test("finalizes database state only after the prepared transaction and Action PDA match", async () => {
   const setup = await fixture();
@@ -183,4 +194,19 @@ test("rejects a finalized transaction whose message differs from the prepared at
   );
   assert.equal(setup.methods.includes("getAccountInfo"), false);
   assert.equal(setup.calls.operation, undefined);
+});
+
+test("only the exact prepared transaction may mark a snapshot attempt failed", async () => {
+  const failure = { InstructionError: [2, { Custom: 6000 }] };
+  for (const message of ["changed", "finalized"] as const) {
+    const setup = await fixture(message, failure);
+    await assert.rejects(confirmSnapshotRegistration(setup.database, setup.rpc, ACTION_ID, OPERATION_ID,
+      setup.transactionSignature, actor, KEY, new Date("2026-09-30T10:04:00.000Z")),
+    (error: unknown) => error instanceof SnapshotPreparationError &&
+      error.code === (message === "changed" ? "TRANSACTION_MISMATCH" : "TRANSACTION_FAILED"));
+    assert.equal(setup.calls.unknown?.data.status, message === "changed" ? undefined : "FAILED");
+    assert.equal(setup.calls.snapshot, undefined);
+    assert.equal(setup.calls.action, undefined);
+    assert.equal(setup.methods.includes("getAccountInfo"), false);
+  }
 });

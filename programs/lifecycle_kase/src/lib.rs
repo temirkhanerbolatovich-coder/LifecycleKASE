@@ -1,9 +1,12 @@
 use crate::program::LifecycleKase;
 use anchor_lang::prelude::*;
+pub mod entitlement;
+pub mod financial;
 use anchor_spl::token_2022::spl_token_2022::{
     extension::StateWithExtensions, state::Account as TokenAccount,
 };
 use anchor_spl::token_interface::{Mint, Token2022};
+pub use entitlement::*;
 
 #[cfg(not(feature = "devnet"))]
 declare_id!("6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo");
@@ -233,6 +236,21 @@ pub mod lifecycle_kase {
         action.total_balance = commitment.total_balance;
         action.status = CorporateActionStatus::SnapshotCreated;
         Ok(())
+    }
+
+    pub fn register_entitlement(
+        ctx: Context<RegisterEntitlement>,
+        terms: EntitlementTerms,
+    ) -> Result<()> {
+        entitlement::register(ctx, terms)
+    }
+
+    pub fn finalize_calculation(ctx: Context<FinalizeCalculation>) -> Result<()> {
+        entitlement::finalize(ctx)
+    }
+
+    pub fn reset_calculation<'info>(ctx: Context<'info, ResetCalculation<'info>>) -> Result<()> {
+        entitlement::reset(ctx)
     }
 }
 
@@ -582,6 +600,8 @@ pub enum CorporateActionStatus {
     Scheduled,
     Cancelled,
     SnapshotCreated,
+    Calculated,
+    UnderReview,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, PartialEq, Eq, InitSpace)]
@@ -650,6 +670,14 @@ pub enum ErrorCode {
     InvalidSnapshotHash,
     #[msg("Snapshot investor, wallet, or balance counts are invalid")]
     InvalidSnapshotCounts,
+    #[msg("Only the corporate action authority may register or finalize entitlements")]
+    UnauthorizedCorporateActionAuthority,
+    #[msg("Entitlement identity, recipient, snapshot or amounts are invalid")]
+    InvalidEntitlement,
+    #[msg("Calculation must include every snapshot investor exactly once, up to 64 investors")]
+    IncompleteCalculation,
+    #[msg("Calculation amounts or counters overflowed")]
+    CalculationOverflow,
 }
 
 #[cfg(test)]

@@ -1,5 +1,11 @@
 # Solana development toolchain
 
+## Validator isolation correction — 2026-10-02
+
+Both validator wrappers reserve four adjacent ports: RPC at the requested port, websocket at RPC+1, faucet at RPC+2 and gossip at RPC+3. The maximum RPC port is 65532. Preflight rejects an occupied port before creating a ledger. This prevents the disposable integration/smoke validator from competing with the persistent acceptance validator's default faucet at 9900; it does not stop or reset that validator. A localnet integration run passed after this correction while the persistent Localnet remained available.
+
+The program integration client now additionally exercises the production client's four serialized v0 deployment phases, exact signed/finalized messages, mint/treasury/distribution and PDA state using a disposable signer. This is separate from owner-controlled Phantom and application database acceptance.
+
 Status: local WSL toolchain and first Anchor build verified
 Last reviewed: 2026-10-01
 

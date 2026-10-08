@@ -7,7 +7,8 @@ import { AuthRateLimitError, AuthRateLimitService, authenticationClientKey } fro
 import { createInstrumentDraft, InstrumentRegistryError, listInstruments } from "./instrument-registry.js";
 import { confirmInstrumentActivation, confirmInstrumentDistribution, confirmInstrumentInitialization,
   confirmInstrumentMintSetup, InstrumentDeploymentError, instrumentDeploymentOptions, prepareInstrumentActivation,
-  prepareInstrumentDistribution, prepareInstrumentInitialization, prepareInstrumentMintSetup } from "./instrument-deployment.js";
+  prepareInstrumentDistribution, prepareInstrumentInitialization, prepareInstrumentMintSetup,
+  submitInstrumentDeployment, type InstrumentDeploymentPhase } from "./instrument-deployment.js";
 import { PrismaService } from "./prisma.service.js";
 
 type Request = { headers?: { cookie?: string }; ip?: string; socket?: { remoteAddress?: string } };
@@ -108,6 +109,28 @@ export class InstrumentController {
       if (phase === "DISTRIBUTION") return await confirmInstrumentDistribution(this.prisma, rpc, instrumentId, operationId, signature, actor, options);
       if (phase === "INITIALIZE") return await confirmInstrumentInitialization(this.prisma, rpc, instrumentId, operationId, signature, actor, options);
       return await confirmInstrumentActivation(this.prisma, rpc, instrumentId, operationId, signature, actor, options);
+    } catch (error) { this.httpError(error, response); }
+  }
+
+  @Post(":id/deploy/submit")
+  @Header("Cache-Control", "no-store")
+  async submitDeployment(@Param("id") instrumentId: string, @Body() body: unknown, @Req() request: Request,
+    @Res({ passthrough: true }) response: Response, @Headers("origin") origin?: string) {
+    try {
+      const actor = await this.actor(request, response, true, origin);
+      const payload = body && typeof body === "object" && !Array.isArray(body) ? body as Record<string, unknown> : {};
+      const operationId = payload["operationId"];
+      const signedTransactionBase64 = payload["signedTransactionBase64"];
+      const phase = payload["phase"];
+      if (typeof operationId !== "string" || typeof signedTransactionBase64 !== "string" ||
+          !["MINT_SETUP", "DISTRIBUTION", "INITIALIZE", "ACTIVATE"].includes(String(phase)) ||
+          Object.keys(payload).some(key => !["phase", "operationId", "signedTransactionBase64"].includes(key))) {
+        throw new InstrumentDeploymentError("INVALID_REQUEST", "Phase, operation, and signed transaction are required", 400);
+      }
+      const options = instrumentDeploymentOptions();
+      const rpc = new HttpSolanaRpc(options.rpcEndpoint, options.rpcTimeoutMs);
+      return await submitInstrumentDeployment(this.prisma, rpc, instrumentId, operationId,
+        phase as InstrumentDeploymentPhase, signedTransactionBase64, actor, options);
     } catch (error) { this.httpError(error, response); }
   }
 }

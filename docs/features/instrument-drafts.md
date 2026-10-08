@@ -1,6 +1,6 @@
 # Instrument database drafts
 
-Status: database drafts plus wallet-signed `MINT_SETUP`, `DISTRIBUTION`, `INITIALIZE` and `ACTIVATE` prepare/confirm boundaries implemented on 2026-10-02; live wallet/validator acceptance pending.
+Status: database drafts plus wallet-signed `MINT_SETUP`, `DISTRIBUTION`, `INITIALIZE` and `ACTIVATE` prepare/confirm boundaries implemented; the complete live Phantom/Localnet happy-path issuance passed for LKA26R1 on 2026-10-02. Remaining manual negative cases and corporate-action acceptance are separate gates.
 
 ## Purpose
 
@@ -33,6 +33,8 @@ Reads require Administrator or Auditor. Creation requires Administrator, the exa
 
 `POST /api/v1/instruments/:id/deploy/prepare` now prepares an exact unsigned `MINT_SETUP` transaction after validating network genesis, signer, draft state, rent and unoccupied deterministic addresses. It creates bond and KZT-Test Token-2022 mints, sets the Instrument Authority PDA as permanent delegate, creates the issuer treasury, mints 35 bonds and revokes bond mint authority. Phantom remains the only signer.
 
+For Localnet, `POST /api/v1/instruments/:id/deploy/submit` accepts the wallet-signed wire bytes, requires the exact prepared message and signer, verifies the Ed25519 signature, checks the configured genesis hash, and only then broadcasts through the trusted loopback RPC. It is disabled for Devnet. A transport error is stored as `UNKNOWN_CONFIRMATION`; it is not treated as failure or finalization. Devnet continues to use wallet submission.
+
 `deploy/confirm` verifies the exact prepared message at `finalized`, then independently reconciles Token-2022 ownership, decimals, supply, revoked authorities, permanent delegate and treasury balance before atomically saving mint projections and audit evidence. The instrument intentionally stays `DRAFT` with `circulatingSupply = 0`.
 
 The separate `DISTRIBUTION` request requires an explicit mapping of the fixed amounts 10, 20 and 5 to three different Investor Registry records. Every selected wallet must be active, signature-verified, not revoked, on the configured network, and owned by an active `ELIGIBLE` investor. The API stores that immutable allocation beside the exact unsigned transaction. Confirmation verifies the exact finalized message, an empty issuer treasury and the three expected Token-2022 account owners/mints/balances before changing `circulatingSupply` from 0 to 35. The instrument still remains `DRAFT`.
@@ -41,4 +43,4 @@ The separate `DISTRIBUTION` request requires an explicit mapping of the fixed am
 
 `ACTIVATE` reloads the finalized distribution mapping and requires every wallet/investor to remain active, verified, non-revoked, eligible and on the configured network. It independently checks the three holder accounts and exact 10/20/5 balances before preparation. Confirmation repeats the eligibility check, verifies the exact finalized message, rechecks holder balances at or after the transaction slot, and requires the Instrument PDA to be `Active` before atomically changing the database status to `ACTIVE`.
 
-All four boundaries are fixture-tested, but no live Phantom/validator deployment sequence has been accepted yet. Synthetic local-demo eligibility is not real KYC. A registry change after preparation does not alter the already prepared transaction and blocks activation confirmation when eligibility has changed. The shared KZT-Test record currently permits only one canonical mint setup. Initialization also inherits [ADR-008](../decisions/ADR-008-program-administrator.md): the Phantom issuer must be the deployed program's upgrade authority under the current MVP program design.
+All four boundaries and the exact Localnet signed-transaction submission boundary are fixture-tested and passed live for LKA26R1: matching finalized messages, ACTIVE Instrument PDA/database, 35/35 supply, treasury 0 and holder balances 10/20/5. Same-wallet session recovery retained the original signed distribution; see [evidence and remaining gates](../testing/localnet-instrument-acceptance.md). Synthetic local-demo eligibility is not real KYC. A registry change after preparation does not alter the already prepared transaction and blocks activation confirmation when eligibility has changed. The shared KZT-Test record currently permits only one canonical mint setup. Initialization also inherits [ADR-008](../decisions/ADR-008-program-administrator.md): the Phantom issuer must be the deployed program's upgrade authority under the current MVP program design.

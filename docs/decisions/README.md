@@ -15,3 +15,8 @@
 - [ADR-013: Phantom authority and separate Devnet deployment payer](ADR-013-devnet-demo-authorities.md)
 - [ADR-014: Local MVP acceptance before public-network deployment](ADR-014-local-mvp-before-public-network.md)
 - [ADR-015: Phased wallet-signed instrument deployment](ADR-015-phased-instrument-deployment.md)
+- [ADR-016: Action lifecycle and snapshot recovery boundary](ADR-016-action-lifecycle-boundary.md)
+- [ADR-017: Stored investor entitlements and explicit demo approval](ADR-017-stored-entitlements-and-demo-approval.md)
+- [ADR-018: Exact wallet-signed Localnet coupon treasury funding](ADR-018-localnet-coupon-funding.md)
+- [ADR-019: Immutable on-chain calculations before approval](ADR-019-on-chain-calculation-registration.md)
+- [ADR-020: Independent outbound Telegram watchdog](ADR-020-independent-telegram-monitor.md)

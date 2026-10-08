@@ -36,6 +36,11 @@ export async function persistSnapshotCandidate(
   }
 
   return database.$transaction(async (tx) => {
+    const pendingCancellation = await tx.blockchainTransaction.findFirst({ where: {
+      corporateActionId: payload.action_id, operationType: "ACTION_CANCEL",
+      status: { in: ["PREPARED", "SUBMITTED", "UNKNOWN_CONFIRMATION"] }
+    } });
+    if (pendingCancellation) throw new SnapshotPreparationError("CANDIDATE_STALE", "Action cancellation is pending");
     const action = await tx.corporateAction.findUnique({
       where: { id: payload.action_id },
       include: { instrument: true, snapshot: true }

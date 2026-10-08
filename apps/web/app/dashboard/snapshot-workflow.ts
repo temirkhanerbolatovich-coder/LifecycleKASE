@@ -27,6 +27,18 @@ export function transactionSignature(bytes: Uint8Array): string {
 
 export type SupportedSnapshotCluster = "localnet" | "devnet";
 
+/** Restore a submitted deployment for confirmation without prompting another transaction signature. */
+export function resumedDeploymentSignature(payload: Record<string, unknown>): string | null {
+  if (payload["resumed"] !== true) return null;
+  const signature = payload["signature"];
+  if (payload["status"] === "PREPARED" && (signature === null || signature === undefined)) return null;
+  if (!["SUBMITTED", "UNKNOWN_CONFIRMATION"].includes(String(payload["status"])) ||
+      typeof signature !== "string" || !/^[1-9A-HJ-NP-Za-km-z]{64,88}$/.test(signature)) {
+    throw new Error("Подписанная попытка не содержит корректной подписи; повторная отправка остановлена.");
+  }
+  return signature;
+}
+
 export function walletChainForCluster(cluster: SupportedSnapshotCluster): `solana:${SupportedSnapshotCluster}` {
   return `solana:${cluster}`;
 }
@@ -95,6 +107,27 @@ export function unsignedTransactionBytes(base64: string): Uint8Array {
     throw new Error("Ожидалась неподписанная Solana v0 транзакция.");
   }
   return bytes;
+}
+
+/** Accept only a signature over the exact prepared wire transaction. */
+export function signedPreparedTransaction(
+  signedBytes: Uint8Array,
+  unsignedBase64: string,
+  walletAddress: string
+): { signedTransactionBase64: string; signature: string } {
+  const unsignedBytes = unsignedTransactionForSigner(unsignedBase64, walletAddress);
+  if (signedBytes.length !== unsignedBytes.length) {
+    throw new Error(`Phantom изменил длину подготовленной транзакции (${signedBytes.length} вместо ${unsignedBytes.length}); отправка остановлена.`);
+  }
+  const changedMessageOffset = signedBytes.slice(65).findIndex((byte, index) => byte !== unsignedBytes[index + 65]);
+  if (signedBytes[0] !== 1 || changedMessageOffset !== -1) {
+    const detail = changedMessageOffset === -1 ? "signature count" : `message byte ${changedMessageOffset}`;
+    throw new Error(`Phantom изменил подготовленную транзакцию (${detail}); отправка остановлена.`);
+  }
+  const signature = transactionSignature(signedBytes.slice(1, 65));
+  let binary = "";
+  for (const byte of signedBytes) binary += String.fromCharCode(byte);
+  return { signedTransactionBase64: btoa(binary), signature };
 }
 
 export function requireFinalizedResponse(payload: Record<string, unknown>, operationId: string, signature: string): void {

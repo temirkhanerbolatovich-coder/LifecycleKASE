@@ -24,6 +24,22 @@ test("allows an eligible investor to use a verified active wallet", () => {
   });
 });
 
+test("explicit synthetic Localnet review does not claim KYC and cannot bypass other payout controls", () => {
+  const demo = { ...eligibleInput, kycStatus: "NOT_STARTED" as const,
+    localDemoReview: { network: "SOLANA_LOCALNET", reasonCode: "DEMO_CRITERIA_MET", reviewed: true } };
+  assert.deepEqual(evaluateInvestorEligibility(demo), { eligible: true, reason: "LOCAL_DEMO_ELIGIBLE" });
+  assert.equal(evaluateInvestorEligibility({ ...eligibleInput, kycStatus: "NOT_STARTED" }).eligible, false);
+  for (const localDemoReview of [{ ...demo.localDemoReview, network: "SOLANA_DEVNET" },
+    { ...demo.localDemoReview, reasonCode: "UNREVIEWED" }, { ...demo.localDemoReview, reviewed: false }]) {
+    assert.equal(evaluateInvestorEligibility({ ...demo, localDemoReview }).eligible, false);
+  }
+  for (const kycStatus of ["REJECTED", "EXPIRED", "PENDING_REVIEW"] as const) {
+    assert.equal(evaluateInvestorEligibility({ ...demo, kycStatus }).eligible, false);
+  }
+  assert.equal(evaluateInvestorEligibility({ ...demo, payoutWalletStatus: "REVOKED" }).eligible, false);
+  assert.equal(evaluateInvestorEligibility({ ...demo, snapshotEligibility: "NOT_ELIGIBLE" }).eligible, false);
+});
+
 test("preserves record-date exclusion even when current eligibility changes", () => {
   assert.deepEqual(
     evaluateInvestorEligibility({

@@ -71,10 +71,13 @@ function pendingFixture() {
   };
   const auditEvents: unknown[] = [];
   const transaction = {
-    blockchainTransaction: { create: async () => ({ id: CORRELATION_ID }) },
+    corporateAction: { findUnique: async () => stored.corporateAction },
+    blockchainTransaction: { findFirst: async () => null, create: async () => ({ id: CORRELATION_ID }) },
     auditLog: { create: async (args: unknown) => { auditEvents.push(args); return { id: "audit" }; } }
   };
   const database = {
+    corporateAction: { findUnique: async () => stored.corporateAction },
+    blockchainTransaction: { findFirst: async () => null },
     snapshot: { findUnique: async (args: any) => args.select ? {
       id: stored.id,
       status: stored.status,
@@ -120,7 +123,7 @@ test("resumes a pending snapshot without recapturing holder balances", async () 
   assert.equal(result.snapshotHash, setup.commitment.sha256);
   assert.equal(result.operationId, CORRELATION_ID);
   assert.equal(setup.auditEvents.length, 1);
-  assert.deepEqual(setup.methods, ["getGenesisHash", "getSlot", "getBlockTime", "getLatestBlockhash"]);
+  assert.deepEqual(setup.methods, ["getGenesisHash", "getGenesisHash", "getSlot", "getBlockTime", "getLatestBlockhash"]);
 });
 
 test("validates snapshot HTTP configuration without accepting mainnet or excessive windows", () => {

@@ -18,7 +18,7 @@ function u64(value: bigint): Buffer {
   return bytes;
 }
 
-async function associatedTokenAccount(owner: string, mint: string): Promise<string> {
+export async function associatedTokenAccount(owner: string, mint: string): Promise<string> {
   const [tokenAccount] = await getProgramDerivedAddress({
     programAddress: address(ASSOCIATED_TOKEN_PROGRAM_ID),
     seeds: [decodePublicKey(owner), decodePublicKey(TOKEN_2022_PROGRAM_ID), decodePublicKey(mint)]
@@ -26,7 +26,7 @@ async function associatedTokenAccount(owner: string, mint: string): Promise<stri
   return tokenAccount;
 }
 
-function createAssociatedTokenAccountIdempotent(
+export function createAssociatedTokenAccountIdempotent(
   payer: string,
   tokenAccount: string,
   owner: string,
