@@ -41,7 +41,7 @@ services:
     runtime: node
     plan: free
     region: frankfurt
-    buildCommand: npm ci --include=dev && npm run build --workspace @lifecycle-kase/web
+    buildCommand: npm ci --include=dev && npm run build --workspace @lifecycle-kase/domain && npm run build --workspace @lifecycle-kase/solana-client && npm run build --workspace @lifecycle-kase/web
     startCommand: npm run start:web
     healthCheckPath: /health/live
     envVars:
