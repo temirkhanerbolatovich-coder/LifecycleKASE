@@ -1,6 +1,22 @@
 # Disposable Render staging
 
-Status: the 2026-10-02 audit observed GitHub and both Live Render services at `112bdb1`. A 2026-10-09 pre-publication check still found that revision serving successfully. The current release candidate adds the Localnet action/snapshot/entitlement/funding workflows and monitoring described in the [current audit](../PROJECT_AUDIT_2026-10-09.md); its GitHub CI and Render rollout must be recorded separately after publication. Earlier operator login was owner-accepted; authenticated browser flows were not repeated in this audit. The historical entries below remain as an evidence trail.
+Status: the 2026-10-09 application rollout published the Localnet action/snapshot/entitlement/funding workflows and monitoring described in the [current audit](../PROJECT_AUDIT_2026-10-09.md). Both Render services are Live at application revision `adc0cff`; GitHub CI, migration logs, public health and a new protected route were verified. Earlier operator login was owner-accepted; authenticated browser flows were not repeated in this audit. The historical `112bdb1` entries below remain as an evidence trail.
+
+## 2026-10-09 application rollout
+
+The main release commit `800f3e105e779c6bb88aa8d4f202dc154dcfe2d0` passed GitHub Actions run `37835633211`. Its API deploy succeeded and applied the two new migrations, but the first clean Render web build failed because the service built only the web workspace while a web test module referenced the unbuilt Solana client package. Local root builds and CI had built workspaces in dependency order, so they did not expose this deployment-specific defect.
+
+Commit `adc0cff1d04341fbd96b76a67c7785a6439cf040` corrected the checked-in and saved Render web build command to build `@lifecycle-kase/domain` and `@lifecycle-kase/solana-client` before `@lifecycle-kase/web`. The exact command passed locally, the 33 web tests and documentation validation passed, and GitHub Actions run `37836924302` succeeded.
+
+Final application deploys:
+
+- API `dep-db3vfn7f3r2c73do5vv0`: `Deploy succeeded | Live`, source `adc0cff`;
+- web `dep-db3vfhqd0e5s73f8kjr0`: `Deploy succeeded | Live`, source `adc0cff`;
+- API logs: 18 migrations found; `20261002230000_corporate_action_operations` and `20261003001000_coupon_funding_operations` applied successfully;
+- public checks: API readiness HTTP 200 `ready`, web liveness HTTP 200 `live`, dashboard HTTP 200;
+- new entitlement prepare route: HTTP 401 `SESSION_REQUIRED` without an operator session, proving the route is published and still protected. Before rollout the same request returned 404.
+
+No staging operator login, wallet signature, Localnet transaction, funding, approval or payout was performed. Render cannot access the owner's loopback Localnet validator, and this disposable database remains unsuitable for real data.
 
 ## 2026-10-09 pre-publication checkpoint
 

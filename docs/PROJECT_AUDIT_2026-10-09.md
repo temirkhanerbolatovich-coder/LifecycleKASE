@@ -89,9 +89,11 @@ The retained RPC has pruned the old SCHEDULE transaction, so its exact bytes cou
 - Root production dependency audit: zero vulnerabilities after Next.js 16.4.0. The isolated test-only legacy Solana integration graph still reports 12 advisories (5 high, 7 moderate); an incompatible forced upgrade was not applied.
 - Secret review found no committed private keys, wallet seeds, tokens, or production credentials. Local monitor configuration, backups, generated artifacts, and ledgers remain ignored.
 
-## Publication gate
+## Publication result
 
-At the start of this audit, the release candidate was not published: GitHub and Render still represented `112bdb1`. Publication requires a clean reviewed commit, successful GitHub Actions for that commit, and a separate Render rollout check. Public HTTP health alone is insufficient evidence of the deployed revision or any Localnet financial operation.
+At the start of this audit, GitHub and Render still represented `112bdb1`. The application release was published as `800f3e1`; GitHub Actions run `37835633211` passed. The first web rollout exposed a clean-checkout dependency-order defect, so the Render web build command was corrected in `adc0cff` to build the domain and Solana client workspaces before Next.js. GitHub Actions run `37836924302` passed for that correction.
+
+Render API deploy `dep-db3vfn7f3r2c73do5vv0` and web deploy `dep-db3vfhqd0e5s73f8kjr0` are Live on `adc0cff1d04341fbd96b76a67c7785a6439cf040`. API logs report 18 migrations and successful application of the two corporate-action/funding migrations. Public API readiness, web liveness and dashboard return HTTP 200; the newly published entitlement route returns the expected HTTP 401 `SESSION_REQUIRED` without an operator session instead of the old 404. This proves the revision, route wiring and disabled unauthenticated access. It does not prove an authenticated staging wallet flow or any owner Localnet financial operation.
 
 ## Next concrete action
 
