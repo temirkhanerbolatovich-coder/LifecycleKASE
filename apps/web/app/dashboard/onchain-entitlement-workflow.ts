@@ -8,6 +8,8 @@ export type PreparedOnchainCalculation = {
   lastValidBlockHeight: number; entitlementId?: string; entitlementAddress?: string; investorId?: string;
   settlementWallet?: string; balanceAtSnapshot?: string; paymentAmountMinor?: string; tokensToRedeem?: string;
   entitlementStatus?: string; entitlementAddresses?: string[]; entitlementCount?: number; totalAmountMinor?: string;
+  bondMint?: string; redemptionSourcesAddress?: string; redemptionProgressAddress?: string; sourceHash?: string; sourceAddresses?: string[];
+  tokenAccounts?: { address: string; walletAddress: string; balanceAtSnapshot: string }[];
 };
 
 export function preparedOnchainCalculation(payload: Record<string, unknown>, view: EntitlementsView,

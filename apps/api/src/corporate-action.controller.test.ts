@@ -25,7 +25,8 @@ test("actions require authentication, keep auditors read-only and enforce Origin
     controller.calculate(id, {}, request, response, "http://localhost:3000"),
     controller.review(id, {}, request, response, "http://localhost:3000"),
     ...["prepare", "submit", "confirm"].map(operation => controller.onchainCalculation(id, operation, {}, request, response, "http://localhost:3000")),
-    ...["prepare", "submit", "confirm"].map(operation => controller.couponFunding(id, operation, {}, request, response, "http://localhost:3000"))
+    ...["prepare", "submit", "confirm"].map(operation => controller.couponFunding(id, operation, {}, request, response, "http://localhost:3000")),
+    ...["prepare", "submit", "confirm"].map(operation => controller.redemptionExecutionOperation(id, operation, {}, request, response, "http://localhost:3000"))
   ];
   try {
     await assert.rejects(controller.list({}, response), httpStatus(401));

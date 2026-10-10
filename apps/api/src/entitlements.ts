@@ -4,6 +4,7 @@ import { calculateCouponBreakdown, calculateEarlyRedemption, calculatePrincipal,
 import type { InstrumentActor } from "./instrument-registry.js";
 import { actionInput, actionText, requireActionIssuer, workflowDatabaseError } from "./corporate-action-registry.js";
 import { TransactionWorkflowError, WORKFLOW_UUID } from "./transaction-workflow.js";
+import { redemptionTokenSources } from "./redemption-sources.js";
 
 export const FORMULA_VERSION = "integer-entitlements-v1";
 export const ELIGIBILITY_RULE_VERSION = "eligibility-v1-local-demo-explicit";
@@ -118,6 +119,7 @@ function serializedEntitlement(row: Entitlement) {
 export async function getEntitlements(database: PrismaClient, id: string) {
   const action = await loadAction(database, id);
   return { actionId: id, actionVersion: action.version, actionType: action.type, status: action.status,
+    ...(action.type !== "COUPON_PAYMENT" ? { tokenMint: action.instrument.mintAddress } : {}),
     approvedById: action.approvedById, approvedAt: action.approvedAt, reviewNote: action.reviewNote,
     totalEntitlementMinor: action.totalEntitlementMinor.toString(), eligibleHolders: action.eligibleHolders,
     formulaVersion: FORMULA_VERSION, eligibilityRuleVersion: ELIGIBILITY_RULE_VERSION,
@@ -126,7 +128,9 @@ export async function getEntitlements(database: PrismaClient, id: string) {
       if (!capturedInvestor || capturedInvestor.investorId !== row.investorId) {
         throw new TransactionWorkflowError("CALCULATION_CHANGED", "Entitlement is outside the snapshot");
       }
-      return { ...serializedEntitlement(row), currentEligibility: eligibility(action, capturedInvestor, row.settlementWalletAddress) };
+      return { ...serializedEntitlement(row), currentEligibility: eligibility(action, capturedInvestor, row.settlementWalletAddress),
+        ...(action.type !== "COUPON_PAYMENT" ? { redemptionSources: redemptionTokenSources(action.snapshot!.investors, row.snapshotInvestorId).map(source => ({
+          address: source.address, walletAddress: source.wallet, balanceAtSnapshot: source.balanceAtSnapshot.toString() })) } : {}) };
     }),
     investors: action.snapshot?.investors.map(row => ({ investorId: row.investorId, displayName: row.investor.displayName,
       balance: row.balance.toString(), snapshotEligibility: row.eligibilityStatus,
@@ -263,7 +267,7 @@ function verifyStoredCalculations(action: Action, positiveStatus: "CALCULATED" |
         entitlement.balanceAtRecordDate !== row.balance || entitlement.formulaVersion !== FORMULA_VERSION ||
         !sameJson(entitlement.calculationInputs, expectedInputs) ||
         (calc.zero ? entitlement.status !== "NOT_ELIGIBLE_ZERO_ROUNDING" : positiveStatus === "EXECUTION"
-          ? !["READY", "PAID"].includes(entitlement.status) : entitlement.status !== positiveStatus)) {
+          ? !["READY", action.type === "COUPON_PAYMENT" ? "PAID" : "REDEEMED"].includes(entitlement.status) : entitlement.status !== positiveStatus)) {
       throw new TransactionWorkflowError("CALCULATION_CHANGED", "Stored calculation differs; return it for revision");
     }
     total = integer(total + calc.amountMinor); if (!calc.zero) count++;
@@ -275,13 +279,22 @@ function verifyStoredCalculations(action: Action, positiveStatus: "CALCULATED" |
 
 /** Execution retains the committed calculation; only the selected unpaid receiver is rechecked before signing. */
 export async function requireCouponExecutionCalculation(database: Database, id: string, receiverId?: string) {
+  return requireExecutionCalculation(database, id, "COUPON", receiverId);
+}
+
+export async function requireRedemptionExecutionCalculation(database: Database, id: string, receiverId?: string) {
+  return requireExecutionCalculation(database, id, "REDEMPTION", receiverId);
+}
+
+async function requireExecutionCalculation(database: Database, id: string, kind: "COUPON" | "REDEMPTION", receiverId?: string) {
   const action = await loadAction(database, id);
-  if (action.type !== "COUPON_PAYMENT" || !["APPROVED", "EXECUTING", "PARTIALLY_SETTLED", "SETTLED", "FINALIZED"].includes(action.status) ||
+  if ((kind === "COUPON" ? action.type !== "COUPON_PAYMENT" : !["EARLY_REDEMPTION", "BOND_REDEMPTION"].includes(action.type)) ||
+      !["APPROVED", "EXECUTING", "PARTIALLY_SETTLED", "SETTLED", "FINALIZED"].includes(action.status) ||
       !action.approvedById || !action.approvedAt || !action.reviewNote) {
-    throw new TransactionWorkflowError("APPROVAL_REQUIRED", "Explicit on-chain coupon approval is required");
+    throw new TransactionWorkflowError("APPROVAL_REQUIRED", "Explicit on-chain action approval is required");
   }
   verifyStoredCalculations(action, "EXECUTION", false);
-  if (action.processedEntitlements !== action.entitlements.filter(row => row.status === "PAID").length) {
+  if (action.processedEntitlements !== action.entitlements.filter(row => row.status === (kind === "COUPON" ? "PAID" : "REDEEMED")).length) {
     throw new TransactionWorkflowError("RECONCILIATION_REQUIRED", "Application processed count differs from confirmed entitlements");
   }
   if (receiverId) {
@@ -290,7 +303,7 @@ export async function requireCouponExecutionCalculation(database: Database, id: 
     if (!entitlement || !investor) throw new TransactionWorkflowError("ENTITLEMENT_NOT_FOUND", "Entitlement was not found", 404);
     if (entitlement.status !== "READY") throw new TransactionWorkflowError("ENTITLEMENT_ALREADY_EXECUTED", "Entitlement cannot be paid again");
     const decision = eligibility(action, investor, entitlement.settlementWalletAddress);
-    if (!decision.eligible) throw new TransactionWorkflowError("ELIGIBILITY_BLOCKED", `Coupon payment is blocked: ${decision.reason}`);
+    if (!decision.eligible) throw new TransactionWorkflowError("ELIGIBILITY_BLOCKED", `Action execution is blocked: ${decision.reason}`);
   }
   return action;
 }
@@ -326,11 +339,11 @@ export async function applyConfirmedActionApproval(database: Prisma.TransactionC
   await changeStatus(database, action, "APPROVED", { approvedById: actor.id, approvedAt, reviewNote: note });
 }
 
-/** Funding uses reviewed coupon calculations but cannot itself approve or execute them. */
+/** Funding uses reviewed action calculations but cannot itself approve or execute them. */
 export async function requireCouponFundingCalculation(database: Database, id: string) {
   const action = await loadAction(database, id);
-  if (action.type !== "COUPON_PAYMENT" || !["UNDER_REVIEW", "APPROVED"].includes(action.status)) {
-    throw new TransactionWorkflowError("COUPON_CALCULATION_REQUIRED", "Coupon funding requires submitted or approved stored calculations");
+  if (!["UNDER_REVIEW", "APPROVED"].includes(action.status)) {
+    throw new TransactionWorkflowError("COUPON_CALCULATION_REQUIRED", "Action funding requires submitted or approved stored calculations");
   }
   verifyStoredCalculations(action, action.status === "APPROVED" ? "READY" : "CALCULATED");
   return action;

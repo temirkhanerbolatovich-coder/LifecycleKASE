@@ -1,5 +1,7 @@
 # On-chain entitlement registration
 
+Current redemption continuation: early/maturity REGISTER atomically includes immutable source-account registration. Calculation FINALIZE/RESET include the paired source PDAs and action progress PDA via the client `redemption:true` option. This preserves legacy coupon plans/account layouts; using the older redemption finalizer against the newer program fails closed. See [redemption](redemption-execution-and-receipts.md), [ADR-025](../decisions/ADR-025-atomic-redemption.md) and [runtime evidence](../testing/kase-three-actions-2026-10-10.md).
+
 The program candidate was implemented on 2026-10-07, the guarded API/dashboard workflow was added on 2026-10-08, and the retained owner program was upgraded to the pinned candidate on 2026-10-09 with preserved-account read-back. The capability defaults to disabled. In the explicitly enabled owner Localnet, partial REGISTER → RESET → all three REGISTER are accepted; FINALIZE expired during signing and is retained UNKNOWN_CONFIRMATION for checking at the owner's request. See [the owner record](../testing/owner-entitlements-2026-10-09.md). Application calculation/review and its stored snapshot remain governed by [ADR-017](../decisions/ADR-017-stored-entitlements-and-demo-approval.md). See [ADR-019](../decisions/ADR-019-on-chain-calculation-registration.md) for the new boundary.
 
 ## Flow and accounts

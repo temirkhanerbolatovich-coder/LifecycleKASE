@@ -1,5 +1,15 @@
 # Implementation status
 
+## Current redemption continuation — 2026-10-10
+
+The isolated candidate implements coupon, partial 20% and maturity execution with finalized Solana receipts. Current completed runtime evidence, signatures/hashes, checks and reproduction are in [three-action acceptance](testing/kase-three-actions-2026-10-10.md). The retained owner ledger/program was not upgraded. KZT-Test and eligibility are simulated; transfers/burns are actual Token-2022 operations. The sections under the historical heading preserve the earlier audit checkpoint.
+
+| Implemented in the isolated candidate | Simulated inputs | Not accepted/deployed |
+| --- | --- | --- |
+| Fixed-supply instrument, registry, finalized capture, all three entitlement types, separate approval/reserve, coupon transfers, atomic redemption burns, both-leg reconciliation, canonical receipts, operator UI and recovery | KZT-Test issuer mint/funding, synthetic eligibility, generated disposable test signers, accelerated maturity and validator slot timing | Retained-owner installation/Phantom redemption, public network, real fiat/KYC/KASE/CSD, historical reconstruction, large-holder scale and production operations |
+
+## Historical audit checkpoint before redemption completion
+
 Current engineering audit: **2026-10-10**. See the [full audit](PROJECT_AUDIT_2026-10-10.md) for current code/runtime/database/publication boundaries. 295 Node tests, both Rust profiles, production build/proxy, isolated PostgreSQL suites and the current SBF candidate pass. Coupon payment/receipts/reconciliation are implemented in an isolated default-off candidate; owner acceptance and early/maturity atomic burn execution remain open. The saved owner database has 19 migrations, UNDER_REVIEW version 6, three CALCULATED rows and held UNKNOWN_CONFIRMATION FINALIZE; owner API/RPC were unavailable, so fresh chain read-back is unverified.
 
 ## Historical continuation observations
@@ -48,3 +58,4 @@ Active owner-approved delivery mode is local MVP; public Devnet and real funds a
 | Real KYC, bank settlement, digital tenge, KASE/CSD integration | Out of scope | No external integration or real-money claim |
 
 The live LKA26R1 issuance, coupon snapshot, owner-program upgrade, RESET and three entitlement registrations passed; remaining cases are tracked in the [instrument](testing/localnet-instrument-acceptance.md), [action](testing/localnet-action-acceptance.md), [upgrade](deployment/owner-localnet-program-upgrade.md) and [entitlement](testing/owner-entitlements-2026-10-09.md) records. Stored entitlements, financial parity, application review and Localnet coupon budget/funding are implemented locally; separate approver/action custody passed isolated acceptance. The owner calculation remains UNDER_REVIEW; its unsigned funding plan is prepared, settlement supply/treasury still zero. Resolution of the held FINALIZE, owner installation/acceptance of the approval candidate, governed owner settlement/receipt acceptance and all redemption payment/burn/reconciliation are the next gates. Coupon execution/receipt/reconciliation now pass isolated acceptance. Public Devnet remains deferred. The full MVP Definition of Done is in the [product requirements](requirements/PRODUCT_REQUIREMENTS.md).
+Current continuation: the isolated redemption candidate implements early/maturity atomic payment + burn, immutable source/progress proof, exact-wire confirmation and canonical receipts. Existing account layouts remain compatible; capability stays default-off. See [redemption feature](features/redemption-execution-and-receipts.md) and [current three-action acceptance](testing/kase-three-actions-2026-10-10.md). Earlier dated rows below retain their original evidence boundaries.

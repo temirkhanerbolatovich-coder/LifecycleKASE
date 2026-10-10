@@ -2,6 +2,8 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "outDir": ".test-dist", "rootDir": "app/dashboard", "lib": ["esnext", "dom"] },
   "include": [
+    "app/dashboard/redemption-calculation-workflow.test.ts",
+    "app/dashboard/redemption-execution-workflow.test.ts",
     "app/dashboard/coupon-execution-workflow.test.ts",
     "app/dashboard/workspace-presentation.test.ts",
     "app/dashboard/action-approval-workflow.test.ts",

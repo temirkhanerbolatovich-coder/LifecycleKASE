@@ -31,7 +31,7 @@ Current rate limits are process-local and reset on restart. They do not provide 
 - Recheck active verified/eligible receiver mappings and stored snapshot/calculation integrity at implemented gates. Application review/funding does not authorize missing on-chain execution.
 - Keep historical/missing evidence as an explicit limitation. Never fabricate finalized proof from the current balance or database status.
 
-The bond mint has revoked mint/freeze authorities and a program PDA permanent delegate. It cannot regain the revoked freeze authority. Future transfer controls need a separate compatible mint, and future redemption must atomically couple the correct asset and payment legs. See [token authority decision](../decisions/ADR-001-token-authority.md).
+The bond mint has revoked mint/freeze authorities and a program PDA permanent delegate. It cannot regain the revoked freeze authority. The isolated redemption candidate atomically couples payment with burns from immutable snapshot source accounts, validates supply progression and creates a per-entitlement receipt. Insufficient sources roll back the transaction; the API never substitutes a different holder account. Snapshot authority remains trusted, ordinary transfers remain unrestricted, and historical ownership reconstruction is unsupported. See [redemption trust boundary](../features/redemption-execution-and-receipts.md), [ADR-025](../decisions/ADR-025-atomic-redemption.md) and [token authority decision](../decisions/ADR-001-token-authority.md).
 
 ## Secrets and environment
 
@@ -51,8 +51,8 @@ Scanning reduces accidental exposure; it cannot prove absence of every secret, d
 | Auditor or non-issuer mutation | Server role, phase signer and session checks; isolated separate on-chain approver and rejection tests | Owner acceptance and governance recovery |
 | Changed transaction or wrong network | Exact signed bytes, signer/genesis checks and regression tests | Owner negative/manual variants |
 | Double send or lost response | Persisted attempts, active-attempt uniqueness, confirmation-only recovery | Durable execution jobs and reindex |
-| Tampered snapshot/calculation/audit | Canonical hash rebuild, immutability, versions and rollback tests | Owner coupon acceptance and atomic redemption reconciliation |
-| Unfunded/double-allocated payout | Isolated per-action vault custody and full-budget preflight; real double-allocation/replay rejection; isolated atomic coupon payout/receipt | Owner reserve/payout acceptance and atomic redemption |
+| Tampered snapshot/calculation/audit | Canonical hash rebuild, immutability, source commitments, versions and rollback tests | Owner coupon/redemption acceptance; runtime proof is scoped to the isolated candidate |
+| Unfunded/double-allocated payout | Per-action vault custody, full-budget preflight, per-entitlement replay rejection and atomic coupon/redemption receipts | Owner reserve/payout acceptance and independent external review |
 | Dependency/supply-chain defect | Lockfiles, production dependency audit, checksum-pinned scanner | 12 legacy test-harness advisories; full SBF/runtime CI and external review |
 
 Render is disposable staging with no durable financial-data guarantee. Durable storage/backups/restore, operational access control, metrics, shared abuse limits, custody/governance design and external Anchor review are prerequisites to a production decision. Follow the [testing strategy](../testing/testing-strategy.md) and [delivery checklist](../deployment/DEVNET_TO_MVP_CHECKLIST.md); do not mark those gates complete from this document alone.

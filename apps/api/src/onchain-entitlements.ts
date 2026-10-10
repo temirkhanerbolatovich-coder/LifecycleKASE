@@ -1,17 +1,18 @@
 import { Prisma, type BlockchainTransaction, type PrismaClient } from "@prisma/client";
-import { buildCalculationFinalization, buildCalculationReset, buildEntitlementRegistration, decodeConfirmedCorporateAction,
-  decodeConfirmedEntitlement, deriveCorporateActionAddresses, serializeUnsignedInstructionsTransaction,
+import { buildCalculationFinalization, buildCalculationReset, buildEntitlementRegistration, buildRedemptionSourceRegistration, decodeConfirmedCorporateAction,
+  decodeConfirmedEntitlement, decodeRedemptionSources, deriveCorporateActionAddresses, serializeUnsignedInstructionsTransaction,
   type SolanaRpc } from "@lifecycle-kase/solana-client";
 import type { InstrumentActor } from "./instrument-registry.js";
 import { actionInput, workflowDatabaseError } from "./corporate-action-registry.js";
 import { requireSubmittedEntitlementCalculation } from "./entitlements.js";
+import { redemptionTokenSources } from "./redemption-sources.js";
 import type { InstrumentDeploymentOptions } from "./instrument-deployment.js";
 import { uuidBytes } from "./snapshot-registration.js";
 import { ACTIVE_TRANSACTION_STATUSES, TransactionWorkflowError, WORKFLOW_UUID, requireAttemptSigner,
   requireWorkflowNetwork, resumeWorkflowAttempt, rpcNumber, rpcObject, submitWorkflowTransaction,
   verifyWorkflowFinalization, workflowBlockhash, workflowProgramAccount } from "./transaction-workflow.js";
 
-export type OnchainCalculationOptions = InstrumentDeploymentOptions & { enabled: boolean };
+export type OnchainCalculationOptions = InstrumentDeploymentOptions & { enabled: boolean; redemptionEnabled?: boolean };
 type Phase = "REGISTER" | "FINALIZE" | "RESET";
 const OPERATION = { REGISTER: "ENTITLEMENT_REGISTER", FINALIZE: "CALCULATION_FINALIZE", RESET: "CALCULATION_RESET" } as const;
 const active = { in: [...ACTIVE_TRANSACTION_STATUSES] };
@@ -77,6 +78,7 @@ async function checkedSource(database: PrismaClient, rpc: SolanaRpc, actionId: s
   requireEnabled(options); const action = await requireSubmittedEntitlementCalculation(database, actionId);
   requireAuthority(action, actor); assertNetwork(action, options); await requireWorkflowNetwork(rpc, options.expectedGenesisHash);
   if (action.instrument.status !== "ACTIVE") throw new TransactionWorkflowError("ONCHAIN_CALCULATION_NOT_READY", "Instrument must be active");
+  if (action.type !== "COUPON_PAYMENT" && !options.redemptionEnabled) throw new TransactionWorkflowError("REDEMPTION_EXECUTION_DISABLED", "Redemption source registration requires the separately enabled candidate", 503);
   const addresses = await deriveCorporateActionAddresses(options.programId, uuidBytes(action.instrumentId), uuidBytes(action.id));
   const chain = chainAction(await workflowProgramAccount(rpc, addresses.actionAddress, options.programId), action, addresses.instrumentAddress);
   return { action, addresses, chain };
@@ -134,12 +136,16 @@ export async function prepareOnchainCalculation(database: PrismaClient, rpc: Sol
   const identity = { programId: options.programId, instrumentId: uuidBytes(action.instrumentId), actionId: uuidBytes(action.id),
     corporateActionAuthority: actor.walletAddress };
   const registeredInvestorIds = action.entitlements.filter(row => row.onchainPda).map(row => uuidBytes(row.investorId));
+  const redemption = action.type !== "COUPON_PAYMENT";
   const plan = phase === "REGISTER" ? await buildEntitlementRegistration({ ...identity,
     investorId: uuidBytes(entitlement!.investorId), snapshotHash: snapshotHash(action), settlementWallet: entitlement!.settlementWalletAddress,
     balanceAtSnapshot: entitlement!.balanceAtRecordDate, eligible: true,
     paymentAmountMinor: entitlement!.amountMinor, tokensToRedeem: entitlement!.tokensToRedeem }) :
-    phase === "FINALIZE" ? await buildCalculationFinalization({ ...identity, investorIds: action.entitlements.map(row => uuidBytes(row.investorId)) }) :
-      await buildCalculationReset({ ...identity, investorIds: registeredInvestorIds });
+    phase === "FINALIZE" ? await buildCalculationFinalization({ ...identity, investorIds: action.entitlements.map(row => uuidBytes(row.investorId)), redemption }) :
+      await buildCalculationReset({ ...identity, investorIds: registeredInvestorIds, redemption });
+  const sources = redemption && entitlement ? await buildRedemptionSourceRegistration({ ...identity,
+    investorId: uuidBytes(entitlement.investorId), bondMint: action.instrument.mintAddress!, snapshotHash: snapshotHash(action),
+    tokenAccounts: redemptionTokenSources(action.snapshot!.investors, entitlement.snapshotInvestorId) }) : null;
   if (phase !== "REGISTER") {
     const rows = phase === "FINALIZE" ? action.entitlements : action.entitlements.filter(row => row.onchainPda);
     const addresses = (plan as Awaited<ReturnType<typeof buildCalculationFinalization>>).entitlementAddresses;
@@ -149,7 +155,7 @@ export async function prepareOnchainCalculation(database: PrismaClient, rpc: Sol
   }
   const blockhash = await workflowBlockhash(rpc); let wire: string;
   try {
-    wire = serializeUnsignedInstructionsTransaction({ instructions: [plan.instruction], feePayer: actor.walletAddress, ...blockhash });
+    wire = serializeUnsignedInstructionsTransaction({ instructions: [plan.instruction, ...(sources ? [sources.instruction] : [])], feePayer: actor.walletAddress, ...blockhash });
   } catch {
     throw new TransactionWorkflowError("CALCULATION_TRANSACTION_TOO_LARGE", "Calculation transaction cannot fit in a Solana packet", 409);
   }
@@ -162,7 +168,11 @@ export async function prepareOnchainCalculation(database: PrismaClient, rpc: Sol
       tokensToRedeem: entitlement!.tokensToRedeem.toString(), entitlementStatus: entitlement!.status } :
       { entitlementAddresses: (plan as Awaited<ReturnType<typeof buildCalculationFinalization>>).entitlementAddresses,
         entitlementCount: phase === "FINALIZE" ? action.entitlements.length : totals.count,
-        totalAmountMinor: (phase === "FINALIZE" ? action.totalEntitlementMinor : totals.amount).toString() }) };
+        totalAmountMinor: (phase === "FINALIZE" ? action.totalEntitlementMinor : totals.amount).toString(),
+        ...(redemption ? { redemptionProgressAddress: (plan as Awaited<ReturnType<typeof buildCalculationFinalization>>).progressAddress!,
+          sourceAddresses: (plan as Awaited<ReturnType<typeof buildCalculationFinalization>>).sourceAddresses } : {}) }),
+    ...(sources ? { redemptionSourcesAddress: sources.sourceAddress, redemptionProgressAddress: sources.progressAddress, sourceHash: sources.sourceHash,
+      bondMint: action.instrument.mintAddress!, tokenAccounts: sources.tokenAccounts.map(value => ({ address: value.address, walletAddress: value.wallet, balanceAtSnapshot: value.balanceAtSnapshot.toString() })) } : {}) };
   try {
     const operation = await database.$transaction(async tx => {
       const current = await tx.corporateAction.findUnique({ where: { id: action.id }, select: { version: true, status: true } });
@@ -196,6 +206,7 @@ async function attempt(database: PrismaClient, rpc: SolanaRpc, actionId: string,
     throw new TransactionWorkflowError("INVALID_REQUEST", "Calculation operation request is invalid", 400);
   }
   const action = await requireSubmittedEntitlementCalculation(database, actionId); requireAuthority(action, actor); assertNetwork(action, options);
+  if (action.type !== "COUPON_PAYMENT" && !options.redemptionEnabled) throw new TransactionWorkflowError("REDEMPTION_EXECUTION_DISABLED", "Redemption source registration requires the separately enabled candidate", 503);
   const operation = await database.blockchainTransaction.findUnique({ where: { id: input["operationId"] } });
   if (!operation || operation.corporateActionId !== actionId || operation.operationType !== OPERATION[phase] ||
       phase === "REGISTER" && !operation.entitlementId) throw new TransactionWorkflowError("CALCULATION_OPERATION_NOT_FOUND", "Calculation operation was not found", 404);
@@ -250,6 +261,16 @@ export async function confirmOnchainCalculation(database: PrismaClient, rpc: Sol
         chain.totalAmountMinor < row.paymentAmountMinor || chain.totalAmountMinor > action.totalEntitlementMinor) {
       throw new TransactionWorkflowError("ENTITLEMENT_ACCOUNT_MISMATCH", "Finalized entitlement facts differ from the prepared calculation");
     }
+    if (action.type !== "COUPON_PAYMENT") {
+      const committed = decodeRedemptionSources(await workflowProgramAccount(rpc, String(payload["redemptionSourcesAddress"]), options.programId, slot));
+      const entitlement = action.entitlements.find(value => value.id === operation.entitlementId)!;
+      const expected = redemptionTokenSources(action.snapshot!.investors, entitlement.snapshotInvestorId);
+      if (committed.actionAddress !== actionAddress || committed.entitlementAddress !== entitlementAddress || committed.snapshotHash !== payload["snapshotHash"] ||
+          committed.sourceHash !== payload["sourceHash"] || committed.tokenAccounts.length !== expected.length ||
+          committed.tokenAccounts.some((value, index) => value.address !== expected[index]!.address || value.wallet !== expected[index]!.wallet || value.balanceAtSnapshot !== expected[index]!.balanceAtSnapshot)) {
+        throw new TransactionWorkflowError("REDEMPTION_SOURCES_INVALID", "Finalized source commitment differs from the complete snapshot account set");
+      }
+    }
   } else if (phase === "FINALIZE") {
     if (chain.status !== "UNDER_REVIEW" || chain.registeredEntitlements !== action.entitlements.length ||
         chain.totalAmountMinor !== action.totalEntitlementMinor) {
@@ -262,6 +283,13 @@ export async function confirmOnchainCalculation(database: PrismaClient, rpc: Sol
       throw new TransactionWorkflowError("ACTION_ACCOUNT_MISMATCH", "Finalized calculation reset did not clear the Action PDA");
     }
     await requireClosedEntitlements(rpc, addresses as string[], slot);
+    if (action.type !== "COUPON_PAYMENT") {
+      const sourceAddresses = payload["sourceAddresses"];
+      if (!Array.isArray(sourceAddresses) || sourceAddresses.length !== addresses.length || sourceAddresses.some(value => typeof value !== "string") || typeof payload["redemptionProgressAddress"] !== "string") {
+        throw new TransactionWorkflowError("REDEMPTION_SOURCES_INVALID", "Reset source account set is incomplete");
+      }
+      await requireClosedEntitlements(rpc, [...sourceAddresses as string[], payload["redemptionProgressAddress"]], slot);
+    }
   }
   try {
     await database.$transaction(async tx => {

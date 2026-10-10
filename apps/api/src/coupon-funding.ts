@@ -13,7 +13,7 @@ import { ACTIVE_TRANSACTION_STATUSES, requireWorkflowNetwork, resumeWorkflowAtte
 const OPERATION = "COUPON_FUNDING";
 const active = { in: [...ACTIVE_TRANSACTION_STATUSES] };
 const MAX_INTEGER = (1n << 63n) - 1n;
-export type CouponFundingOptions = InstrumentDeploymentOptions & { networkReserveLamports: bigint };
+export type CouponFundingOptions = InstrumentDeploymentOptions & { networkReserveLamports: bigint; redemptionEnabled?: boolean };
 
 /** Configured reserve is a policy buffer, not escrow or an estimate of future execution fees. */
 export function couponNetworkReserve(environment: NodeJS.ProcessEnv = process.env): bigint {
@@ -30,7 +30,7 @@ async function fundingAction(database: PrismaClient, id: string, options: Coupon
   const instrument = action.instrument; const asset = instrument.settlementAsset;
   if (options.cluster !== "localnet" || instrument.network !== "SOLANA_LOCALNET" || asset.network !== instrument.network ||
       instrument.programId !== options.programId) throw new TransactionWorkflowError("FUNDING_LOCALNET_ONLY", "Simulated funding requires the pinned Localnet instrument");
-  if (action.type !== "COUPON_PAYMENT" || instrument.status !== "ACTIVE" || !instrument.mintAddress || !asset.active ||
+  if (action.type !== "COUPON_PAYMENT" && !options.redemptionEnabled || instrument.status !== "ACTIVE" || !instrument.mintAddress || !asset.active ||
       !asset.isSimulated || asset.code !== "KZT_TEST" || asset.decimals !== 6 || !asset.mintAddress || asset.mintAddress === instrument.mintAddress) {
     throw new TransactionWorkflowError("FUNDING_NOT_ALLOWED", "Funding requires an ACTIVE instrument and its simulated KZT-Test mint");
   }
@@ -158,7 +158,7 @@ export async function submitCouponFunding(database: PrismaClient, rpc: SolanaRpc
   const input = actionInput(body, ["operationId", "signedTransactionBase64"]);
   const { operation } = await fundingAttempt(database, id, input["operationId"], actor, options);
   if (operation.status !== "FINALIZED") await requireCouponFundingCalculation(database, id);
-  return submitWorkflowTransaction(database, rpc, operation, input["signedTransactionBase64"] as string, actor, options);
+  return submitWorkflowTransaction(database, rpc, operation, input["signedTransactionBase64"] as string, actor, { ...options, confirmationOnlyAfterSubmission: true });
 }
 
 /** Exact transaction token deltas prove this funding even if treasury later changes. */

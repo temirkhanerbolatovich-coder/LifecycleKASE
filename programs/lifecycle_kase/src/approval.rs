@@ -1,7 +1,4 @@
-use crate::{
-    CorporateAction, CorporateActionStatus, CorporateActionType, ErrorCode, Instrument,
-    InstrumentStatus,
-};
+use crate::{CorporateAction, CorporateActionStatus, ErrorCode, Instrument, InstrumentStatus};
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{
     self, CloseAccount, Mint, Token2022, TokenAccount, TransferChecked,
@@ -107,10 +104,6 @@ fn require_calculation(
     status: CorporateActionStatus,
 ) -> Result<()> {
     require!(action.status == status, ErrorCode::InvalidActionStatus);
-    require!(
-        action.action_type == CorporateActionType::CouponPayment,
-        ErrorCode::InvalidActionStatus
-    );
     require!(
         hash != [0; 32]
             && hash == action.snapshot_hash

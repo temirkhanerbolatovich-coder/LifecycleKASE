@@ -81,3 +81,19 @@ test("partial coupon proof stays in execution; a finalized receipt completes the
   assert.equal(actionPresentation(complete, true).steps.at(-1)?.state, "done");
   assert.equal(actionPresentation(complete, true).next, "Скачать итоговый документ");
 });
+
+test("redemption progress requires its own finalized payment and receipt proofs", () => {
+  for (const type of ["EARLY_REDEMPTION", "BOND_REDEMPTION"]) {
+    const partial = { ...action("PARTIALLY_SETTLED", [transaction("CALCULATION_FINALIZE", "FINALIZED"), transaction("ACTION_APPROVAL", "FINALIZED"), transaction("REDEMPTION_PAYMENT", "FINALIZED")]),
+      type, eligibleHolders: 3, redemptionExecutionEnabled: true };
+    const presentation = actionPresentation(partial, true);
+    assert.equal(presentation.steps.find(step => step.label === "Исполнение")?.state, "current");
+    assert.match(presentation.next, /погашение токенов/);
+    assert.equal(presentation.steps.at(-1)?.state, "unavailable");
+    const unrelatedCoupon = { ...partial, blockchainTransactions: [...partial.blockchainTransactions, transaction("COUPON_FINALIZE", "FINALIZED")] };
+    assert.equal(actionPresentation(unrelatedCoupon, true).steps.at(-1)?.state, "unavailable");
+    const finalized = { ...partial, status: "FINALIZED", blockchainTransactions: [...partial.blockchainTransactions, transaction("REDEMPTION_FINALIZE", "FINALIZED")] };
+    assert.equal(actionPresentation(finalized, true).steps.at(-1)?.state, "done");
+    assert.match(actionPresentation(finalized, true).explanation, /сжигание и supply сверены/);
+  }
+});

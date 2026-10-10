@@ -74,7 +74,7 @@ if [[ "$profile" == devnet ]]; then
     node.exe "$(wslpath -w "$repo_root/scripts/check-program-identity.mjs")" \
         "$(wslpath -w "$idl_path")" "$(wslpath -w "$program_path")"
 fi
-if [[ "${COUPON_ACCEPTANCE:-false}" == true ]]; then
+if [[ "${COUPON_ACCEPTANCE:-false}" == true || "${KASE_DEMO_ACCEPTANCE:-false}" == true ]]; then
     # Coupon acceptance verifies the browser parser against real API plans; compile it without requiring a prior web build.
     node.exe "$(wslpath -w "$repo_root/node_modules/typescript/bin/tsc")" -p "$(wslpath -w "$repo_root/apps/web/tsconfig.test.json")"
 fi
@@ -115,7 +115,12 @@ if [[ -n "$upgrade_candidate_path" ]]; then
 else
     echo "Testing $profile artifact at $program_id on a disposable local validator"
 fi
-solana-test-validator \
+validator_demo_args=()
+if [[ "${KASE_DEMO_ACCEPTANCE:-false}" == true ]]; then
+    # Faster local finality keeps the accelerated demo repeatable; normal regression keeps default timing.
+    validator_demo_args+=(--ticks-per-slot 8)
+fi
+solana-test-validator "${validator_demo_args[@]}" \
     --ledger "$run_path/ledger" \
     --reset \
     --quiet \

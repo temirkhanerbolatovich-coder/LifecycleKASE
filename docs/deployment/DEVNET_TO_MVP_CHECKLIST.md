@@ -1,5 +1,19 @@
 # Remaining delivery checklist
 
+## Current redemption continuation — 2026-10-10
+
+The isolated candidate implements coupon, partial 20% and maturity execution with finalized Solana receipts. Current completed runtime evidence, signatures/hashes, checks and reproduction are in [three-action acceptance](../testing/kase-three-actions-2026-10-10.md). The retained owner ledger/program was not upgraded. KZT-Test and eligibility are simulated; transfers/burns are actual Token-2022 operations. The sections under the historical heading preserve the earlier audit checkpoint.
+
+Next steps, in order:
+
+1. Review the tested candidate, synchronized documentation and new-head CI in [PR #1](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/pull/1). Source publication does not install the candidate on the retained owner ledger.
+2. Submit the assembled [prototype/video/technical overview](../submission/README.md), explicitly naming simulated integrations and effective-cutoff policy. Main Colosseum registration was confirmed by the owner on 2026-10-10; no independent organizer-site check was performed.
+3. Prepare retained-owner installation from a fresh read-only preflight: candidate capacity/hash, pending signed-attempt recovery and rollback. Actual upgrade/signing requires the owner-reviewed procedure; isolated tests do not close it.
+4. Perform retained-owner wallet acceptance, then the separately approved public-network stage under ADR-014.
+5. Address broader production needs: historical/regulated cutoff policy, holder-scale batching, reconciliation workers, operations, issuer isolation and external review.
+
+## Historical audit checkpoint before redemption completion
+
 Current review: **2026-10-10**. Restore access to the retained API/RPC and perform read-only reconciliation first; owner CALCULATION_FINALIZE/funding/coupon acceptance and atomic early/maturity redemption remain the financial gates. Current SQL has 19 migrations and unchanged UNDER_REVIEW/UNKNOWN_CONFIRMATION projections; fresh owner chain evidence is unavailable. The newest coupon candidate passes isolated acceptance and remains default-off. Historical continuation paragraphs below preserve their checkpoint dates.
 
 Reviewed: 2026-10-10. This is a work plan, not proof of completed MVP functionality. Current evidence and priorities are in the [2026-10-10 full audit](../PROJECT_AUDIT_2026-10-10.md). First restore owner API/RPC access and reconcile read-only evidence; retained SQL is unchanged, but fresh owner finalized-chain proof is unavailable. Source is published in [PR #1](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/pull/1) with passing implementation CI; application publication does not install an on-chain candidate.
@@ -112,3 +126,4 @@ Production/mainnet, real KYC/bank/KASE integration, legal issuance, multisig gov
 | 16 | P2: UX polish, current primary-source CMTAT/IncomeVault/Polymesh/ERC-3643/Tokeny/DTCC/Securitize comparison, capability gap file, threat model, README/demo video/guide, SECURITY/CONTRIBUTING and pilot roadmap | Current data-flow, security model with threats/limits and testing strategy documented; README linked and scaffold gate enforced. October 10 UX modernization applies primary NNG/Carbon/Stripe guidance, reduces repeated status/technical noise, adds journals and verifies responsive presentation. Broader research, full threat review, demo materials, SECURITY/CONTRIBUTING and roadmap remain open. Choose LICENSE explicitly; do not invent licensing intent or claim official compliance/integration |
 
 Per financial gate preserve signer/network/genesis, exact transaction, finalized slot, expected/actual accounts and amounts, atomic DB/audit result and reconciliation. Fixture tests remain useful but cannot close real-validator or owner Phantom acceptance. Security/authority/reserve prerequisites must be completed before the related payout even where the attached plan labels them P1. Necessary stage documentation is updated with implementation; broad P2 research/polish stays deferred.
+2026-10-10 subsequent continuation: early/maturity redemption source/API/UI implementation and a reproducible isolated three-action runner are available; verify current runtime status in [three-action acceptance](../testing/kase-three-actions-2026-10-10.md). Owner signing, public network and older dated observations remain separate. The candidate does not alter retained owner state.

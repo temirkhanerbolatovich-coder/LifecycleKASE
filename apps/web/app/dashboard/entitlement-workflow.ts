@@ -1,11 +1,13 @@
 export type EntitlementsView = {
   actionId: string; actionVersion: number; status: string; approvedById: string | null; approvedAt: string | null;
   actionType?: string;
+  tokenMint?: string | null;
   reviewNote: string | null; totalEntitlementMinor: string; eligibleHolders: number;
   onchainRegistrationEnabled: boolean; onchainCalculationFinalized: boolean;
   actionApprovalEnabled?: boolean;
   onchainPending?: Record<string, unknown> | null;
   items: Array<{ id: string; investorId: string; onchainPda: string | null; settlementWalletAddress: string; balanceAtRecordDate: string;
+    redemptionSources?: { address: string; walletAddress: string; balanceAtSnapshot: string }[];
     amountMinor: string; tokensToRedeem: string; status: string; eligibilityReason: string; formulaVersion: string;
     calculationInputs: { snapshotHash: string; balance: string; faceValueMinor: string; couponRateBps: number; paymentsPerYear: number;
       redemptionPercentageBps: number | null; redemptionPriceMinor: string | null; roundingRemainder: string; denominator: string };

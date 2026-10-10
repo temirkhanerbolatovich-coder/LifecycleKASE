@@ -10,14 +10,15 @@ import { waitForFinalizedCheck } from "./finalized-check";
 
 type Request = (path: string, init?: RequestInit) => Promise<Record<string, unknown>>;
 const button = "rounded-lg border border-[#cbd8d0] px-4 py-2 text-sm font-semibold disabled:opacity-50";
-export function CouponFundingPanel({ actionId, canWrite, wallet, walletAddress, request, onBusyChange, onChanged }: {
+export function CouponFundingPanel({ actionId, canWrite, wallet, walletAddress, request, onBusyChange, onChanged, redemption = false }: {
   actionId: string; canWrite: boolean; wallet: Wallet | undefined; walletAddress: string; request: Request;
   onBusyChange: (busy: boolean) => void; onChanged: () => Promise<void>;
+  redemption?: boolean;
 }) {
   const [budget, setBudget] = useState<CouponBudget | null>(null); const [plan, setPlan] = useState<CouponFundingPlan | null>(null);
   const [signature, setSignature] = useState(""); const [reviewed, setReviewed] = useState(false);
   const [sendInvoked, setSendInvoked] = useState(false); const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("Проверьте finalized бюджет всего купона перед финансированием."); const inFlight = useRef(false);
+  const [message, setMessage] = useState("Проверьте finalized бюджет всего действия перед финансированием."); const inFlight = useRef(false);
   const path = `/api/v1/corporate-actions/${actionId}/coupon`;
   async function run(task: () => Promise<void>) {
     if (inFlight.current) return; inFlight.current = true; setBusy(true); onBusyChange(true);
@@ -67,16 +68,16 @@ export function CouponFundingPanel({ actionId, canWrite, wallet, walletAddress, 
     await waitForFinalizedCheck(() => request(path + "/funding/confirm", { method: "POST", body: JSON.stringify({ operationId: plan.operationId, signature }) }),
       plan.operationId, signature, () => setMessage("Финансирование ещё финализируется. Проверяю ту же подпись; повторного выпуска нет."));
     setSendInvoked(true); await refreshBudget(); await onChanged();
-    setMessage("Финансирование FINALIZED: точный прирост treasury подтверждён. Купон инвесторам ещё не выплачен.");
+    setMessage("Финансирование FINALIZED: точный прирост treasury подтверждён. Выплаты инвесторам ещё не выполнены.");
   }
-  return <section className="mt-5 border-t border-[#dbe5df] pt-5" aria-label="Финансирование купона">
-    <h4 className="font-semibold">Бюджет и финансирование купона · Localnet</h4>
+  return <section className="mt-5 border-t border-[#dbe5df] pt-5" aria-label={redemption ? "Финансирование погашения" : "Финансирование купона"}>
+    <h4 className="font-semibold">Бюджет и финансирование {redemption ? "погашения" : "купона"} · Localnet</h4>
     <p className="mt-2 text-xs text-[#61746a]">KZT-Test — SIMULATED ASSET. Not issued by the National Bank of Kazakhstan. Финансирование выпускает тестовые токены в treasury; согласование и выплаты выполняются отдельно.</p>
     <div className="mt-3 flex flex-wrap gap-2"><button className={button} disabled={busy} onClick={() => void run(async () => { await refreshBudget(); setMessage("Текущий finalized бюджет получен; транзакций не отправлял."); })}>Проверить бюджет</button>
       {canWrite && <button className={button} disabled={busy || sendInvoked} onClick={() => void run(prepare)}>Подготовить / восстановить финансирование</button>}</div>
-    {budget && <div className="mt-3 text-sm"><p>Весь купон: <strong>{formatMinorKzt(budget.totalCouponMinor)}</strong> · Treasury: {formatMinorKzt(budget.treasuryBalanceMinor)}</p>
+    {budget && <div className="mt-3 text-sm"><p>Бюджет действия: <strong>{formatMinorKzt(budget.totalCouponMinor)}</strong> · Treasury: {formatMinorKzt(budget.treasuryBalanceMinor)}</p>
       <p>Не хватает: {formatMinorKzt(budget.deficitMinor)} · Slot: {budget.finalizedSlot}</p><p className="break-all font-mono text-xs">Mint: {budget.settlementMint}<br />Treasury: {budget.treasuryTokenAccount}</p>
-      <p className="mt-2">{budget.hasNetworkBudget ? "Сетевой бюджет достаточен" : "Не хватает SOL для финансирования и резерва"} · {budget.hasCouponBudget ? "Купон обеспечен тестовыми токенами" : "Требуется финансирование"}</p>
+      <p className="mt-2">{budget.hasNetworkBudget ? "Сетевой бюджет достаточен" : "Не хватает SOL для финансирования и резерва"} · {budget.hasCouponBudget ? "Действие обеспечено тестовыми токенами" : "Требуется финансирование"}</p>
       <details className="mt-2 text-xs"><summary>Сетевой бюджет</summary><p>SOL в lamports: {budget.payerLamports}; требуется: {budget.requiredLamports}; резерв: {budget.networkReserveLamports}. Резерв — установленный запас; средства не заблокированы. Исполнение отдельно проверит собственные комиссии и rent.</p></details></div>}
     {plan && canWrite && <div className="mt-4 rounded-lg border border-[#e4b45f] bg-[#fffaf0] p-4 text-sm"><p>Проверка COUPON_FUNDING: выпустить {formatMinorKzt(plan.amountMinor)} в treasury</p>
       <p className="mt-2 break-all text-xs">Signer: {plan.requiredSigner}<br />Genesis: {plan.networkGenesisHash}<br />Попытка: {plan.operationId}</p>

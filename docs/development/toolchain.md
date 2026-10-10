@@ -1,6 +1,8 @@
 # Solana development toolchain
 
-Current verification — 2026-10-10: both host profiles pass 12 tests each plus Rustfmt/Clippy. The non-root coupon SBF build produces 526624 bytes, SHA-256 `ccc5ebe7841a43fc22f8c687557264f22025a35840ebf1aae10b820df3d84295`, in a new ignored candidate directory. This does not overwrite retained artifacts or authorize an owner upgrade. Legacy integration-tool audit still reports 12 advisories (5 high/7 moderate). Earlier versions/counts/artifacts below are dated checkpoints; see the [current audit](../PROJECT_AUDIT_2026-10-10.md).
+Current redemption continuation — 2026-10-10: both host profiles pass the same 18 unique tests plus Rustfmt/Clippy. The non-root isolated build produces663968bytes, SHA-256 `031b43f0b16de244aa4fc7ff194d7e48ddb8c83b2fa83a2bdaea6bd59212b062`, in `generated/localnet-candidate-redemption-20261010`. It does not overwrite retained artifacts or authorize an owner upgrade. Current reproduction/runtime evidence is in [three-action acceptance](../testing/kase-three-actions-2026-10-10.md).
+
+Earlier coupon checkpoint — 2026-10-10:12 host tests per profile;526624-byte SBF, SHA-256 `ccc5ebe7841a43fc22f8c687557264f22025a35840ebf1aae10b820df3d84295`. Legacy integration-tool audit reported12 advisories (5 high/7 moderate). Earlier versions/counts/artifacts below are dated checkpoints; see the [current audit](../PROJECT_AUDIT_2026-10-10.md).
 
 ## Validator isolation correction — 2026-10-02
 

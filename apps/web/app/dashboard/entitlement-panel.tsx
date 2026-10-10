@@ -5,6 +5,7 @@ import type { Wallet } from "@wallet-standard/base";
 import { useEffect, useRef, useState } from "react";
 import { formatMinorKzt, reviewChoices, type EntitlementsView } from "./entitlement-workflow";
 import { preparedOnchainCalculation, type PreparedOnchainCalculation } from "./onchain-entitlement-workflow";
+import { requireRedemptionCalculationTransaction } from "./redemption-calculation-workflow";
 import { resumedDeploymentSignature } from "./snapshot-workflow";
 import { signAndSubmitPrepared, supportsPreparedTransaction } from "./wallet-transaction";
 import { waitForFinalizedCheck } from "./finalized-check";
@@ -43,6 +44,7 @@ export function EntitlementPanel({ actionId, canWrite, canOnchainWrite, administ
     setView(result); setReviewed(false);
     if (canOnchainWrite && result.onchainPending) {
       const saved = preparedOnchainCalculation(result.onchainPending, result, corporateActionAuthority, walletAddress);
+      await requireRedemptionCalculationTransaction(saved, result);
       const savedSignature = resumedDeploymentSignature(result.onchainPending);
       setOnchainPlan(saved); setOnchainSignature(previous => savedSignature ?? previous);
       setOnchainSendInvoked(previous => previous || Boolean(savedSignature)); setOnchainReviewed(false);
@@ -75,6 +77,7 @@ export function EntitlementPanel({ actionId, canWrite, canOnchainWrite, administ
       phase, version: view.actionVersion, ...(entitlementId ? { entitlementId } : {})
     }) });
     const prepared = preparedOnchainCalculation(response, view, corporateActionAuthority, walletAddress);
+    await requireRedemptionCalculationTransaction(prepared, view);
     const restored = resumedDeploymentSignature(response);
     setOnchainPlan(prepared); setOnchainSignature(restored ?? ""); setOnchainReviewed(false); setOnchainSendInvoked(Boolean(restored));
     setMessage(restored ? "Подпись on-chain операции восстановлена. Повторите только finalized-проверку." :
@@ -83,7 +86,8 @@ export function EntitlementPanel({ actionId, canWrite, canOnchainWrite, administ
           "Проверьте полный список закрываемых PDA. Reset удалит только частичную on-chain регистрацию и не изменит snapshot.");
   }
   async function sendOnchain() {
-    if (!onchainPlan || !onchainReviewed || onchainSendInvoked) return;
+    if (!onchainPlan || !view || !onchainReviewed || onchainSendInvoked) return;
+    await requireRedemptionCalculationTransaction(onchainPlan, view);
     await signAndSubmitPrepared({ wallet, walletAddress, plan: onchainPlan, request, submitPath: path + "/onchain/submit",
       submitFields: { phase: onchainPlan.phase }, onSigning: () => setOnchainSendInvoked(true), onSignature: setOnchainSignature });
     setMessage("Подпись сохранена. Проверьте finalized и точное on-chain состояние.");
@@ -140,6 +144,9 @@ export function EntitlementPanel({ actionId, canWrite, canOnchainWrite, administ
         <p className="technical-id mt-2">Подписант: {onchainPlan.requiredSigner}</p>
         <p className="mt-2">Сумма регистрации: {onchainPlan.paymentAmountMinor !== undefined ? formatMinorKzt(onchainPlan.paymentAmountMinor) : onchainPlan.totalAmountMinor !== undefined ? formatMinorKzt(onchainPlan.totalAmountMinor) : "Не применимо"}</p>
         {onchainPlan.settlementWallet && <div className="mt-2"><p>Получатель начисления</p><CopyValue value={onchainPlan.settlementWallet} label="Получатель начисления" /></div>}
+        {onchainPlan.tokenAccounts && <div className="mt-3"><p className="text-sm">Зафиксированные источники для будущего сжигания. Регистрация сохраняет эти счета, без выплаты и погашения.</p>
+          <CopyValue value={onchainPlan.bondMint!} label="Bond mint" />{onchainPlan.tokenAccounts.map(source => <div className="evidence-row" key={source.address}>
+            <CopyValue value={source.address} label="Счёт bond-токенов в snapshot" /><CopyValue value={source.walletAddress} label="Владелец счёта" /><p>Баланс в snapshot: {source.balanceAtSnapshot}</p></div>)}</div>}
         {onchainSignature && <p className="mt-2 text-sm">Сохранённая подпись восстановлена. Проверьте её результат.</p>}
         <details className="term-help"><summary>Реквизиты сохранённой попытки</summary><dl className="mt-3 space-y-2 text-xs">{Object.entries({ Genesis: onchainPlan.networkGenesisHash,
           Program: onchainPlan.programId, "Action PDA": onchainPlan.actionAddress, "Entitlement PDA": onchainPlan.entitlementAddress ?? "—",
@@ -147,7 +154,7 @@ export function EntitlementPanel({ actionId, canWrite, canOnchainWrite, administ
           "Количество": onchainPlan.entitlementCount ?? "—", "UUID попытки": onchainPlan.operationId }).map(([label, value]) => <div key={label}>
             <dt className="text-[#61746a]">{label}</dt><dd className="break-all font-mono">{value}</dd></div>)}</dl></details>
         <label className="mt-4 flex gap-2 text-sm"><input type="checkbox" checked={onchainReviewed} disabled={busy || onchainSendInvoked}
-          onChange={event => setOnchainReviewed(event.target.checked)} />Проверил сеть, signer, snapshot, PDA и финансовые значения</label>
+          onChange={event => setOnchainReviewed(event.target.checked)} />Проверил сеть, signer, snapshot, PDA, источники токенов и финансовые значения</label>
         <button className={`mt-3 ${buttonClass}`} disabled={busy || !onchainReviewed || onchainSendInvoked || !supportsPreparedTransaction(wallet, onchainPlan.cluster)}
           onClick={() => void run(sendOnchain)}>Подписать и отправить {onchainPlan.phase}</button>
         <label className="mt-3 block text-sm">Подпись транзакции<input className={inputClass} maxLength={88} value={onchainSignature} disabled={busy}

@@ -3,6 +3,7 @@ use anchor_lang::prelude::*;
 pub mod approval;
 pub mod coupon;
 pub mod entitlement;
+pub mod redemption;
 pub use approval::*;
 pub use coupon::*;
 pub mod financial;
@@ -11,6 +12,7 @@ use anchor_spl::token_2022::spl_token_2022::{
 };
 use anchor_spl::token_interface::{Mint, Token2022};
 pub use entitlement::*;
+pub use redemption::*;
 
 #[cfg(not(feature = "devnet"))]
 declare_id!("6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo");
@@ -292,6 +294,27 @@ pub mod lifecycle_kase {
 
     pub fn finalize_coupon(ctx: Context<FinalizeCoupon>, receipt_hash: [u8; 32]) -> Result<()> {
         coupon::finalize_coupon_receipt(ctx, receipt_hash)
+    }
+
+    pub fn register_redemption_sources(
+        ctx: Context<RegisterRedemptionSources>,
+        sources: Vec<RedemptionSource>,
+    ) -> Result<()> {
+        redemption::register_sources(ctx, sources)
+    }
+
+    pub fn execute_redemption<'info>(
+        ctx: Context<'info, ExecuteRedemption<'info>>,
+        idempotency_hash: [u8; 32],
+    ) -> Result<()> {
+        redemption::execute_atomic(ctx, idempotency_hash)
+    }
+
+    pub fn finalize_redemption(
+        ctx: Context<FinalizeRedemption>,
+        receipt_hash: [u8; 32],
+    ) -> Result<()> {
+        redemption::finalize_redemption_receipt(ctx, receipt_hash)
     }
 }
 
@@ -736,6 +759,12 @@ pub enum ErrorCode {
     InvalidCouponExecution,
     #[msg("Receipt identity or hash is invalid")]
     InvalidReceipt,
+    #[msg("Redemption execution is premature, repeated or incomplete")]
+    InvalidRedemptionExecution,
+    #[msg("Redemption sources do not match the immutable snapshot commitment")]
+    InvalidRedemptionSources,
+    #[msg("Bond supply changed outside this redemption action")]
+    StaleRedemptionSupply,
 }
 
 #[cfg(test)]

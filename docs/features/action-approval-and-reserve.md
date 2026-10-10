@@ -1,5 +1,8 @@
 # Separate approver and action reserve
 
+Current continuation: coupon, early and maturity now share approval/reserve. See [redemption flow](redemption-execution-and-receipts.md) and [three-action evidence](../testing/kase-three-actions-2026-10-10.md); dated coupon-only statements below describe the earlier checkpoint.
+
+
 Implemented for a reviewed isolated Localnet candidate. Owner rollout remains pending; the retained owner FINALIZE stays UNKNOWN_CONFIRMATION for checking. This feature reserves simulated KZT-Test and records approval; it does not pay investors or burn bonds. SIMULATED ASSET. Not issued by the National Bank of Kazakhstan.
 
 ## Flow and components

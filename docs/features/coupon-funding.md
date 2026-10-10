@@ -1,5 +1,7 @@
 # Localnet coupon treasury funding
 
+Current continuation: the compatible `/coupon/budget` and `/coupon/funding/*` routes also fund early/maturity actions when `REDEMPTION_EXECUTION_ENABLED=true`. UI labels follow the selected action. A signed funding attempt is confirmation-only, preventing a second broadcast after submission; exact finalized history still proves its treasury delta. This funding uses simulated KZT-Test and does not itself settle or reserve an action. See [redemption execution](redemption-execution-and-receipts.md) and [three-action verification](../testing/kase-three-actions-2026-10-10.md). Coupon-only descriptions below preserve the original feature checkpoint.
+
 Implemented locally on 2026-10-03. This step checks the complete stored coupon obligation and funds the issuer treasury with simulated KZT-Test. It does not approve an action, register on-chain entitlements, pay investors, burn bonds or create execution receipts. On-chain coupon execution remains the next step.
 
 ## Flow

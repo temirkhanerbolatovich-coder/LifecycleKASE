@@ -84,9 +84,10 @@ try {
     `/${actionId}/entitlements/onchain/prepare`, `/${actionId}/entitlements/onchain/submit`, `/${actionId}/entitlements/onchain/confirm`,
     `/${actionId}/coupon/budget`, `/${actionId}/coupon/funding/prepare`, `/${actionId}/coupon/funding/submit`, `/${actionId}/coupon/funding/confirm`,
     `/${actionId}/approval`, `/${actionId}/approval/prepare`, `/${actionId}/approval/submit`, `/${actionId}/approval/confirm`,
-    `/${actionId}/coupon/execution`, `/${actionId}/coupon/execution/prepare`, `/${actionId}/coupon/execution/submit`, `/${actionId}/coupon/execution/confirm`, `/${actionId}/receipt`, `/${actionId}/audit`]) {
+    `/${actionId}/coupon/execution`, `/${actionId}/coupon/execution/prepare`, `/${actionId}/coupon/execution/submit`, `/${actionId}/coupon/execution/confirm`,
+    `/${actionId}/redemption-execution`, `/${actionId}/redemption-execution/prepare`, `/${actionId}/redemption-execution/submit`, `/${actionId}/redemption-execution/confirm`, `/${actionId}/receipt`, `/${actionId}/audit`]) {
     const route = "/api/v1/corporate-actions" + suffix;
-    const method = suffix === "" || suffix === `/${actionId}` || suffix === `/${actionId}/entitlements` || suffix === `/${actionId}/coupon/budget` || suffix === `/${actionId}/approval` || suffix === `/${actionId}/coupon/execution` || suffix === `/${actionId}/receipt` || suffix === `/${actionId}/audit` ? "GET" : "POST";
+    const method = suffix === "" || suffix === `/${actionId}` || suffix === `/${actionId}/entitlements` || suffix === `/${actionId}/coupon/budget` || suffix === `/${actionId}/approval` || suffix === `/${actionId}/coupon/execution` || suffix === `/${actionId}/redemption-execution` || suffix === `/${actionId}/receipt` || suffix === `/${actionId}/audit` ? "GET" : "POST";
     const body = method === "POST" ? '{"synthetic":true}' : undefined;
     const response = await fetch(webOrigin + route, { method,
       headers: { Origin: webOrigin, Cookie: "lifecyclekase_session=synthetic-smoke-only" }, ...(body ? { body } : {}) });

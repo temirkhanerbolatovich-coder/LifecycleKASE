@@ -1,3 +1,6 @@
+use crate::redemption::{
+    verify_progress, verify_source_commitment, RedemptionProgress, RedemptionSources,
+};
 use crate::{
     financial, CorporateAction, CorporateActionStatus, CorporateActionType, ErrorCode, Instrument,
     InstrumentStatus,
@@ -206,29 +209,53 @@ pub fn register(ctx: Context<RegisterEntitlement>, terms: EntitlementTerms) -> R
 pub fn finalize(ctx: Context<FinalizeCalculation>) -> Result<()> {
     let action = &mut ctx.accounts.corporate_action;
     let accounts = ctx.remaining_accounts;
+    let redemption = action.action_type != CorporateActionType::CouponPayment;
+    let stride = if redemption { 2 } else { 1 };
+    let offset = usize::from(redemption);
     require!(
         action.status == CorporateActionStatus::Calculated,
         ErrorCode::InvalidActionStatus
     );
     require!(
         !accounts.is_empty()
-            && accounts.len() <= MAX_CALCULATION_INVESTORS
-            && accounts.len() == action.investor_count as usize
+            && action.investor_count as usize <= MAX_CALCULATION_INVESTORS
+            && accounts.len() == offset + stride * action.investor_count as usize
             && action.registered_entitlements == action.investor_count,
         ErrorCode::IncompleteCalculation
     );
+    if redemption {
+        validate_calculation_progress(&accounts[0], action, action.key())?;
+    }
     let mut balance = 0u64;
     let mut amount = 0u64;
-    for (index, account) in accounts.iter().enumerate() {
+    let mut source_accounts = Vec::new();
+    for index in 0..action.investor_count as usize {
+        let position = offset + index * stride;
+        let account = &accounts[position];
         require_keys_eq!(*account.owner, crate::id(), ErrorCode::InvalidEntitlement);
         require!(
-            accounts[..index]
+            accounts[..position]
                 .iter()
                 .all(|previous| previous.key() != account.key()),
             ErrorCode::InvalidEntitlement
         );
         let data = account.try_borrow_data()?;
         let entitlement = Entitlement::try_deserialize(&mut &data[..])?;
+        if redemption {
+            let sources = validate_calculation_sources(
+                &accounts[position + 1],
+                account.key(),
+                &entitlement,
+                action,
+            )?;
+            for source in sources.sources {
+                require!(
+                    !source_accounts.contains(&source.token_account),
+                    ErrorCode::InvalidRedemptionSources
+                );
+                source_accounts.push(source.token_account);
+            }
+        }
         let (expected, bump) = Pubkey::find_program_address(
             &[
                 b"entitlement",
@@ -273,26 +300,47 @@ pub fn finalize(ctx: Context<FinalizeCalculation>) -> Result<()> {
 pub fn reset<'info>(ctx: Context<'info, ResetCalculation<'info>>) -> Result<()> {
     let action = &mut ctx.accounts.corporate_action;
     let accounts = ctx.remaining_accounts;
+    let redemption = action.action_type != CorporateActionType::CouponPayment;
+    let stride = if redemption { 2 } else { 1 };
+    let offset = usize::from(redemption);
     require!(
         action.status == CorporateActionStatus::Calculated,
         ErrorCode::InvalidActionStatus
     );
     require!(
         action.registered_entitlements > 0
-            && accounts.len() == action.registered_entitlements as usize
-            && accounts.len() <= MAX_CALCULATION_INVESTORS,
+            && accounts.len() == offset + stride * action.registered_entitlements as usize
+            && action.registered_entitlements as usize <= MAX_CALCULATION_INVESTORS,
         ErrorCode::IncompleteCalculation
     );
+    if redemption {
+        require!(accounts[0].is_writable, ErrorCode::InvalidRedemptionSources);
+        validate_calculation_progress(&accounts[0], action, action.key())?;
+    }
     let mut amount = 0u64;
-    for (index, account) in accounts.iter().enumerate() {
+    for index in 0..action.registered_entitlements as usize {
+        let position = offset + index * stride;
+        let account = &accounts[position];
         require!(account.is_writable, ErrorCode::InvalidEntitlement);
         require!(
-            accounts[..index]
+            accounts[..position]
                 .iter()
                 .all(|previous| previous.key() != account.key()),
             ErrorCode::InvalidEntitlement
         );
         let entitlement = Account::<Entitlement>::try_from(account)?;
+        if redemption {
+            require!(
+                accounts[position + 1].is_writable,
+                ErrorCode::InvalidRedemptionSources
+            );
+            validate_calculation_sources(
+                &accounts[position + 1],
+                account.key(),
+                &entitlement,
+                action,
+            )?;
+        }
         let (expected, bump) = Pubkey::find_program_address(
             &[
                 b"entitlement",
@@ -324,8 +372,18 @@ pub fn reset<'info>(ctx: Context<'info, ResetCalculation<'info>>) -> Result<()> 
         amount == action.total_amount_minor,
         ErrorCode::IncompleteCalculation
     );
-    for account in accounts {
+    for index in 0..action.registered_entitlements as usize {
+        let position = offset + index * stride;
+        let account = &accounts[position];
         Account::<Entitlement>::try_from(account)?
+            .close(ctx.accounts.corporate_action_authority.to_account_info())?;
+        if redemption {
+            Account::<RedemptionSources>::try_from(&accounts[position + 1])?
+                .close(ctx.accounts.corporate_action_authority.to_account_info())?;
+        }
+    }
+    if redemption {
+        Account::<RedemptionProgress>::try_from(&accounts[0])?
             .close(ctx.accounts.corporate_action_authority.to_account_info())?;
     }
     action.total_amount_minor = 0;
@@ -333,6 +391,60 @@ pub fn reset<'info>(ctx: Context<'info, ResetCalculation<'info>>) -> Result<()> 
     action.processed_entitlements = 0;
     action.status = CorporateActionStatus::SnapshotCreated;
     Ok(())
+}
+
+fn validate_calculation_progress(
+    account: &AccountInfo,
+    action: &CorporateAction,
+    action_key: Pubkey,
+) -> Result<()> {
+    require_keys_eq!(
+        *account.owner,
+        crate::id(),
+        ErrorCode::InvalidRedemptionSources
+    );
+    let data = account.try_borrow_data()?;
+    let progress = RedemptionProgress::try_deserialize(&mut &data[..])?;
+    let (expected, bump) = Pubkey::find_program_address(
+        &[b"redemption-progress", progress.action.as_ref()],
+        &crate::id(),
+    );
+    require!(
+        expected == account.key() && bump == progress.bump && progress.tokens_redeemed == 0,
+        ErrorCode::InvalidRedemptionSources
+    );
+    verify_progress(&progress, action, action_key)
+}
+
+fn validate_calculation_sources(
+    account: &AccountInfo,
+    entitlement_key: Pubkey,
+    entitlement: &Entitlement,
+    action: &CorporateAction,
+) -> Result<RedemptionSources> {
+    require_keys_eq!(
+        *account.owner,
+        crate::id(),
+        ErrorCode::InvalidRedemptionSources
+    );
+    let data = account.try_borrow_data()?;
+    let sources = RedemptionSources::try_deserialize(&mut &data[..])?;
+    let (expected, bump) = Pubkey::find_program_address(
+        &[b"redemption-sources", entitlement_key.as_ref()],
+        &crate::id(),
+    );
+    require!(
+        expected == account.key() && bump == sources.bump,
+        ErrorCode::InvalidRedemptionSources
+    );
+    verify_source_commitment(
+        &sources,
+        entitlement.action,
+        entitlement_key,
+        action.snapshot_hash,
+        entitlement.balance_at_snapshot,
+    )?;
+    Ok(sources)
 }
 
 #[cfg(test)]

@@ -10,6 +10,13 @@ export const ENTITLEMENT_STATUSES = ["READY", "NOT_ELIGIBLE", "NOT_ELIGIBLE_ZERO
 type CalculationIdentity = {
   programId: string; instrumentId: Uint8Array; actionId: Uint8Array; corporateActionAuthority: string;
 };
+async function calculationRedemptionAccounts(programId: string, actionAddress: string, entitlementAddresses: string[], redemption?: boolean) {
+  if (!redemption) return { sourceAddresses: [] as string[], progressAddress: undefined as string | undefined };
+  const pda = async (seed: string, owner: string) => (await getProgramDerivedAddress({ programAddress: address(programId),
+    seeds: [seed, decodePublicKey(owner)] }))[0];
+  return { sourceAddresses: await Promise.all(entitlementAddresses.map(value => pda("redemption-sources", value))),
+    progressAddress: await pda("redemption-progress", actionAddress) };
+}
 export type EntitlementRegistration = {
   investorId: Uint8Array; snapshotHash: string; settlementWallet: string;
   balanceAtSnapshot: bigint; eligible: boolean; paymentAmountMinor: bigint; tokensToRedeem: bigint;
@@ -61,7 +68,7 @@ export async function buildEntitlementRegistration(input: CalculationIdentity & 
 }
 
 /** Finalization supplies the complete unique set; account/transaction limits still apply to its wire. */
-export async function buildCalculationFinalization(input: CalculationIdentity & { investorIds: Uint8Array[] }) {
+export async function buildCalculationFinalization(input: CalculationIdentity & { investorIds: Uint8Array[]; redemption?: boolean }) {
   decodePublicKey(input.corporateActionAuthority);
   if (input.investorIds.length === 0 || input.investorIds.length > MAX_CALCULATION_INVESTORS) {
     throw new Error("Calculation requires 1 to 64 investors");
@@ -69,17 +76,20 @@ export async function buildCalculationFinalization(input: CalculationIdentity & 
   const addresses = await deriveCorporateActionAddresses(input.programId, input.instrumentId, input.actionId);
   const entitlementAddresses = await Promise.all(input.investorIds.map(id => deriveEntitlementAddress(input.programId, addresses.actionAddress, id)));
   if (new Set(entitlementAddresses).size !== entitlementAddresses.length) throw new Error("Calculation contains duplicate investors");
+  const redemption = await calculationRedemptionAccounts(input.programId, addresses.actionAddress, entitlementAddresses, input.redemption);
   const instruction: SolanaInstructionPlan = { programId: input.programId, accounts: [
     { address: input.corporateActionAuthority, isSigner: true, isWritable: false },
     { address: addresses.instrumentAddress, isSigner: false, isWritable: false },
     { address: addresses.actionAddress, isSigner: false, isWritable: true },
-    ...entitlementAddresses.map(entitlementAddress => ({ address: entitlementAddress, isSigner: false, isWritable: false }))
+    ...(redemption.progressAddress ? [{ address: redemption.progressAddress, isSigner: false, isWritable: false }] : []),
+    ...entitlementAddresses.flatMap((entitlementAddress, index) => [entitlementAddress,
+      ...(input.redemption ? [redemption.sourceAddresses[index]!] : [])].map(value => ({ address: value, isSigner: false, isWritable: false })))
   ], data: discriminator("finalize_calculation") };
-  return { ...addresses, entitlementAddresses, instruction };
+  return { ...addresses, ...redemption, entitlementAddresses, instruction };
 }
 
 /** Resets only a complete supplied partial set and returns its account rent to the CA authority. */
-export async function buildCalculationReset(input: CalculationIdentity & { investorIds: Uint8Array[] }) {
+export async function buildCalculationReset(input: CalculationIdentity & { investorIds: Uint8Array[]; redemption?: boolean }) {
   decodePublicKey(input.corporateActionAuthority);
   if (input.investorIds.length === 0 || input.investorIds.length > MAX_CALCULATION_INVESTORS) {
     throw new Error("Calculation reset requires 1 to 64 registered investors");
@@ -87,13 +97,16 @@ export async function buildCalculationReset(input: CalculationIdentity & { inves
   const addresses = await deriveCorporateActionAddresses(input.programId, input.instrumentId, input.actionId);
   const entitlementAddresses = await Promise.all(input.investorIds.map(id => deriveEntitlementAddress(input.programId, addresses.actionAddress, id)));
   if (new Set(entitlementAddresses).size !== entitlementAddresses.length) throw new Error("Calculation reset contains duplicate investors");
+  const redemption = await calculationRedemptionAccounts(input.programId, addresses.actionAddress, entitlementAddresses, input.redemption);
   const instruction: SolanaInstructionPlan = { programId: input.programId, accounts: [
     { address: input.corporateActionAuthority, isSigner: true, isWritable: true },
     { address: addresses.instrumentAddress, isSigner: false, isWritable: false },
     { address: addresses.actionAddress, isSigner: false, isWritable: true },
-    ...entitlementAddresses.map(entitlementAddress => ({ address: entitlementAddress, isSigner: false, isWritable: true }))
+    ...(redemption.progressAddress ? [{ address: redemption.progressAddress, isSigner: false, isWritable: true }] : []),
+    ...entitlementAddresses.flatMap((entitlementAddress, index) => [entitlementAddress,
+      ...(input.redemption ? [redemption.sourceAddresses[index]!] : [])].map(value => ({ address: value, isSigner: false, isWritable: true })))
   ], data: discriminator("reset_calculation") };
-  return { ...addresses, entitlementAddresses, instruction };
+  return { ...addresses, ...redemption, entitlementAddresses, instruction };
 }
 
 /** Decodes the complete immutable calculation account for finalized read-back. */

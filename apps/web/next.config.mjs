@@ -48,6 +48,10 @@ export function operatorApiRewrites(environment = process.env) {
     "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/coupon/execution/prepare",
     "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/coupon/execution/submit",
     "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/coupon/execution/confirm",
+    "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/redemption-execution",
+    "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/redemption-execution/prepare",
+    "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/redemption-execution/submit",
+    "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/redemption-execution/confirm",
     "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/receipt",
     "/api/v1/transactions", "/api/v1/transactions/:signature([1-9A-HJ-NP-Za-km-z]{64,88})",
     "/api/v1/audit", "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/audit"

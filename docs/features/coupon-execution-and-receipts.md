@@ -1,5 +1,8 @@
 # Coupon execution and receipts
 
+Current continuation: coupon, early and maturity now share approval/reserve. See [redemption flow](redemption-execution-and-receipts.md) and [three-action evidence](../testing/kase-three-actions-2026-10-10.md); dated coupon-only statements below describe the earlier checkpoint.
+
+
 ## Scope and prerequisites
 
 The October 10, 2026 Localnet candidate implements actual Token-2022 coupon transfers from the action's approved reserve. Each payment creates an immutable entitlement receipt in the same transaction. The API verifies finalized signed bytes, accounts and token deltas before atomically updating PostgreSQL, Cash/Asset Legs and audit. It does not implement redemption or burn.

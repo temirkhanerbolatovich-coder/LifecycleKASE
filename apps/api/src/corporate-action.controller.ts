@@ -17,6 +17,8 @@ import { actionApprovalEnabled, confirmActionApproval, getActionApproval, prepar
 import { confirmCouponFunding, couponNetworkReserve, getCouponBudget, prepareCouponFunding, submitCouponFunding } from "./coupon-funding.js";
 import { confirmCouponExecution, couponExecutionEnabled, getCouponExecution, prepareCouponExecution, submitCouponExecution } from "./coupon-execution.js";
 import { getCouponReceipt } from "./coupon-receipt.js";
+import { confirmRedemptionExecution, getRedemptionExecution, prepareRedemptionExecution, redemptionExecutionEnabled, submitRedemptionExecution } from "./redemption-execution.js";
+import { getRedemptionReceipt } from "./redemption-receipt.js";
 import { confirmOnchainCalculation, onchainCalculationEnabled, prepareOnchainCalculation,
   submitOnchainCalculation } from "./onchain-entitlements.js";
 
@@ -58,7 +60,7 @@ export class CorporateActionController {
   @Get(":id")
   @Header("Cache-Control", "no-store")
   async detail(@Param("id") actionId: string, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
-    try { await this.actor(request, response, false); return { ...await getCorporateAction(this.prisma, actionId), couponExecutionEnabled: couponExecutionEnabled() }; }
+    try { await this.actor(request, response, false); return { ...await getCorporateAction(this.prisma, actionId), couponExecutionEnabled: couponExecutionEnabled(), redemptionExecutionEnabled: redemptionExecutionEnabled() }; }
     catch (error) { this.httpError(error, response); }
   }
   @Post()
@@ -147,7 +149,7 @@ export class CorporateActionController {
     try {
       const actor = await this.actor(request, response, true, origin);
       if (!["prepare", "submit", "confirm"].includes(operation)) throw new TransactionWorkflowError("INVALID_REQUEST", "On-chain calculation operation is unsupported", 400);
-      const options = { ...instrumentDeploymentOptions(), enabled: onchainCalculationEnabled() };
+      const options = { ...instrumentDeploymentOptions(), enabled: onchainCalculationEnabled(), redemptionEnabled: redemptionExecutionEnabled() };
       const rpc = new HttpSolanaRpc(options.rpcEndpoint, options.rpcTimeoutMs);
       const execute = operation === "prepare" ? prepareOnchainCalculation : operation === "submit" ? submitOnchainCalculation : confirmOnchainCalculation;
       return await execute(this.prisma, rpc, actionId, body, actor, options);
@@ -158,7 +160,7 @@ export class CorporateActionController {
   async approval(@Param("id") actionId: string, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
     try {
       await this.actor(request, response, false);
-      const options = { ...instrumentDeploymentOptions(), enabled: actionApprovalEnabled(), networkReserveLamports: couponNetworkReserve() };
+      const options = { ...instrumentDeploymentOptions(), enabled: actionApprovalEnabled(), networkReserveLamports: couponNetworkReserve(), redemptionEnabled: redemptionExecutionEnabled() };
       return await getActionApproval(this.prisma, new HttpSolanaRpc(options.rpcEndpoint, options.rpcTimeoutMs), actionId, options);
     } catch (error) { this.httpError(error, response); }
   }
@@ -169,7 +171,7 @@ export class CorporateActionController {
     try {
       const actor = await this.actor(request, response, true, origin);
       if (!["prepare", "submit", "confirm"].includes(operation)) throw new TransactionWorkflowError("INVALID_REQUEST", "Approval operation is unsupported", 400);
-      const options = { ...instrumentDeploymentOptions(), enabled: actionApprovalEnabled(), networkReserveLamports: couponNetworkReserve() };
+      const options = { ...instrumentDeploymentOptions(), enabled: actionApprovalEnabled(), networkReserveLamports: couponNetworkReserve(), redemptionEnabled: redemptionExecutionEnabled() };
       const rpc = new HttpSolanaRpc(options.rpcEndpoint, options.rpcTimeoutMs);
       const execute = operation === "prepare" ? prepareActionApproval : operation === "submit" ? submitActionApproval : confirmActionApproval;
       return await execute(this.prisma, rpc, actionId, body, actor, options);
@@ -179,7 +181,7 @@ export class CorporateActionController {
   @Header("Cache-Control", "no-store")
   async couponBudget(@Param("id") actionId: string, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
     try {
-      await this.actor(request, response, false); const options = { ...instrumentDeploymentOptions(), networkReserveLamports: couponNetworkReserve() };
+      await this.actor(request, response, false); const options = { ...instrumentDeploymentOptions(), networkReserveLamports: couponNetworkReserve(), redemptionEnabled: redemptionExecutionEnabled() };
       return await getCouponBudget(this.prisma, new HttpSolanaRpc(options.rpcEndpoint, options.rpcTimeoutMs), actionId, options);
     } catch (error) { this.httpError(error, response); }
   }
@@ -205,12 +207,35 @@ export class CorporateActionController {
       return await execute(this.prisma, rpc, actionId, body, actor, options);
     } catch (error) { this.httpError(error, response); }
   }
+  @Get(":id/redemption-execution")
+  @Header("Cache-Control", "no-store")
+  async redemptionExecution(@Param("id") actionId: string, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    try {
+      await this.actor(request, response, false);
+      const options = { ...instrumentDeploymentOptions(), enabled: redemptionExecutionEnabled() };
+      return await getRedemptionExecution(this.prisma, new HttpSolanaRpc(options.rpcEndpoint, options.rpcTimeoutMs), actionId, options);
+    } catch (error) { this.httpError(error, response); }
+  }
+  @Post(":id/redemption-execution/:operation")
+  @Header("Cache-Control", "no-store")
+  async redemptionExecutionOperation(@Param("id") actionId: string, @Param("operation") operation: string, @Body() body: unknown,
+    @Req() request: Request, @Res({ passthrough: true }) response: Response, @Headers("origin") origin?: string) {
+    try {
+      const actor = await this.actor(request, response, true, origin);
+      if (!["prepare", "submit", "confirm"].includes(operation)) throw new TransactionWorkflowError("INVALID_REQUEST", "Redemption execution operation is unsupported", 400);
+      const options = { ...instrumentDeploymentOptions(), enabled: redemptionExecutionEnabled() };
+      const rpc = new HttpSolanaRpc(options.rpcEndpoint, options.rpcTimeoutMs);
+      const execute = operation === "prepare" ? prepareRedemptionExecution : operation === "submit" ? submitRedemptionExecution : confirmRedemptionExecution;
+      return await execute(this.prisma, rpc, actionId, body, actor, options);
+    } catch (error) { this.httpError(error, response); }
+  }
   @Get(":id/receipt")
   @Header("Cache-Control", "no-store")
   async receipt(@Param("id") actionId: string, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
     try {
       const actor = await this.actor(request, response, false);
-      const receipt = await getCouponReceipt(this.prisma, actionId);
+      const action = await this.prisma.corporateAction.findUnique({ where: { id: actionId }, select: { type: true } });
+      const receipt = action?.type === "COUPON_PAYMENT" ? await getCouponReceipt(this.prisma, actionId) : await getRedemptionReceipt(this.prisma, actionId);
       await this.prisma.auditLog.create({ data: { actorId: actor.id, actorWallet: actor.walletAddress, correlationId: actor.correlationId,
         event: "ACTION_RECEIPT_ACCESSED", entityType: "CorporateAction", entityId: actionId, corporateActionId: actionId,
         metadataJson: { sha256: receipt.sha256, status: receipt.status } } });
@@ -224,7 +249,7 @@ export class CorporateActionController {
     try {
       const actor = await this.actor(request, response, true, origin);
       if (!["prepare", "submit", "confirm"].includes(operation)) throw new TransactionWorkflowError("INVALID_REQUEST", "Funding operation is unsupported", 400);
-      const options = { ...instrumentDeploymentOptions(), networkReserveLamports: couponNetworkReserve() };
+      const options = { ...instrumentDeploymentOptions(), networkReserveLamports: couponNetworkReserve(), redemptionEnabled: redemptionExecutionEnabled() };
       const rpc = new HttpSolanaRpc(options.rpcEndpoint, options.rpcTimeoutMs);
       const execute = operation === "prepare" ? prepareCouponFunding : operation === "submit" ? submitCouponFunding : confirmCouponFunding;
       return await execute(this.prisma, rpc, actionId, body, actor, options);

@@ -331,8 +331,9 @@ assert.equal(wireSettlement.mintAuthority.toBase58(), wireIssuer);
 assert.equal(wireSettlement.freezeAuthority, null);
 console.log("PASS prepared v0 MINT_SETUP finalizes with explicit compute budget, fixed supply and revoked authority");
 
+const wireHolders = [10n, 20n, 5n].map(amount => ({ key: Keypair.generate(), amount }));
 const wireDistribution = await buildInstrumentDistribution({ administrator: wireIssuer, bondMint: wireSetup.bondMint,
-  allocations: [10n, 20n, 5n].map(amount => ({ walletAddress: Keypair.generate().publicKey.toBase58(), amount })) });
+  allocations: wireHolders.map(row => ({ walletAddress: row.key.publicKey.toBase58(), amount: row.amount })) });
 await sendPreparedInstructions(wireDistribution.instructions);
 for (const allocation of wireDistribution.allocations) {
   const account = await getAccount(connection, new PublicKey(allocation.tokenAccount), "finalized", TOKEN_2022_PROGRAM_ID);
@@ -342,10 +343,13 @@ for (const allocation of wireDistribution.allocations) {
 assert.equal((await getAccount(connection, new PublicKey(wireDistribution.treasuryTokenAccount), "finalized", TOKEN_2022_PROGRAM_ID)).amount, 0n);
 console.log("PASS prepared v0 DISTRIBUTION finalizes exact 10/20/5 and empty treasury");
 
+// The accelerated maturity is confined to the fresh, disposable three-action demo.
+const kaseDemo = process.env.KASE_DEMO_ACCEPTANCE === "true";
+const wireMaturityAt = kaseDemo ? BigInt(Math.floor(Date.now() / 1000) + 600) : 1_800_000_000n;
 const wireInitialization = await buildInstrumentInitialization({ programId: programId.toBase58(), instrumentId: wireId,
   administrator: wireIssuer, bondMint: wireSetup.bondMint, settlementMint: wireSetup.settlementMint,
   complianceAuthority: wireIssuer, corporateActionAuthority: wireIssuer, faceValueMinor: 1_000_000_000n,
-  couponRateBps: 1000, paymentsPerYear: 2, issueAt: 1_700_000_000n, maturityAt: 1_800_000_000n, totalSupply: 35n });
+  couponRateBps: 1000, paymentsPerYear: 2, issueAt: 1_700_000_000n, maturityAt: wireMaturityAt, totalSupply: 35n });
 await sendPreparedInstructions([wireInitialization.instruction]);
 const wireAddress = new PublicKey(wireInitialization.instrumentAddress);
 assert.deepEqual(Object.keys((await program.account.instrument.fetch(wireAddress)).status), ["deploying"]);
@@ -361,7 +365,7 @@ const wireNow = BigInt(Math.floor(Date.now() / 1000));
 for (const [index, type] of ["COUPON_PAYMENT", "BOND_REDEMPTION", "EARLY_REDEMPTION"].entries()) {
   const action = await buildCorporateActionSchedule({ programId: programId.toBase58(), instrumentId: wireId,
     actionId: new Uint8Array(16).fill(212 + index), issuerAuthority: wireIssuer, type,
-    recordAt: wireNow + 120n, executeAt: type === "BOND_REDEMPTION" ? 1_800_000_000n : wireNow + 240n,
+    recordAt: wireNow + 120n, executeAt: type === "BOND_REDEMPTION" ? wireMaturityAt : wireNow + 240n,
     redemptionPercentageBps: type === "EARLY_REDEMPTION" ? 2000 : null,
     redemptionPriceMinor: type === "EARLY_REDEMPTION" ? 1_000_000_000n : null });
   await sendPreparedInstructions([action.instruction]);
@@ -446,14 +450,32 @@ if (process.env.ACTION_TEST_DATABASE_URL) {
     instrumentId: `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`,
     bondMint: wireSetup.bondMint, settlementMint: wireSetup.settlementMint,
     allocations: wireDistribution.allocations.map(row => ({ walletAddress: row.walletAddress, amount: row.amount.toString() })),
+    maturityAt: wireMaturityAt.toString(), kaseDemo,
     approvalAcceptance: process.env.APPROVAL_HTTP_ACCEPTANCE_ONLY === "true" };
   try {
-    const acceptance = spawn(process.execPath, [fileURLToPath(new URL("../../scripts/test-corporate-actions.mjs", import.meta.url)), JSON.stringify(fixture), administratorKeyPath],
-      { stdio: "inherit", env: process.env });
+    const acceptanceScript = kaseDemo ? "../../scripts/test-kase-demo.mjs" : "../../scripts/test-corporate-actions.mjs";
+    const acceptance = spawn(process.execPath, [fileURLToPath(new URL(acceptanceScript, import.meta.url)), JSON.stringify(fixture), administratorKeyPath],
+      { stdio: kaseDemo ? ["inherit", "inherit", "inherit", "ipc"] : "inherit", env: process.env });
+    if (kaseDemo) acceptance.on("message", async message => {
+      // Only these generated holders can transfer; no key is sent to the child or logged.
+      try {
+        assert.equal(message?.kind, "TRANSFER");
+        assert.ok(Number.isInteger(message.from) && Number.isInteger(message.to));
+        assert.ok(message.from >= 0 && message.from < 3 && message.to >= 0 && message.to < 3 && message.from !== message.to);
+        assert.match(message.amount, /^(?:[1-9]|[12][0-9]|3[0-5])$/);
+        const sender = wireHolders[message.from].key;
+        const transfer = createTransferCheckedInstruction(new PublicKey(wireDistribution.allocations[message.from].tokenAccount),
+          new PublicKey(wireSetup.bondMint), new PublicKey(wireDistribution.allocations[message.to].tokenAccount), sender.publicKey,
+          BigInt(message.amount), 0, [], TOKEN_2022_PROGRAM_ID);
+        // Administrator pays fees; the generated holder authorizes the transfer.
+        const signature = await sendAndConfirmTransaction(connection, new Transaction().add(transfer), [administrator, sender], { commitment: "finalized" });
+        acceptance.send({ id: message.id, signature });
+      } catch (error) { acceptance.send({ id: message?.id, error: error.message }); }
+    });
     const status = await new Promise((resolve, reject) => { acceptance.once("error", reject); acceptance.once("exit", resolve); });
     if (status !== 0) throw new Error("Action API/database/validator acceptance failed");
   } finally { relay.closeAllConnections(); await new Promise(resolve => relay.close(resolve)); }
-  if (process.env.APPROVAL_HTTP_ACCEPTANCE_ONLY === "true") { console.log("PASS focused live approval API/database/validator acceptance"); process.exit(0); }
+  if (process.env.APPROVAL_HTTP_ACCEPTANCE_ONLY === "true" || kaseDemo) { console.log("PASS focused live corporate-action API/database/validator acceptance"); process.exit(0); }
 }
 
 const bondMint = await createBondMint(instrumentAuthority, true);

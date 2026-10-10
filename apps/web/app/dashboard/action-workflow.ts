@@ -5,6 +5,7 @@ export type CorporateActionView = {
   sourceReference: string | null; sourceDocument: string | null; sourceTimestamp: string | null;
   recordAt: string; executeAt: string; status: string; reviewNote: string | null;
   couponExecutionEnabled?: boolean;
+  redemptionExecutionEnabled?: boolean;
   eligibleHolders?: number;
   redemptionPercentageBps: number | null; redemptionPriceMinor: string | null;
   instrument: { id: string; ticker: string; name: string; issuerAuthority: string; corporateActionAuthority: string; network: string };

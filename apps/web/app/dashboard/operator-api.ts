@@ -41,22 +41,35 @@ function errorMessage(payload: Record<string, unknown>, fallback: string): strin
     case "APPROVAL_REQUIRED":
       return "Исполнение требует явного согласования начислений.";
     case "COUPON_NOT_DUE":
+    case "REDEMPTION_NOT_DUE":
       return "Время исполнения ещё не наступило в подтверждённом состоянии сети. Повторите подготовку после даты выплаты.";
     case "COUPON_INCOMPLETE":
+    case "REDEMPTION_INCOMPLETE":
       return "Подтвердите все выплаты перед подготовкой итогового документа.";
     case "COUPON_CONFIRMATION_REQUIRED":
+    case "REDEMPTION_CONFIRMATION_REQUIRED":
     case "ACTION_OPERATION_PENDING":
       return "Сначала проверьте результат сохранённой попытки по исходной подписи.";
     case "ENTITLEMENT_ALREADY_EXECUTED":
       return "Это начисление уже исполнено. Повторная выплата заблокирована.";
     case "COUPON_RESERVE_REQUIRED":
+    case "REDEMPTION_RESERVE_REQUIRED":
       return "В резерве недостаточно средств для выбранной выплаты.";
     case "COUPON_EXECUTION_DISABLED":
       return "Выплаты ещё не включены в этой среде. Доступна проверка текущего этапа.";
+    case "REDEMPTION_EXECUTION_DISABLED":
+      return "Исполнение погашений ещё не включено в этой среде. Расчёт и доказательства доступны в карточке.";
+    case "REDEMPTION_SUPPLY_CHANGED":
+    case "REDEMPTION_SOURCE_BALANCE_CHANGED":
+    case "REDEMPTION_BALANCE_CHANGED":
+      return "Supply или остатки на зафиксированных счетах изменились. Подпись остановлена; проверьте исходную попытку и состояние сети.";
     case "RECEIPT_INTEGRITY":
     case "RECONCILIATION_REQUIRED":
     case "COUPON_RECEIPT_MISMATCH":
     case "COUPON_BALANCE_PROOF":
+    case "REDEMPTION_RECEIPT_MISMATCH":
+    case "REDEMPTION_BALANCE_PROOF":
+    case "REDEMPTION_ACCOUNT_MISMATCH":
       return "Суммы, квитанции и подтверждённые данные не совпадают. Сохранённую попытку нужно сверить; повторная отправка не поможет.";
     case "ACTION_RECORD_TOO_SOON":
       return "До record date осталось меньше минуты. Создайте новый черновик с будущим временем; подписанную попытку проверяйте отдельно.";

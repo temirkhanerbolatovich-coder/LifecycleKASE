@@ -24,6 +24,7 @@
     "localnet:upgrade:preflight": "npm run build --workspace @lifecycle-kase/solana-client && node scripts/check-owner-upgrade.mjs",
     "solana:smoke": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-solana-validator.ps1",
     "test:solana:integration": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-initialize-instrument.ps1",
+    "demo:verify": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-kase-demo.ps1",
     "prisma:format": "node scripts/run-prisma.mjs format",
     "prisma:generate": "node scripts/run-prisma.mjs generate",
     "prisma:migrate:deploy": "node scripts/run-prisma.mjs migrate-deploy",

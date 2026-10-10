@@ -6,6 +6,7 @@ import { SnapshotPanel } from "./snapshot-panel";
 import { EntitlementPanel } from "./entitlement-panel";
 import { CouponFundingPanel } from "./coupon-funding-panel";
 import { CouponExecutionPanel } from "./coupon-execution-panel";
+import { RedemptionExecutionPanel } from "./redemption-execution-panel";
 import { requireFinalizedResponse, resumedDeploymentSignature } from "./snapshot-workflow";
 import { signAndSubmitPrepared, supportsPreparedTransaction } from "./wallet-transaction";
 import { actionPresentation, statusTone, ACTION_TYPES as TYPES, ACTION_STATUSES as STATUS_LABELS, formatWorkspaceDate } from "./workspace-presentation";
@@ -24,6 +25,9 @@ export function CorporateActionDetail({ action: selected, role, wallet, walletAd
   const administrator = role === "ADMINISTRATOR";
   const canWrite = administrator && selected.instrument.issuerAuthority === walletAddress;
   const couponExecutionStage = selected.type === "COUPON_PAYMENT" && Boolean(selected.couponExecutionEnabled) &&
+    ["APPROVED", "EXECUTING", "PARTIALLY_SETTLED", "SETTLED", "FINALIZED"].includes(selected.status);
+  const redemption = ["EARLY_REDEMPTION", "BOND_REDEMPTION"].includes(selected.type);
+  const redemptionExecutionStage = redemption && Boolean(selected.redemptionExecutionEnabled) &&
     ["APPROVED", "EXECUTING", "PARTIALLY_SETTLED", "SETTLED", "FINALIZED"].includes(selected.status);
   const [reason, setReason] = useState(() => selected.blockchainTransactions.find(tx => tx.operationType === "ACTION_CANCEL" && ["PREPARED", "SUBMITTED", "UNKNOWN_CONFIRMATION"].includes(tx.status))?.reason ?? "");
   const [plan, setPlan] = useState<PreparedAction | null>(null);
@@ -167,16 +171,20 @@ export function CorporateActionDetail({ action: selected, role, wallet, walletAd
       {canWrite && !plan && selected.status === "SCHEDULED" && <SnapshotPanel key={selected.id} selectedActionId={selected.id} wallet={wallet} walletAddress={walletAddress} request={request} onBusyChange={value => { setBusy(value); onBusyChange(value); }}
         onWindowMissed={async () => { await onReload(); setMessage("Capture закрыт. Проверьте окно snapshot или восстановите сохранённую попытку."); }}
         onConfirmed={() => void run(async () => { await onReload(); setMessage("SNAPSHOT_CREATED: finalized commitment и база сверены. Выплат не было."); })} />}
-      {selected.snapshot?.status === "FINALIZED" && !plan && <details className="term-help workflow-section" open={!couponExecutionStage}><summary>Начисления и согласование</summary><EntitlementPanel key={`entitlements-${selected.id}`} actionId={selected.id} canWrite={Boolean(canWrite)} administrator={administrator} request={request} onSummary={setAmountMinor}
+      {selected.snapshot?.status === "FINALIZED" && !plan && <details className="term-help workflow-section" open={!couponExecutionStage && !redemptionExecutionStage}><summary>Начисления и согласование</summary><EntitlementPanel key={`entitlements-${selected.id}`} actionId={selected.id} canWrite={Boolean(canWrite)} administrator={administrator} request={request} onSummary={setAmountMinor}
         canOnchainWrite={administrator && selected.instrument.corporateActionAuthority === walletAddress}
         corporateActionAuthority={selected.instrument.corporateActionAuthority} wallet={wallet} walletAddress={walletAddress}
         onBusyChange={value => { setBusy(value); onBusyChange(value); }} onChanged={async () => { await onReload(); }} /></details>}
-      {selected.type === "COUPON_PAYMENT" && selected.status === "UNDER_REVIEW" && !plan && <details className="term-help workflow-section"><summary>Бюджет и пополнение тестовых средств</summary><CouponFundingPanel
+      {(selected.type === "COUPON_PAYMENT" || redemption && selected.redemptionExecutionEnabled) && selected.status === "UNDER_REVIEW" && !plan && <details className="term-help workflow-section"><summary>Бюджет и пополнение тестовых средств</summary><CouponFundingPanel
         key={`funding-${selected.id}`} actionId={selected.id} canWrite={Boolean(canWrite)} wallet={wallet} walletAddress={walletAddress} request={request}
+        redemption={redemption}
         onBusyChange={value => { setBusy(value); onBusyChange(value); }} onChanged={async () => { await onReload(); }} /></details>}
 
       {couponExecutionStage && !plan &&
         <CouponExecutionPanel actionId={selected.id} administrator={administrator} wallet={wallet} walletAddress={walletAddress} request={request}
+          onBusyChange={value => { setBusy(value); onBusyChange(value); }} onChanged={onReload} />}
+      {redemptionExecutionStage && !plan &&
+        <RedemptionExecutionPanel actionId={selected.id} actionType={selected.type} administrator={administrator} wallet={wallet} walletAddress={walletAddress} request={request}
           onBusyChange={value => { setBusy(value); onBusyChange(value); }} onChanged={onReload} />}
 
     </div>

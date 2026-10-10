@@ -40,9 +40,12 @@ export function actionPresentation(action: CorporateActionView, canWrite: boolea
   const approved = transactions.some(tx => tx.operationType === "ACTION_APPROVAL" && tx.status === "FINALIZED");
   const scheduled = ["SCHEDULED", "SNAPSHOT_CREATED", "CALCULATED", "UNDER_REVIEW", "APPROVED"].includes(action.status) || transactions.some(tx => tx.operationType === "ACTION_SCHEDULE" && tx.status === "FINALIZED");
   const terminal = ["CANCELLED", "REJECTED", "SNAPSHOT_MISSED"].includes(action.status);
-  const receipt = transactions.some(tx => tx.operationType === "COUPON_FINALIZE" && tx.status === "FINALIZED");
-  const payments = transactions.filter(tx => tx.operationType === "COUPON_PAYMENT" && tx.status === "FINALIZED").length;
-  const execution = action.type === "COUPON_PAYMENT" && Boolean(action.couponExecutionEnabled);
+  const redemption = ["EARLY_REDEMPTION", "BOND_REDEMPTION"].includes(action.type);
+  const receiptType = redemption ? "REDEMPTION_FINALIZE" : "COUPON_FINALIZE";
+  const paymentType = redemption ? "REDEMPTION_PAYMENT" : "COUPON_PAYMENT";
+  const receipt = transactions.some(tx => tx.operationType === receiptType && tx.status === "FINALIZED");
+  const payments = transactions.filter(tx => tx.operationType === paymentType && tx.status === "FINALIZED").length;
+  const execution = redemption ? Boolean(action.redemptionExecutionEnabled) : action.type === "COUPON_PAYMENT" && Boolean(action.couponExecutionEnabled);
   const paid = payments > 0 && payments === (action.eligibleHolders ?? action.snapshot?.investorCount);
   const steps: ActionStep[] = [
     { label: "Планирование", state: scheduled ? "done" : action.status === "DRAFT" ? "current" : "blocked", detail: scheduled ? "Статус по данным API" : "Черновик ещё не в Solana" },
@@ -50,7 +53,7 @@ export function actionPresentation(action: CorporateActionView, canWrite: boolea
     { label: "Начисления", state: calculated ? "done" : snapshot ? "current" : "blocked", detail: calculated ? "Расчёт сохранён" : "Нужен finalized snapshot" },
     { label: "Регистрация", state: registered ? "done" : calculated ? "current" : "blocked", detail: registered ? "FINALIZE подтверждён" : "Проверьте доступность в начислениях" },
     { label: "Согласование", state: approved ? "done" : registered ? "current" : "blocked", detail: approved ? "Finalized approval" : action.status === "APPROVED" ? "Есть решение БД; on-chain proof отсутствует" : "Полномочия и бюджет проверяются отдельно" },
-    { label: "Исполнение", state: paid || receipt ? "done" : execution && approved ? "current" : "unavailable", detail: receipt ? "Результат закреплён в сети" : payments ? `Подтверждено выплат: ${payments}` : execution ? "Выплата из резерва действия" : "Требуется принятый кандидат программы" },
+    { label: "Исполнение", state: paid || receipt ? "done" : execution && approved ? "current" : "unavailable", detail: receipt ? "Результат закреплён в сети" : payments ? `Подтверждено ${redemption ? "погашений" : "выплат"}: ${payments}` : execution ? redemption ? "Выплата и сжигание токенов одной транзакцией" : "Выплата из резерва действия" : "Требуется принятый кандидат программы" },
     { label: "Итоговый документ", state: receipt ? "done" : execution && paid ? "current" : "unavailable", detail: receipt ? "JSON и hash подтверждены" : "После сверки всех выплат" }
   ];
   if (terminal) for (const step of steps) if (step.state === "current") step.state = "blocked";
@@ -61,7 +64,7 @@ export function actionPresentation(action: CorporateActionView, canWrite: boolea
     explanation = `${pending.operationType} · ${pending.status}. Используйте исходный UUID; неизвестный результат не разрешает повторную отправку.`;
   } else if (receipt) {
     next = "Скачать итоговый документ";
-    explanation = "Выплаты сверены, hash итогового документа закреплён в Solana.";
+    explanation = redemption ? "Выплаты, сжигание и supply сверены, hash итогового документа закреплён в Solana." : "Выплаты сверены, hash итогового документа закреплён в Solana.";
   } else if (terminal) {
     next = "Действие завершено или требует нового сценария";
     explanation = action.status === "SNAPSHOT_MISSED" ? "Создайте новое действие с будущей датой. История этого действия сохранена." : "Изучите причину и историю решения.";
@@ -72,7 +75,7 @@ export function actionPresentation(action: CorporateActionView, canWrite: boolea
   else if (calculated && !registered) next = "Проверить регистрацию и FINALIZE";
   else if (registered && !approved) next = "Проверить бюджет и отдельное согласование";
   else if (execution && paid) next = "Подготовить итоговое подтверждение";
-  else if (execution && approved) next = "Продолжить выплаты купона";
+  else if (execution && approved) next = redemption ? "Продолжить выплаты и погашение токенов" : "Продолжить выплаты купона";
   if (!canWrite) explanation += " Режим чтения: операции доступны только назначенному подписанту с нужными правами.";
   return { steps, next, explanation, pending, terminal };
 }

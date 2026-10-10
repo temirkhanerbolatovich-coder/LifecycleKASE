@@ -435,7 +435,7 @@ function accountData(response: unknown, minimumSlot: number): Buffer {
   return Buffer.from(data[0], "base64");
 }
 
-function verifyMint(data: Buffer, input: { decimals: number; supply: bigint; permanentDelegate?: string; mintAuthority?: string }) {
+export function verifyMint(data: Buffer, input: { decimals: number; supply: bigint; permanentDelegate?: string; mintAuthority?: string }) {
   const expectedAuthorityTag = input.mintAuthority ? 1 : 0;
   if (data.length < 82 || data.readUInt32LE(0) !== expectedAuthorityTag ||
       (input.mintAuthority && encodePublicKey(data.subarray(4, 36)) !== input.mintAuthority) ||
@@ -784,7 +784,7 @@ export function verifyConfirmedInstrument(dataBase64: string, instrument: {
   id: string; issuerAuthority: string; complianceAuthority: string; corporateActionAuthority: string;
   mintAddress: string | null; faceValueMinor: bigint; couponRateBps: number; paymentsPerYear: number;
   issueAt: Date; maturityAt: Date; totalSupply: bigint; settlementAsset: { mintAddress: string | null };
-}, expectedStatus: "DEPLOYING" | "ACTIVE" | "PAUSED") {
+  }, expectedStatus: "DEPLOYING" | "ACTIVE" | "PAUSED" | "REDEEMED") {
   let chain;
   try { chain = decodeConfirmedInstrumentAccount(dataBase64); }
   catch { throw new InstrumentDeploymentError("INSTRUMENT_ACCOUNT_MISMATCH", "Instrument PDA data is invalid"); }

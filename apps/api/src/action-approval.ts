@@ -13,7 +13,7 @@ import { ACTIVE_TRANSACTION_STATUSES, requireAttemptSigner, requireWorkflowNetwo
 
 const operations = { ASSIGN_APPROVER: "ACTION_APPROVER_ASSIGN", RESERVE: "ACTION_RESERVE_FUND", RELEASE: "ACTION_RESERVE_RELEASE", APPROVE: "ACTION_APPROVAL" } as const;
 const active = { in: [...ACTIVE_TRANSACTION_STATUSES] };
-export type ActionApprovalOptions = InstrumentDeploymentOptions & { enabled: boolean; networkReserveLamports: bigint };
+export type ActionApprovalOptions = InstrumentDeploymentOptions & { enabled: boolean; networkReserveLamports: bigint; redemptionEnabled?: boolean };
 export function actionApprovalEnabled(environment: NodeJS.ProcessEnv = process.env) {
   const value = environment.ACTION_APPROVAL_RESERVE_ENABLED ?? "false";
   if (!["true", "false"].includes(value)) throw new TransactionWorkflowError("APPROVAL_CONFIGURATION_INVALID", "ACTION_APPROVAL_RESERVE_ENABLED must be true or false", 503);
@@ -36,8 +36,8 @@ async function source(database: PrismaClient, id: string, options: ActionApprova
   const current = await database.corporateAction.findUnique({ where: { id }, select: { status: true } });
   const action = current?.status === "APPROVED" ? await requireApprovedEntitlements(database, id, eligibility) : await requireSubmittedEntitlementCalculation(database, id, eligibility);
   const allowedInstrumentStatuses = eligibility === "COMMITTED" ? ["ACTIVE", "PAUSED"] : ["ACTIVE"];
-  if (action.type !== "COUPON_PAYMENT" || !allowedInstrumentStatuses.includes(action.instrument.status) || action.instrument.programId !== options.programId || action.instrument.network !== "SOLANA_LOCALNET") {
-    throw new TransactionWorkflowError("ACTION_APPROVAL_NOT_READY", "New approval phases require an active Localnet coupon; paused instruments allow refund and confirmation only");
+  if (action.type !== "COUPON_PAYMENT" && !options.redemptionEnabled || !allowedInstrumentStatuses.includes(action.instrument.status) || action.instrument.programId !== options.programId || action.instrument.network !== "SOLANA_LOCALNET") {
+    throw new TransactionWorkflowError("ACTION_APPROVAL_NOT_READY", "New approval phases require an enabled active Localnet action; paused instruments allow refund and confirmation only");
   }
   if (action.snapshot!.networkGenesisHash !== options.expectedGenesisHash) throw new TransactionWorkflowError("WRONG_SOLANA_NETWORK", "Snapshot belongs to a different validator genesis", 503);
   if (!await database.blockchainTransaction.findFirst({ where: { corporateActionId: id, operationType: "CALCULATION_FINALIZE", status: "FINALIZED", signature: { not: null } } })) {
@@ -70,7 +70,7 @@ async function chainState(rpc: SolanaRpc, action: Source, mint: string, options:
       chain.registeredEntitlements !== action.entitlements.length || chain.processedEntitlements !== 0 || chain.totalBalance !== action.snapshot!.totalBalance ||
       chain.investorCount !== action.snapshot!.investorCount || chain.walletCount !== action.snapshot!.walletCount || chain.snapshotSlot !== action.snapshot!.solanaSlot ||
       chain.type !== action.type || chain.recordAt !== BigInt(action.recordAt.getTime() / 1000) || chain.executeAt !== BigInt(action.executeAt.getTime() / 1000) ||
-      chain.redemptionPercentageBps !== null || chain.redemptionPriceMinor !== null || chain.completedAt !== null) {
+      chain.redemptionPercentageBps !== action.redemptionPercentageBps || chain.redemptionPriceMinor !== action.redemptionPriceMinor || chain.completedAt !== null) {
     throw new TransactionWorkflowError("APPROVAL_ACCOUNT_MISMATCH", "Action calculation or snapshot differs from the database");
   }
   for (const row of action.entitlements) {
@@ -79,7 +79,7 @@ async function chainState(rpc: SolanaRpc, action: Source, mint: string, options:
     const value = decodeAccount(decodeConfirmedEntitlement, await workflowProgramAccount(rpc, key, options.programId, minimumSlot));
     if (value.actionAddress !== addresses.actionAddress || value.snapshotHash !== hash || !Buffer.from(value.investorId).equals(Buffer.from(uuidBytes(row.investorId))) ||
         value.settlementWallet !== row.settlementWalletAddress || value.paymentAmountMinor !== row.amountMinor || value.balanceAtSnapshot !== row.balanceAtRecordDate ||
-        value.tokensToRedeem !== 0n || value.executedAt !== null || value.status !== (row.status === "NOT_ELIGIBLE_ZERO_ROUNDING" ? row.status : "READY")) {
+        value.tokensToRedeem !== row.tokensToRedeem || value.executedAt !== null || value.status !== (row.status === "NOT_ELIGIBLE_ZERO_ROUNDING" ? row.status : "READY")) {
       throw new TransactionWorkflowError("APPROVAL_ACCOUNT_MISMATCH", "An immutable entitlement differs from the approved calculation");
     }
   }
@@ -238,14 +238,14 @@ export async function submitActionApproval(database: PrismaClient, rpc: SolanaRp
   return submitWorkflowTransaction(database, rpc, op, input["signedTransactionBase64"] as string, actor, { ...options, confirmationOnlyAfterSubmission: true });
 }
 /** Checks a real transaction's immutable token history, including account closure. */
-export function reserveTokenDelta(meta: Record<string, unknown>, index: number, mint: string, owner: string) {
+export function reserveTokenDelta(meta: Record<string, unknown>, index: number, mint: string, owner: string, decimals = 6, requireExisting = false) {
   function balance(field: string) {
     const values = meta[field]; if (!Array.isArray(values)) throw new TransactionWorkflowError("RESERVE_BALANCE_PROOF", "Token history is unavailable");
     const matches = values.filter(value => rpcObject(value)["accountIndex"] === index);
-    if (matches.length === 0) return 0n;
+    if (matches.length === 0 && !requireExisting) return 0n;
     if (matches.length !== 1) throw new TransactionWorkflowError("RESERVE_BALANCE_PROOF", "Token history is ambiguous");
     const row = rpcObject(matches[0]); const amount = rpcObject(row["uiTokenAmount"]);
-    if (row["mint"] !== mint || row["owner"] !== owner || row["programId"] !== TOKEN_2022_PROGRAM_ID || amount["decimals"] !== 6 ||
+    if (row["mint"] !== mint || row["owner"] !== owner || row["programId"] !== TOKEN_2022_PROGRAM_ID || amount["decimals"] !== decimals ||
         typeof amount["amount"] !== "string" || !/^(0|[1-9][0-9]*)$/.test(amount["amount"])) throw new TransactionWorkflowError("RESERVE_BALANCE_PROOF", "Token history identity differs");
     const result = BigInt(amount["amount"]);
     if (result > (1n << 64n) - 1n) throw new TransactionWorkflowError("RESERVE_BALANCE_PROOF", "Token history amount exceeds u64");
