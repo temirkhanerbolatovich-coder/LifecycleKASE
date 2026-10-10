@@ -4,6 +4,8 @@ Current engineering audit: **2026-10-10**. See the [full audit](PROJECT_AUDIT_20
 
 ## Historical continuation observations
 
+Publication: the accumulated source/CI/tests/UI/documentation package is available in [PR #1](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/pull/1). Implementation commit `fbd98ca` passed [CI 38066186634](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/actions/runs/38066186634). The fresh full-audit coupon HTTP/PostgreSQL/validator rerun passed; retained owner projections are unchanged. Render deployed SHA and fresh owner chain proof remain unverified.
+
 The dated notes below describe their own checkpoints. They are not present-tense deployment or owner-chain claims.
 
 2026-10-07 continuation: [stage evidence](testing/delivery-stage-2026-10-07.md) records owner environment/backup restoration, patched root dependency, funding UI recovery and a separate on-chain calculation candidate. The candidate does not upgrade the owner program or add payment/approval. Older dated observations below remain historical; current root audit is zero vulnerabilities, and the owner's refreshed funding attempt remains unsigned by explicit deferral. See the [combined plan](deployment/DEVNET_TO_MVP_CHECKLIST.md).

@@ -1,5 +1,11 @@
 # Coupon execution acceptance — October 10, 2026
 
+## Full-audit rerun
+
+The October 10 full audit rebuilt identical coupon-v2 bytes into a new ignored `localnet-candidate-audit-20261010` directory (526624 bytes, SHA-256 `ccc5ebe7841a43fc22f8c687557264f22025a35840ebf1aae10b820df3d84295`) and repeated the live HTTP/PostgreSQL/validator acceptance on RPC port 19048 and a newly created PostgreSQL container. It passed issuance/snapshot/funding, complete calculation registration, separate approval and reserve/refund/refill, exact 500/1000/250 payments, role/Origin/current-receiver and exact-wire guards, same-signature missing-history recovery, audit rollback, MATCHED legs, canonical JSON/hash and finalized receipt PDA. The preserved owner projections were unchanged in a repeated read-only query; owner RPC remained unavailable and was not substituted by fixture proof.
+
+Disposable action `7c6d05dd-cce8-4d5b-9eaf-d0a484acd943`; genesis `F5Sw1Na6GuUdDyYJS2SqU3hGmrVqmTYz68EiaQho1hG9`; final receipt hash `2d7af6d05d69ca927fbb3c61c3e1c4449de48f50950076e5cd8dd76dcb18ed62`; finalized signature `4kihKBUc3AHwsMBMpXesRGTg1A8QKzXtt7vbmR6ZAiD4Zj8oZPe2Y71g9pXL4Qso5TpK8eVCcjmhSF9cbW8jtU5V`. The harness removed its disposable validator/database. Earlier evidence below remains historical; current priorities and publication are in the [full audit](../PROJECT_AUDIT_2026-10-10.md).
+
 ## Boundary and artifact
 
 Financial acceptance uses disposable validators, temporary signing keys and generated PostgreSQL databases. Scripts do not import `.env`, sign through the owner's Phantom, or reset the retained environment. Cleanup targets only generated `actions_test_<32 hex>` databases and the harness's temporary files.

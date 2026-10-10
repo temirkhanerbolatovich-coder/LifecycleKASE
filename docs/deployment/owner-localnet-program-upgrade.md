@@ -34,6 +34,8 @@ The candidate adds `register_entitlement`, `reset_calculation`, and `finalize_ca
 
 ## Evidence already completed
 
+October 10 audit reran the retained 290136-byte binary → newer 526624-byte coupon candidate on a disposable validator. The phased loader checks, failed-upgrade preservation, durable PostgreSQL maintenance/audit/recovery and verified release passed; candidate hash `ccc5ebe7841a43fc22f8c687557264f22025a35840ebf1aae10b820df3d84295` and existing SNAPSHOT_CREATED Action PDA bytes matched. This is compatibility evidence only: the pinned manifest above remains the older registration package and the owner program was not changed. The first run lacked an explicit test database URL and stopped at unavailable `::1:55432`; the safe repeat supplied UPGRADE_TEST_DATABASE_URL through WSLENV. See the [current audit](../PROJECT_AUDIT_2026-10-10.md).
+
 The disposable upgrade test starts the retained binary as an upgradeable program, creates a real ACTIVE instrument and a `SNAPSHOT_CREATED` action, deploys the reviewed candidate over the same program ID, and then continues against the upgraded program. It passed:
 
 - exact MINT_SETUP, 10/20/5 DISTRIBUTION, INITIALIZE, ACTIVATE, action schedule/cancel, and snapshot before upgrade;
@@ -54,6 +56,9 @@ Local validation at this checkpoint: `npm run check` passed 244 tests (API 95, w
 Reproduce without touching the owner environment:
 
 ```powershell
+# Use a newly created disposable PostgreSQL container; replace 65478 with its port.
+$env:UPGRADE_TEST_DATABASE_URL='postgresql://lifecycle_kase:local_development_only@127.0.0.1:65478/lifecycle_kase?schema=public'
+$env:WSLENV=($env:WSLENV+':UPGRADE_TEST_DATABASE_URL').Trim(':')
 .\scripts\test-initialize-instrument.ps1 `
   -RpcPort 18920 `
   -WslUser lifecycle-dev `
@@ -61,7 +66,7 @@ Reproduce without touching the owner environment:
   -UpgradeCandidateProfile localnet-candidate-reset-20261008
 ```
 
-The example uses this checkout's non-root WSL toolchain user `lifecycle-dev`; select your configured toolchain user elsewhere. The test uses a temporary ledger and disposable authority under WSL `/tmp`, then removes them. It does not use Phantom, the owner ledger, or the owner database.
+The example uses this checkout's non-root WSL toolchain user `lifecycle-dev`; select your configured toolchain user elsewhere. The test uses a temporary ledger and disposable authority under WSL `/tmp`, then removes them. The current upgrade harness also exercises durable API/PostgreSQL maintenance and needs an explicit safe base database. It creates/migrates/drops a uniquely named `upgrades_test_<32 hex>` database. Forward the URL through WSLENV so the Windows/WSL boundary does not fall back to the unrelated default `::1:55432`. It does not use Phantom, the owner ledger, or the owner database.
 
 ## Required owner preflight
 

@@ -2,6 +2,8 @@
 
 Current availability observation — **2026-10-10**: API live/ready, web live and dashboard returned HTTP 200. Current deployed SHA, logs and metrics are unverified because the connector had no confirmed selected workspace. The historical deploy IDs/revisions below retain their own dates. A GitHub source PR does not prove Render deployment or owner-chain acceptance. See the [current audit](../PROJECT_AUDIT_2026-10-10.md).
 
+Unauthenticated instruments/investors/corporate-actions reads returned 401 after cold-start retry; `/api/v1/transactions` returned 404. The new protected journal API is therefore not verified as available in staging. The audited source package is published in [PR #1](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/pull/1); its application rollout is separate from this health observation and any owner-program upgrade.
+
 Status: the 2026-10-09 application rollout published the Localnet action/snapshot/entitlement/funding workflows and monitoring described in the [current audit](../PROJECT_AUDIT_2026-10-09.md). Both Render services are Live at application revision `adc0cff`; GitHub CI, migration logs, public health and a new protected route were verified. Earlier operator login was owner-accepted; authenticated browser flows were not repeated in this audit. The historical `112bdb1` entries below remain as an evidence trail.
 
 ## 2026-10-09 application rollout
