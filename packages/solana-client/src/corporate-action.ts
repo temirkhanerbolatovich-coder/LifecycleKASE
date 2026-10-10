@@ -7,7 +7,7 @@ import type { SolanaInstructionPlan } from "./snapshot-transaction.js";
 
 export const ACTION_TYPES = ["COUPON_PAYMENT", "BOND_REDEMPTION", "EARLY_REDEMPTION"] as const;
 export type ActionType = typeof ACTION_TYPES[number];
-export const ACTION_STATUSES = ["SCHEDULED", "CANCELLED", "SNAPSHOT_CREATED", "CALCULATED", "UNDER_REVIEW"] as const;
+export const ACTION_STATUSES = ["SCHEDULED", "CANCELLED", "SNAPSHOT_CREATED", "CALCULATED", "UNDER_REVIEW", "APPROVED", "RESERVED", "PROCESSING", "SETTLED", "FINALIZED"] as const;
 export type ActionTerms = {
   actionId: Uint8Array; type: ActionType; recordAt: bigint; executeAt: bigint;
   redemptionPercentageBps: number | null; redemptionPriceMinor: bigint | null;

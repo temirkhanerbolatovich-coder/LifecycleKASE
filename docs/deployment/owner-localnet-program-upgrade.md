@@ -1,12 +1,24 @@
 # Owner Localnet program upgrade package
 
-Status: prepared and disposable-upgrade tested on 2026-10-08; owner transaction not submitted.
+October 10 audit: the manifest remains pinned to the registration/reset candidate accepted on October 9. It is not the newer approval/coupon artifact. Owner API/RPC were unavailable for fresh chain verification; SQL still has VERIFIED maintenance and held UNKNOWN_CONFIRMATION FINALIZE. Partial REGISTER/RESET/three REGISTER acceptance is in the [owner record](../testing/owner-entitlements-2026-10-09.md). Any newer candidate requires a separate review and owner rollout decision. See the [current audit](../PROJECT_AUDIT_2026-10-10.md).
+
+Status: owner EXTEND/UPGRADE accepted on the preserved Localnet on 2026-10-09.
+
+2026-10-09 owner continuation: a fresh readable PostgreSQL dump was retained before migration, migration `20261009120000_program_upgrade_maintenance` brought the preserved owner database to 19 migrations, and the local API capability was enabled with entitlement registration still false. Disposable uploader `9Pyj44FgsTP64x2wMS8j18sg5RXUoxFi2gBHd7yCzpwT` staged buffer `HLxhbJC8W6acMXxf7Ghs1Gg9stdTSmbAitQjW7wbWSqW`, verified the complete 344640-byte candidate hash, then transferred buffer authority to the existing Phantom address. Strict finalized preflight at slot 102338 selected EXTEND. The retained program/code, ProgramData authority, LKA26R1 accounts, UNDER_REVIEW calculation and unsigned funding attempt remained unchanged. The first authenticated preparation was rejected before creating maintenance because an older DRAFT LKA26 mint-setup attempt remained `UNKNOWN_CONFIRMATION`. Same-genesis full-history and blockhash checks proved that the recorded `TRANSACTION_UNAVAILABLE` attempt cannot newly land, so the guard was narrowed without rewriting that historical row. No maintenance attempt or owner-signed loader transaction had been created; authenticated Chrome/Phantom review remains the next gate.
+
+2026-10-09 subsequent integration checkpoint: the [restricted maintenance API/dashboard](../features/program-upgrade-maintenance.md) was implemented with durable phase attempts, exact-message signing, expiry/reload recovery, atomic audit and a database business-write lock spanning EXTEND and UPGRADE. [ADR-022](../decisions/ADR-022-durable-program-upgrade-maintenance.md) records this boundary. At that checkpoint the retained owner database/program had not been migrated/upgraded and owner buffer staging, feature enablement and Phantom acceptance were pending. Earlier preparation observations below remain dated evidence.
 
 2026-10-09 continuation: a [public pinned manifest](owner-localnet-upgrade-plan.json), read-only preflight and production single-signer EXTEND/UPGRADE phase builders have been added. The signing design and runtime constraints are recorded in [ADR-021](../decisions/ADR-021-phantom-localnet-program-upgrade.md). The restricted owner signing/persisted-attempt UI is still a separate pending integration gate; the command below never stages, signs or broadcasts.
 
 This package covers the retained owner Localnet program upgrade needed before the guarded entitlement REGISTER/RESET/FINALIZE workflow can be enabled. It does not authorize funding, calculation approval, payout, burn, Devnet deployment, or a ledger/database reset.
 
-## Exact reviewed identities and artifacts
+## Owner acceptance — 2026-10-09
+
+The authenticated owner flow finalized EXTEND at slot 105978 with signature `2G54MnWLaoa6g2xG3fik5b2Yg6YJUN3sGyC2RxrweGK3betmoRyfYJQxbfJZocSbyYLjmGTMaCky2NSPqkPevGX`, increasing ProgramData capacity from 290136 to 344640 bytes while retaining the old code and authority. A separate UPGRADE finalized at slot 106314 with signature `j123YBpdrp5uF25VKgyWeJpN4yCWfndVDfJaJ1Jzbkk8CAbMZa1Yfk7UjiyenaGuxEb7K4DKRh6yRXn6i2Ypr32`.
+
+Post-upgrade finalized read-back matched candidate SHA-256 `62562a427b9da9af9c7c2ac0976b073484b40bf9a48ad2b5f9af6b1d556ca05d`, the same Program/ProgramData pointer and Phantom authority, consumed buffer, and the same protected-account digest recorded before both phases. Maintenance `a19a0171-c8bc-4c52-a2e3-b38285b73717` is `VERIFIED`. At finalized slot 107691, LKA26R1 remained ACTIVE 35/35 and Action PDA `2QEdxyHXkmkd7Lq6YivoG6iMmEmvUnMrgC3U9SWPZhaz` remained SNAPSHOT_CREATED with the original snapshot hash, balance 35 and zero registered/processed entitlements. PostgreSQL remained UNDER_REVIEW version 6 with three CALCULATED rows totalling 1750000000 minor units and no on-chain entitlement addresses. Funding remained unsigned. REGISTER/RESET/FINALIZE is the next separate owner gate.
+
+## Pre-upgrade reviewed identities and artifacts (historical)
 
 | Fact | Reviewed value |
 | --- | --- |
@@ -14,8 +26,8 @@ This package covers the retained owner Localnet program upgrade needed before th
 | Program | `6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo` |
 | ProgramData | `7NagSKwRazhqVzfPm6wYJbMAUsb5Gaovz4AM5UpADukF` |
 | Current upgrade authority | `5Nn5WtR1dzVamAJYAheUBucFu6wUuJLbCUr2VwTTJzMM` |
-| Current deployed binary | 290136 bytes, SHA-256 `cd502cfd217036548700c334b472b544ee7275ef1585870e4268bb34492e049b` |
-| Retained local artifact | `target/deploy/lifecycle_kase.so`, same size and SHA-256 as the deployed binary |
+| Deployed binary before October 9 upgrade | 290136 bytes, SHA-256 `cd502cfd217036548700c334b472b544ee7275ef1585870e4268bb34492e049b` |
+| Retained local artifact | `target/deploy/lifecycle_kase.so`, same size and SHA-256 as the pre-upgrade binary |
 | Upgrade candidate | `generated/localnet-candidate-reset-20261008/lifecycle_kase.so`, 344640 bytes, SHA-256 `62562a427b9da9af9c7c2ac0976b073484b40bf9a48ad2b5f9af6b1d556ca05d` |
 
 The candidate adds `register_entitlement`, `reset_calculation`, and `finalize_calculation`. Existing Instrument and CorporateAction field order and allocation are unchanged. New status variants are appended, so existing owner accounts need neither realloc nor a data migration.
@@ -74,7 +86,7 @@ npm run localnet:upgrade:preflight -- --buffer PUBLIC_BUFFER_ADDRESS
 
 The command accepts no key, signer or transaction arguments. It checks retained/candidate ELF size/hash, plain loopback RPC, exact genesis, canonical ProgramData pointer, loader owner/executable flags, current upgrade authority, current deployed bytes including zero padding, and sufficient authority balance for extension rent plus a policy fee reserve. With a buffer it also verifies finalized loader state, authority and complete candidate bytes before emitting public instruction hex/accounts. Without a buffer it reports `stagingRequired=true` and emits no instructions. Both forms report `upgradeAuthorized=false` and `transactionSubmitted=false`.
 
-Fresh read-only owner observation on 2026-10-09: capacity 290136, required extension 54504, additional ProgramData rent 379347840 lamports (0.37934784 Localnet SOL), policy fee reserve 5000000 lamports and authority balance 99975370320 lamports. Buffer is not yet staged. These costs/balances are point-in-time readings, not a signed fee quote or payment. The old owner action remains UNDER_REVIEW in PostgreSQL and SNAPSHOT_CREATED on-chain; funding remains unsigned PREPARED. Historical SCHEDULE and REGISTER_SNAPSHOT bytes are now pruned from the owner RPC; their earlier acceptance records are historical evidence, and this preflight does not invent fresh transaction proof.
+Earlier read-only owner observation on 2026-10-09, before buffer staging: capacity 290136, required extension 54504, additional ProgramData rent 379347840 lamports (0.37934784 Localnet SOL), policy fee reserve 5000000 lamports and authority balance 99975370320 lamports. These costs/balances are point-in-time readings, not a signed fee quote or payment. The old owner action remains UNDER_REVIEW in PostgreSQL and SNAPSHOT_CREATED on-chain; funding remains unsigned PREPARED. Historical SCHEDULE and REGISTER_SNAPSHOT bytes are now pruned from the owner RPC; their earlier acceptance records are historical evidence, and this preflight does not invent fresh transaction proof.
 
 ### Wallet signing procedure under preparation
 
@@ -83,7 +95,7 @@ Fresh read-only owner observation on 2026-10-09: capacity 290136, required exten
 3. Upload only the exact pinned candidate with explicit `solana program write-buffer` RPC/payer/buffer arguments. Verify finalized buffer bytes/hash before transferring the buffer authority to the existing Phantom address. Do not change ProgramData authority.
 4. Re-run buffer preflight. Show Localnet genesis, program, ProgramData, candidate hash, buffer/authority, fee payer, spill receiver, extension bytes/rent and exact instruction accounts before signing.
 5. The client first builds a separate `EXTEND` v0 wire using this validator's supported `ExtendProgram` instruction (opcode 6), explicit compute budget and Phantom as its only payer/signer. Confirm finalized capacity, rent, unchanged authority and retained code with zero padding. Wait until finalized slot is strictly later than this extension's slot, then repeat buffer preflight to prepare the separate `UPGRADE` v0 wire. Combining both instructions is rejected by the loader's same-slot rule. The newer SDK's checked opcode 9 is not supported by this inspected runtime.
-6. The pending operator integration must persist each exact phase/attempt/audit before opening Phantom, verify exact signed message/Ed25519 signer before Localnet broadcast, retain a lost/ambiguous signature for confirmation-only recovery, and complete the post-upgrade checks below atomically with audit. Neither phase changes/revokes program authority, closes the program or performs a financial operation. A failed separate UPGRADE leaves confirmed extension/rent intact for recovery; do not repeat extension or close the program. Until that integration and owner review are complete, do not broadcast a loader transaction on the retained ledger.
+6. Use the restricted maintenance integration to persist each exact phase/attempt/audit before Phantom, verify signed message/Ed25519 signer before Localnet broadcast and retain any ambiguous signature for confirmation-only recovery. The ACTIVE maintenance lock spans phases and survives restarts; only successful candidate/authority/buffer/protected-account acceptance plus atomic audit releases it. Neither phase changes/revokes program authority, closes the program or performs a financial operation. Failed UPGRADE retains confirmed extension/rent. Owner review and disposable acceptance precede any retained-ledger loader broadcast.
 
 ## Signing boundary
 

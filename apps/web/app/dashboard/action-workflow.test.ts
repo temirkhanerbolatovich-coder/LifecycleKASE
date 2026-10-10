@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { actionTimeUtc, preparedActionPlan, type CorporateActionView } from "./action-workflow.js";
+import { actionTimeUtc, preparedActionPlan, snapshotWindowMessage, type CorporateActionView } from "./action-workflow.js";
 
 const KEY = "11111111111111111111111111111111";
 const ACTION = "00000000-0000-4000-8000-000000000001";
@@ -29,4 +29,16 @@ test("action date input is explicitly converted from local time to exact UTC sec
   const value = "2026-10-02T17:35";
   assert.equal(actionTimeUtc(value), new Date(value).toISOString());
   assert.throws(() => actionTimeUtc("invalid")); assert.throws(() => actionTimeUtc("2026-10-02T17:35Z"));
+});
+test("snapshot window distinguishes waiting, recovery and application-only expiry", () => {
+  const payload = { actionId: ACTION, status: "SCHEDULED", version: 3, onChainTransition: false };
+  assert.match(snapshotWindowMessage({ ...payload, window: "NOT_STARTED" }, ACTION), /ещё не открылось/);
+  assert.match(snapshotWindowMessage({ ...payload, window: "OPEN" }, ACTION), /Окно открыто/);
+  assert.match(snapshotWindowMessage({ ...payload, window: "AWAITING_CHAIN_WINDOW_END" }, ACTION), /ещё не подтвердило/);
+  assert.match(snapshotWindowMessage({ ...payload, window: "RECOVERY_REQUIRED" }, ACTION), /пропуска не установлен/);
+  assert.match(snapshotWindowMessage({ ...payload, status: "SNAPSHOT_MISSED", window: "MISSED" }, ACTION), /Solana остаётся SCHEDULED/);
+  for (const changes of [{ actionId: OPERATION }, { onChainTransition: true }, { version: "3" },
+    { window: "MISSED" }, { status: "FINALIZED", window: "MISSED" }, { window: "UNKNOWN" }]) {
+    assert.throws(() => snapshotWindowMessage({ ...payload, window: "OPEN", ...changes }, ACTION));
+  }
 });

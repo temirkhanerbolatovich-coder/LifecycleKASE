@@ -1,9 +1,11 @@
 import { isActionId, unsignedTransactionForSigner, type SupportedSnapshotCluster } from "./snapshot-workflow";
 
 export type CorporateActionView = {
-  id: string; instrumentId: string; type: string; intent: string; sourceType: string;
+  id: string; version: number; instrumentId: string; type: string; intent: string; sourceType: string;
   sourceReference: string | null; sourceDocument: string | null; sourceTimestamp: string | null;
   recordAt: string; executeAt: string; status: string; reviewNote: string | null;
+  couponExecutionEnabled?: boolean;
+  eligibleHolders?: number;
   redemptionPercentageBps: number | null; redemptionPriceMinor: string | null;
   instrument: { id: string; ticker: string; name: string; issuerAuthority: string; corporateActionAuthority: string; network: string };
   snapshot: { id: string; status: string; snapshotHash: string; solanaSlot: string;
@@ -11,6 +13,21 @@ export type CorporateActionView = {
   blockchainTransactions: { id: string; operationType: string; status: string; signature: string | null; lastErrorCode: string | null; reason: string | null }[];
   events?: { id: string; event: string; actorWallet: string | null; createdAt: string }[];
 };
+export function snapshotWindowMessage(payload: Record<string, unknown>, actionId: string): string {
+  if (payload["actionId"] !== actionId || payload["onChainTransition"] !== false ||
+      !Number.isSafeInteger(payload["version"]) || !["SCHEDULED", "SNAPSHOT_MISSED"].includes(String(payload["status"])) ||
+      (payload["window"] === "MISSED") !== (payload["status"] === "SNAPSHOT_MISSED")) {
+    throw new Error("Ответ проверки окна не соответствует выбранному действию. Обновите карточку.");
+  }
+  switch (payload["window"]) {
+    case "NOT_STARTED": return "Окно ещё не открылось. Дождитесь record date.";
+    case "OPEN": return "Окно открыто. Подготовьте и подпишите snapshot до его закрытия.";
+    case "AWAITING_CHAIN_WINDOW_END": return "Capture закрыт, но finalized-время сети ещё не подтвердило пропуск. Повторите проверку позже.";
+    case "RECOVERY_REQUIRED": return "Сохранён snapshot или незавершённая попытка. Восстановите прежнюю операцию и проверьте её подпись; статус пропуска не установлен.";
+    case "MISSED": return "Окно snapshot пропущено. Создайте новое действие с будущим record date. Исходное действие и audit сохранены; состояние Solana остаётся SCHEDULED.";
+    default: throw new Error("API не вернул известное состояние окна snapshot.");
+  }
+}
 export type PreparedAction = {
   corporateActionId: string; operationId: string; phase: "SCHEDULE" | "CANCEL"; cluster: SupportedSnapshotCluster;
   requiredSigner: string; networkGenesisHash: string; programId: string; instrumentAddress: string; actionAddress: string;

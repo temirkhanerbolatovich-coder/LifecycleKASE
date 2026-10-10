@@ -784,12 +784,12 @@ export function verifyConfirmedInstrument(dataBase64: string, instrument: {
   id: string; issuerAuthority: string; complianceAuthority: string; corporateActionAuthority: string;
   mintAddress: string | null; faceValueMinor: bigint; couponRateBps: number; paymentsPerYear: number;
   issueAt: Date; maturityAt: Date; totalSupply: bigint; settlementAsset: { mintAddress: string | null };
-}, expectedStatus: "DEPLOYING" | "ACTIVE") {
+}, expectedStatus: "DEPLOYING" | "ACTIVE" | "PAUSED") {
   let chain;
   try { chain = decodeConfirmedInstrumentAccount(dataBase64); }
   catch { throw new InstrumentDeploymentError("INSTRUMENT_ACCOUNT_MISMATCH", "Instrument PDA data is invalid"); }
   const id = Buffer.from(uuidBytes(instrument.id));
-  if (!Buffer.from(chain.instrumentId).equals(id) || chain.issuerAuthority !== instrument.issuerAuthority ||
+  if (chain.version !== 1 || !Buffer.from(chain.instrumentId).equals(id) || chain.issuerAuthority !== instrument.issuerAuthority ||
       chain.complianceAuthority !== instrument.complianceAuthority ||
       chain.corporateActionAuthority !== instrument.corporateActionAuthority || chain.bondMint !== instrument.mintAddress ||
       chain.settlementMint !== instrument.settlementAsset.mintAddress || chain.faceValueMinor !== instrument.faceValueMinor ||

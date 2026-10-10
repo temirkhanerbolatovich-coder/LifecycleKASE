@@ -2,6 +2,10 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "outDir": ".test-dist", "rootDir": "app/dashboard", "lib": ["esnext", "dom"] },
   "include": [
+    "app/dashboard/coupon-execution-workflow.test.ts",
+    "app/dashboard/workspace-presentation.test.ts",
+    "app/dashboard/action-approval-workflow.test.ts",
+    "app/dashboard/program-upgrade-workflow.test.ts",
     "app/dashboard/coupon-workflow.ts",
     "app/dashboard/coupon-workflow.test.ts",
     "app/dashboard/finalized-check.ts",
@@ -18,6 +22,8 @@
     "app/dashboard/snapshot-workflow.ts",
     "app/dashboard/snapshot-workflow.test.ts",
     "app/dashboard/wallet-account-selection.ts",
-    "app/dashboard/wallet-account-selection.test.ts"
+    "app/dashboard/wallet-account-selection.test.ts",
+    "app/dashboard/workspace-navigation.ts",
+    "app/dashboard/workspace-navigation.test.ts"
   ]
 }

@@ -526,6 +526,8 @@ model BlockchainTransaction {
   entitlementId             String?                     @map("entitlement_id") @db.Uuid
   investorId                String?                     @map("investor_id") @db.Uuid
   operationType             String                      @map("operation_type") @db.VarChar(80)
+  programUpgradeId          String?                     @map("program_upgrade_id") @db.Uuid
+  programUpgrade            ProgramUpgrade?             @relation(fields: [programUpgradeId], references: [id], onDelete: Restrict)
   signature                 String?                     @unique @db.VarChar(88)
   status                    BlockchainTransactionStatus @default(PREPARED)
   recentBlockhash           String?                     @map("recent_blockhash") @db.VarChar(64)
@@ -549,6 +551,22 @@ model BlockchainTransaction {
   @@index([instrumentId, status])
   @@index([entitlementId, status])
   @@map("blockchain_transactions")
+}
+
+model ProgramUpgrade {
+  id                 String                  @id @default(uuid()) @db.Uuid
+  programId          String                  @map("program_id") @db.VarChar(44)
+  networkGenesisHash String                  @map("network_genesis_hash") @db.VarChar(44)
+  bufferAddress      String                  @map("buffer_address") @db.VarChar(44)
+  requiredSigner     String                  @map("required_signer") @db.VarChar(44)
+  status             String                  @default("ACTIVE") @db.VarChar(20)
+  reviewedPlan       Json                    @map("reviewed_plan") @db.JsonB
+  protectedAccounts  Json                    @map("protected_accounts") @db.JsonB
+  createdAt          DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  verifiedAt         DateTime?               @map("verified_at") @db.Timestamptz(6)
+  transactions       BlockchainTransaction[]
+
+  @@map("program_upgrades")
 }
 
 model ExecutionJob {

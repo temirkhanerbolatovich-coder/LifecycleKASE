@@ -37,6 +37,7 @@
     "test:api:database": "npm run build --workspace @lifecycle-kase/api && node scripts/test-api-persistence.mjs",
     "test:registry:database": "npm run build --workspace @lifecycle-kase/api && node scripts/test-investor-registry.mjs",
     "test:actions:database": "npm run build --workspace @lifecycle-kase/api && node scripts/test-corporate-actions.mjs",
+    "test:upgrade:database": "npm run build --workspace @lifecycle-kase/api && node scripts/test-program-upgrade.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "validate": "node scripts/validate-scaffold.mjs && node scripts/check-doc-links.mjs"
   },

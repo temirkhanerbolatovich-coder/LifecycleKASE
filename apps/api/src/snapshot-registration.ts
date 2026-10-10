@@ -79,7 +79,10 @@ export async function preparePendingSnapshotRegistration(
     throw new SnapshotPreparationError("SNAPSHOT_NOT_READY", "Snapshot or action is not ready for registration");
   }
   const elapsed = options.now.getTime() - action.recordAt.getTime();
-  if (elapsed < 0 || elapsed > options.graceSeconds * 1000) {
+  if (elapsed < 0) {
+    throw new SnapshotPreparationError("RECORD_DATE_NOT_REACHED", "Snapshot record-date window has not opened");
+  }
+  if (elapsed > options.graceSeconds * 1000) {
     throw new SnapshotPreparationError("SNAPSHOT_WINDOW_MISSED", "Registration is outside the record-date window");
   }
   const commitment = canonicalCommitment(stored.canonicalJson);

@@ -86,7 +86,7 @@ export async function prepareCorporateActionOperation(database: PrismaClient, rp
   } catch (error) { return workflowDatabaseError(error); }
 }
 
-function verifyActionAccount(base64: string, action: {
+export function verifyActionAccount(base64: string, action: {
   id: string; type: string; recordAt: Date; executeAt: Date; redemptionPercentageBps: number | null; redemptionPriceMinor: bigint | null;
 }, instrumentAddress: string, status: "SCHEDULED" | "CANCELLED") {
   let chain;

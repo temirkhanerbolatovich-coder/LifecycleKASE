@@ -9,6 +9,7 @@ import { buildSnapshotRegistrationInstruction, buildInstrumentMintSetup, buildIn
   buildCorporateActionCancellation, decodeConfirmedCorporateAction, decodeConfirmedSnapshotAccount,
   buildEntitlementRegistration, buildCalculationFinalization, buildCalculationReset } from "../../packages/solana-client/dist/index.js";
 import anchor from "@anchor-lang/core";
+import { testActionApproval } from "./test-action-approval.mjs";
 import {
   Connection,
   Keypair,
@@ -306,6 +307,7 @@ async function sendPreparedInstructions(instructions, signer = administrator) {
   verifyFinalizedTransaction({ expectedUnsignedTransactionBase64: unsigned,
     finalizedTransactionBase64: Buffer.from(finalizedWire.serialize()).toString("base64"),
     requiredSigner: signer.publicKey.toBase58(), signature });
+  return { signature, finalized };
 }
 
 const wireId = new Uint8Array(16).fill(211);
@@ -401,6 +403,25 @@ const wireCommitment = decodeConfirmedSnapshotAccount((await connection.getAccou
 assert.equal(wireCommitment.status, "SNAPSHOT_CREATED"); assert.equal(wireCommitment.snapshotHash, "ef".repeat(32));
 assert.equal(wireCommitment.snapshotSlot, BigInt(wireSlot)); assert.equal(wireCommitment.totalBalance, 35n);
 console.log("PASS prepared v0 snapshot finalizes an exact immutable commitment in the live record window");
+if (process.env.APPROVAL_ACCEPTANCE_ONLY === "true") {
+  if (!program.methods.assignApprover || !program.methods.fundActionReserve || !program.methods.releaseActionReserve || !program.methods.approveAction) {
+    throw new Error("Approval-only acceptance requires all four candidate instructions; skipping is forbidden");
+  }
+  const investorIds = [1, 2, 3].map(value => new Uint8Array(16).fill(value));
+  const identity = { programId: programId.toBase58(), instrumentId: wireId, actionId: wireSnapshotId, corporateActionAuthority: wireIssuer };
+  for (const [index, row] of wireDistribution.allocations.entries()) {
+    const registration = await buildEntitlementRegistration({ ...identity, investorId: investorIds[index], snapshotHash: "ef".repeat(32),
+      settlementWallet: row.walletAddress, balanceAtSnapshot: row.amount, eligible: true, paymentAmountMinor: row.amount * 50_000_000n, tokensToRedeem: 0n });
+    await sendPreparedInstructions([registration.instruction]);
+  }
+  const finalization = await buildCalculationFinalization({ ...identity, investorIds });
+  await sendPreparedInstructions([finalization.instruction]);
+  await testActionApproval({ connection, program, issuer: administrator, calculationAuthority: administrator.publicKey,
+    instrumentId: wireId, actionId: wireSnapshotId, mintAddress: wireSetup.settlementMint, bondMint: wireSetup.bondMint,
+    allocations: wireDistribution.allocations, investorIds, send, sendPreparedInstructions });
+  console.log("PASS focused approval acceptance on disposable validator; earlier lifecycle negative groups are outside this mode");
+  process.exit(0);
+}
 
 await waitForDisposableUpgrade();
 
@@ -424,13 +445,15 @@ if (process.env.ACTION_TEST_DATABASE_URL) {
   const fixture = { rpcUrl: `http://127.0.0.1:${relay.address().port}`, programId: programId.toBase58(),
     instrumentId: `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`,
     bondMint: wireSetup.bondMint, settlementMint: wireSetup.settlementMint,
-    allocations: wireDistribution.allocations.map(row => ({ walletAddress: row.walletAddress, amount: row.amount.toString() })) };
+    allocations: wireDistribution.allocations.map(row => ({ walletAddress: row.walletAddress, amount: row.amount.toString() })),
+    approvalAcceptance: process.env.APPROVAL_HTTP_ACCEPTANCE_ONLY === "true" };
   try {
     const acceptance = spawn(process.execPath, [fileURLToPath(new URL("../../scripts/test-corporate-actions.mjs", import.meta.url)), JSON.stringify(fixture), administratorKeyPath],
       { stdio: "inherit", env: process.env });
     const status = await new Promise((resolve, reject) => { acceptance.once("error", reject); acceptance.once("exit", resolve); });
     if (status !== 0) throw new Error("Action API/database/validator acceptance failed");
   } finally { relay.closeAllConnections(); await new Promise(resolve => relay.close(resolve)); }
+  if (process.env.APPROVAL_HTTP_ACCEPTANCE_ONLY === "true") { console.log("PASS focused live approval API/database/validator acceptance"); process.exit(0); }
 }
 
 const bondMint = await createBondMint(instrumentAuthority, true);
@@ -842,6 +865,11 @@ if (program.methods.registerEntitlement && program.methods.finalizeCalculation &
   assert.equal(completedCalculation.totalAmountMinor, 1_750_000_000n);
   await assert.rejects(sendPreparedInstructions([finalization.instruction]), rejectsProgram(/InvalidActionStatus/));
   console.log("PASS full calculation finalizes UNDER_REVIEW; duplicate, foreign, wrong signer and replay rejected");
+  if (program.methods.assignApprover && program.methods.fundActionReserve && program.methods.releaseActionReserve && program.methods.approveAction) {
+    await testActionApproval({ connection, program, issuer: administrator, calculationAuthority: administrator.publicKey,
+      instrumentId: wireId, actionId: wireSnapshotId, mintAddress: wireSetup.settlementMint, bondMint: wireSetup.bondMint,
+      allocations: wireDistribution.allocations, investorIds, send, sendPreparedInstructions });
+  } else console.log("SKIP approval acceptance: retained artifact does not expose approval instructions");
 
   // A distinct CA authority is mandatory even when the issuer owns the instrument.
   await send(SystemProgram.transfer({ fromPubkey: administrator.publicKey, toPubkey: calculationAuthority.publicKey, lamports: 100_000_000 }));

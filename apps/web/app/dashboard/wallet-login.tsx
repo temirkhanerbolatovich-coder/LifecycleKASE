@@ -5,10 +5,7 @@ import { getWallets } from "@wallet-standard/app";
 import type { Wallet, WalletAccount, WalletWithFeatures } from "@wallet-standard/base";
 import { StandardConnect, StandardEvents, type StandardConnectFeature, type StandardEventsFeature } from "@wallet-standard/features";
 import { useEffect, useMemo, useState } from "react";
-import { SnapshotPanel } from "./snapshot-panel";
-import { InvestorPanel } from "./investor-panel";
-import { InstrumentPanel } from "./instrument-panel";
-import { CorporateActionPanel } from "./corporate-action-panel";
+import { OperatorWorkspace } from "./operator-workspace";
 import { accountForAddress, accountOptionLabel, messageAccounts, reconcileAccountSelection, shortWalletAddress } from "./wallet-account-selection";
 import { apiRequest, createOperatorRequest } from "./operator-api";
 
@@ -28,11 +25,12 @@ function canonicalBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-export function WalletLogin() {
+export function WalletLogin({ apiState }: { apiState: "ready" | "unavailable" }) {
   const [wallets, setWallets] = useState<readonly LoginWallet[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [user, setUser] = useState<OperatorUser | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [connectionLost, setConnectionLost] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [availableAccounts, setAvailableAccounts] = useState<readonly WalletAccount[]>([]);
   const [selectedAccountAddress, setSelectedAccountAddress] = useState("");
@@ -42,7 +40,7 @@ export function WalletLogin() {
   const operatorRequest = useMemo(() => createOperatorRequest(() => {
     setSessionExpired(true);
     setMessage("Сессия истекла. Восстановите вход тем же кошельком; подписанная попытка остаётся на экране.");
-  }), []);
+  }, fetch, setConnectionLost), []);
 
   useEffect(() => {
     const walletRegistry = getWallets();
@@ -188,75 +186,36 @@ export function WalletLogin() {
     return canonicalBase64(Uint8Array.from(signed.signature));
   }
 
+  if (user && walletAddress && ["ADMINISTRATOR", "AUDITOR"].includes(user.role)) {
+    const connectionSettings = <>
+      <div className={`mt-4 rounded-2xl border p-4 ${selectedAccountAddress === walletAddress ? "border-[#dce6e0] bg-[#f5f8f6]" : "border-[#edcf98] bg-[#fff8e9]"}`}>
+        <p className="text-xs font-semibold text-[#6b7a72]">Сейчас выбран в Phantom</p>
+        <p className="mt-1 font-mono text-sm font-semibold" title={selectedAccountAddress || undefined}>{selectedAccountAddress ? shortWalletAddress(selectedAccountAddress) : "Аккаунт не выбран"}</p>
+        <p className="mt-2 text-xs leading-5 text-[#697970]">{selectedAccountAddress === walletAddress
+          ? "Это аккаунт оператора. Для подтверждения кошелька инвестора временно переключите аккаунт в Phantom."
+          : "Выбран другой аккаунт. Сессия оператора остаётся активной; верните аккаунт оператора перед on-chain транзакцией."}</p>
+      </div>
+      {wallets.length > 1 && <label className="mt-4 block text-sm">Провайдер кошелька
+        <select className="mt-2 w-full rounded-xl border border-[#cdd8d1] bg-white px-3 py-2.5" disabled={busy} value={selectedIndex} onChange={(event) => {
+          setSelectedIndex(Number(event.target.value)); setAvailableAccounts([]); setSelectedAccountAddress("");
+        }}>{wallets.map((wallet, index) => <option key={`${wallet.name}-${index}`} value={index}>{wallet.name}</option>)}</select>
+      </label>}
+    </>;
+    return <OperatorWorkspace user={user} walletAddress={walletAddress} selectedAccountAddress={selectedAccountAddress}
+      sessionExpired={sessionExpired} busy={busy} message={message} wallet={selectedWallet} request={operatorRequest}
+      apiState={apiState} connectionLost={connectionLost} connectionSettings={connectionSettings} signWalletMessage={signInvestorWalletMessage}
+      onBusyChange={setBusy} onRecover={() => void login(walletAddress)} onLogout={() => void logout()} />;
+  }
+
   return (
-    <div className="rounded-2xl border border-[#dbe5df] bg-white p-7 shadow-[0_14px_50px_-30px_rgba(16,35,28,0.3)]">
-      <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#28744a]">Доступ оператора</p>
-      {user ? (
-        <div className="mt-5">
-          <div className="rounded-xl border border-[#b9dec8] bg-[#eff9f2] p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#28744a]">{sessionExpired ? "Сессия оператора истекла" : "Сессия оператора активна"}</p>
-                <p className="mt-1 font-semibold">{user.displayName || "Оператор"}</p>
-              </div>
-              <span className="status-ready">{user.role === "ADMINISTRATOR" ? "Администратор" : "Аудитор"}</span>
-            </div>
-            <p className="mt-3 text-xs text-[#53695d]">Кошелёк оператора <span className="font-mono font-semibold" title={walletAddress ?? undefined}>{walletAddress ? shortWalletAddress(walletAddress) : "подтверждённый кошелёк"}</span></p>
-          </div>
-          {sessionExpired && <div role="alert" className="mt-3 rounded-xl border border-[#efd29d] bg-[#fff8eb] p-4 text-sm">
-            <p>Восстановите сессию тем же кошельком. Подпись входа не отправляет транзакцию. Затем повторите только проверку finalized уже подписанной попытки.</p>
-            <button type="button" className="mt-3 rounded-lg border px-4 py-2 font-semibold disabled:opacity-50"
-              disabled={busy || !walletAddress} onClick={() => void login(walletAddress ?? undefined)}>Восстановить сессию через Phantom</button>
-          </div>}
-          {selectedAccountAddress && (
-            <div className={`mt-3 rounded-xl border p-4 ${selectedAccountAddress === walletAddress ? "border-[#dbe5df] bg-[#f7faf8]" : "border-[#efd29d] bg-[#fff8eb]"}`}>
-              <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#61746a]">Сейчас выбран в Phantom</p>
-              <p className="mt-1 font-mono text-sm font-semibold" title={selectedAccountAddress}>{shortWalletAddress(selectedAccountAddress)}</p>
-              <p className="mt-2 text-xs leading-5 text-[#61746a]">{selectedAccountAddress === walletAddress
-                ? "Это кошелёк оператора. Переключите аккаунт только когда нужно подтвердить кошелёк инвестора."
-                : "Выбран другой аккаунт. Сессия оператора сохранена — теперь им можно подтвердить соответствующий кошелёк инвестора."}</p>
-            </div>
-          )}
-          {wallets.length > 1 && (
-            <label className="mt-4 block text-sm">Провайдер кошелька
-              <select className="mt-2 w-full rounded-lg border px-3 py-2" disabled={busy} value={selectedIndex} onChange={(event) => {
-                setSelectedIndex(Number(event.target.value));
-                setAvailableAccounts([]);
-                setSelectedAccountAddress("");
-              }}>
-                {wallets.map((wallet, index) => <option key={`${wallet.name}-${index}`} value={index}>{wallet.name}</option>)}
-              </select>
-            </label>
-          )}
-          {walletAddress && ["ADMINISTRATOR", "AUDITOR"].includes(user.role) && (
-            <InstrumentPanel key={`instruments-${user.id}`} role={user.role} request={operatorRequest}
-              wallet={selectedWallet} walletAddress={walletAddress} onBusyChange={setBusy} />
-          )}
-          {["ADMINISTRATOR", "AUDITOR"].includes(user.role) && (
-            <CorporateActionPanel key={`actions-${user.id}`} role={user.role} request={operatorRequest}
-              wallet={selectedWallet} walletAddress={walletAddress ?? ""} onBusyChange={setBusy} />
-          )}
-          {["ADMINISTRATOR", "AUDITOR"].includes(user.role) && (
-            <InvestorPanel key={user.id} role={user.role} request={operatorRequest}
-              activeWalletAddress={selectedAccountAddress}
-              signWalletMessage={user.role === "ADMINISTRATOR" ? signInvestorWalletMessage : undefined} />
-          )}
-          {user.role === "ADMINISTRATOR" && walletAddress && (
-            <details className="mt-6 rounded-xl border border-[#dbe5df] bg-[#f8faf9] px-4">
-              <summary className="cursor-pointer py-4 text-sm font-semibold">Расширенные операции · Snapshot Localnet / Devnet</summary>
-              <p className="text-xs leading-5 text-[#61746a]">Откройте этот раздел только для подготовленного корпоративного действия с известным UUID. Сеть определяется сервером и повторно проверяется перед подписью.</p>
-              <SnapshotPanel key={walletAddress} wallet={selectedWallet} walletAddress={walletAddress} request={operatorRequest} onBusyChange={setBusy} />
-            </details>
-          )}
-          <button className="mt-5 rounded-lg border border-[#cbd8d0] px-4 py-2 text-sm font-semibold disabled:opacity-50" disabled={busy} onClick={() => void logout()}>
-            Выйти
-          </button>
-        </div>
-      ) : (
-        <div className="mt-5">
+    <main className="terminal-login-card mx-auto max-w-xl p-6 sm:p-8">
+      <p className="section-kicker">Безопасный вход</p>
+      <h1 className="mt-2 text-2xl font-semibold tracking-[-0.025em] text-[#173426]">Войдите кошельком оператора</h1>
+      <p className="mt-3 text-sm leading-6 text-[#65756c]">Phantom подпишет одноразовое сообщение. Транзакция не создаётся, средства не перемещаются.</p>
+      <div className="mt-6">
           <div className="rounded-xl border border-[#dbe5df] bg-[#f7faf8] p-4 text-sm leading-6 text-[#53695d]">
-            <p className="font-semibold text-[#163f2b]">1. Выберите кошелёк оператора</p>
-            <p className="mt-1">Для входа нужен заранее зарегистрированный адрес администратора. Кошелёк инвестора используется позже и не сможет войти как оператор.</p>
+            <p className="font-semibold text-[#163f2b]">Выберите зарегистрированный аккаунт</p>
+            <p className="mt-1">Адрес инвестора не подходит для входа оператора. Сверьте последние символы адреса перед подписью.</p>
           </div>
           {wallets.length > 1 && (
             <label className="block text-sm font-medium">
@@ -283,14 +242,13 @@ export function WalletLogin() {
               <span className="mt-2 block text-xs leading-5 text-[#61746a]">Проверьте окончание адреса. Имя профиля Phantom может быть одинаковым у нескольких аккаунтов.</span>
             </label>
           )}
-          <button className="mt-5 rounded-lg bg-[#163f2b] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+          <button className="primary-button mt-5 w-full justify-center"
             disabled={busy || wallets.length === 0 || (availableAccounts.length > 1 && !selectedAccountAddress)} onClick={() => void login()}>
             {busy ? "Проверка…" : wallets.length === 0 ? "Solana-кошелёк не найден" : `Войти через ${selectedWallet?.name}`}
           </button>
         </div>
-      )}
       <p aria-live="polite" className="mt-4 rounded-lg bg-[#f4f7f5] px-3 py-2 text-xs leading-5 text-[#52675b]">{message}</p>
-      <p className="mt-3 text-xs leading-5 text-[#8a5b18]">Подпись входа не отправляет транзакцию и не разрешает выплату.</p>
-    </div>
+      <p className="mt-3 text-center text-xs leading-5 text-[#7a877f]">Приложение не получает seed phrase или private key.</p>
+    </main>
   );
 }

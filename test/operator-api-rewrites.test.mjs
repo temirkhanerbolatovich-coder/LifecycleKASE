@@ -4,7 +4,7 @@ import { operatorApiRewrites } from "../apps/web/next.config.mjs";
 
 test("proxies only the implemented operator routes to the fixed server origin", () => {
   const routes = operatorApiRewrites({ API_SERVER_URL: "https://api.example.com", NEXT_PUBLIC_API_URL: "https://ignored.example" });
-  assert.equal(routes.length, 33);
+  assert.equal(routes.length, 51);
   assert.equal(routes.find((route) => route.source === "/api/v1/auth/session").destination, "https://api.example.com/api/v1/auth/session");
   assert.ok(routes.every((route) => !route.source.includes(":path")));
   assert.equal(routes[6].destination, "https://api.example.com/api/v1/instruments");
@@ -21,10 +21,19 @@ test("proxies only the implemented operator routes to the fixed server origin", 
     .map(path => "https://api.example.com/api/v1/corporate-actions/:id/" + path));
   assert.deepEqual(routes.slice(26, 29).map(route => route.destination), ["entitlements/onchain/prepare", "entitlements/onchain/submit", "entitlements/onchain/confirm"]
     .map(path => `https://api.example.com/api/v1/corporate-actions/:id/${path}`));
-  assert.deepEqual(routes.slice(29).map(route => route.destination), ["coupon/budget", "coupon/funding/prepare", "coupon/funding/submit", "coupon/funding/confirm"]
+  assert.deepEqual(routes.slice(29, 33).map(route => route.destination), ["coupon/budget", "coupon/funding/prepare", "coupon/funding/submit", "coupon/funding/confirm"]
     .map(path => "https://api.example.com/api/v1/corporate-actions/:id/" + path));
   assert.ok(routes.every((route) => route.destination.startsWith("https://api.example.com/api/v1/")));
+  assert.deepEqual(routes.slice(33, 37).map(route => route.destination), ["", "/prepare", "/submit", "/confirm"]
+    .map(path => "https://api.example.com/api/v1/program-upgrade" + path));
   assert.equal(routes[4].destination, "https://api.example.com/api/v1/corporate-actions/:id/snapshot/prepare");
+  assert.equal(routes[37].destination, "https://api.example.com/api/v1/corporate-actions/:id/snapshot/check-window");
+  assert.deepEqual(routes.slice(38, 42).map(route => route.destination), ["", "/prepare", "/submit", "/confirm"]
+    .map(path => "https://api.example.com/api/v1/corporate-actions/:id/approval" + path));
+  assert.deepEqual(routes.slice(42, 46).map(route => route.destination), ["", "/prepare", "/submit", "/confirm"]
+    .map(path => "https://api.example.com/api/v1/corporate-actions/:id/coupon/execution" + path));
+  assert.deepEqual(routes.slice(46).map(route => route.destination), ["corporate-actions/:id/receipt", "transactions", "transactions/:signature", "audit", "corporate-actions/:id/audit"]
+    .map(path => "https://api.example.com/api/v1/" + path));
   assert.equal(operatorApiRewrites({})[0].destination, "http://127.0.0.1:4000/api/v1/auth/challenge");
   assert.equal(operatorApiRewrites({ API_INTERNAL_URL: "http://localhost:4010/" })[0].destination, "http://localhost:4010/api/v1/auth/challenge");
 });

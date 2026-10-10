@@ -58,7 +58,10 @@ export async function persistSnapshotCandidate(
       throw new SnapshotPreparationError("CANDIDATE_STALE", "Corporate action or instrument changed after capture");
     }
     const sinceRecordMs = options.now.getTime() - action.recordAt.getTime();
-    if (sinceRecordMs < 0 || sinceRecordMs > options.graceSeconds * 1000) {
+    if (sinceRecordMs < 0) {
+      throw new SnapshotPreparationError("RECORD_DATE_NOT_REACHED", "Snapshot record-date window has not opened");
+    }
+    if (sinceRecordMs > options.graceSeconds * 1000) {
       throw new SnapshotPreparationError("SNAPSHOT_WINDOW_MISSED", "Snapshot is outside its record-date window");
     }
 

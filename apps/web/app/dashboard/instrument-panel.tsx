@@ -8,6 +8,10 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { resumedDeploymentSignature, signedPreparedTransaction, transactionSignature, unsignedTransactionForSigner, walletChainForCluster,
   type SupportedSnapshotCluster } from "./snapshot-workflow";
 
+import { CopyValue, RegistrySkeleton, RegistryToolbar, RequestNotice } from "./workspace-controls";
+import { filterRegistry, INITIAL_FILTERS, statusTone, formatWorkspaceDate } from "./workspace-presentation";
+import { workspaceSelectionFromHash, workspaceSectionHash, workspaceSectionFromHash } from "./workspace-navigation";
+
 type Instrument = {
   id: string; name: string; ticker: string; network: string; status: string; issuerAuthority: string;
   faceValueMinor: string; couponRateBps: number; paymentsPerYear: number; issueAt: string; maturityAt: string;
@@ -16,6 +20,7 @@ type Instrument = {
   settlementAsset: { code: string; name: string; mintAddress: string | null; disclaimer: string };
 };
 type Request = (path: string, init?: RequestInit) => Promise<Record<string, unknown>>;
+const INSTRUMENT_STATUS_LABELS: Record<string, string> = { DRAFT: "Черновик", DEPLOYING: "Выпуск", ACTIVE: "Активен", PAUSED: "Приостановлен" };
 type SendingWallet = WalletWithFeatures<StandardConnectFeature & SolanaSignAndSendTransactionFeature>;
 type SigningWallet = WalletWithFeatures<StandardConnectFeature & SolanaSignTransactionFeature>;
 type DistributionAllocation = { investorId: string; walletAddress: string; tokenAccount: string; amount: string };
@@ -88,9 +93,24 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
   role: string; request: Request; wallet: Wallet | undefined; walletAddress: string; onBusyChange: (busy: boolean) => void;
 }) {
   const [items, setItems] = useState<Instrument[]>([]);
+  const [filters, setFilters] = useState(INITIAL_FILTERS);
+  const [detailId, setDetailId] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const listView = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      if (detailId) document.getElementById(`instrument-${detailId}`)?.focus({ preventScroll: true });
+      else listView.current?.querySelector<HTMLInputElement>('input[type="search"]')?.focus({ preventScroll: true });
+    });
+  }, [detailId]);
+  const listPosition = useRef(0);
+  function chooseRecord(id: string) { listPosition.current = window.scrollY; setDetailId(id); window.history.replaceState(null,"",workspaceSectionHash("instruments",id)); }
+  function backToList() { setDetailId(""); window.history.replaceState(null,"",workspaceSectionHash("instruments")); requestAnimationFrame(()=>window.scrollTo({top:listPosition.current,behavior:"instant"})); }
+  useEffect(()=>{ const sync=()=>{if(workspaceSectionFromHash(window.location.hash)==="instruments") setDetailId(workspaceSelectionFromHash(window.location.hash,"instruments")??"");}; sync();window.addEventListener("hashchange",sync);return()=>window.removeEventListener("hashchange",sync); },[]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("Загрузка инструментов…");
+  const [message, setMessage] = useState("");
   const [plan, setPlan] = useState<DeploymentPlan | null>(null);
   const [deployInstrumentId, setDeployInstrumentId] = useState("");
   const [signature, setSignature] = useState("");
@@ -101,9 +121,9 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
 
   async function runDeployment(task: () => Promise<void>) {
     if (inFlight.current) return;
-    inFlight.current = true; setBusy(true); onBusyChange(true);
+    inFlight.current = true; setError(null); setBusy(true); onBusyChange(true);
     try { await task(); }
-    catch (error) { setMessage(error instanceof Error ? error.message : "Операция выпуска не выполнена."); }
+    catch (error) { setError(error instanceof Error ? error.message : "Запрос не выполнен."); setMessage(error instanceof Error ? error.message : "Операция выпуска не выполнена."); }
     finally { inFlight.current = false; setBusy(false); onBusyChange(false); }
   }
 
@@ -250,24 +270,22 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
     const rows = result["items"] as Instrument[];
     setItems(previous => cursor ? [...previous, ...rows] : rows);
     setNextCursor(typeof result["nextCursor"] === "string" ? result["nextCursor"] : null);
-    setMessage(rows.length === 0 && !cursor
-      ? "Инструментов пока нет. Администратор может создать безопасный database draft."
-      : "Реестр инструментов загружен.");
+    setMessage("");
   }
 
   useEffect(() => {
     const abort = new AbortController();
-    setBusy(true);
+    setError(null); setBusy(true);
     void load(undefined, abort.signal).catch((error: unknown) => {
-      if (!abort.signal.aborted) setMessage(error instanceof Error ? error.message : "Инструменты недоступны.");
+      if (!abort.signal.aborted) setError(error instanceof Error ? error.message : "Реестр недоступен.");
     }).finally(() => { if (!abort.signal.aborted) setBusy(false); });
     return () => abort.abort();
   }, [request]);
 
   async function refresh(cursor?: string) {
-    setBusy(true);
+    setError(null); setBusy(true);
     try { await load(cursor); }
-    catch (error) { setMessage(error instanceof Error ? error.message : "Не удалось загрузить инструменты."); }
+    catch (error) { setError(error instanceof Error ? error.message : "Запрос не выполнен."); setMessage(error instanceof Error ? error.message : "Не удалось загрузить инструменты."); }
     finally { setBusy(false); }
   }
 
@@ -277,7 +295,7 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
     const data = new FormData(form);
     const issueDate = String(data.get("issueDate"));
     const maturityDate = String(data.get("maturityDate"));
-    setBusy(true);
+    setCreateError(null); setError(null); setBusy(true);
     try {
       await request("/api/v1/instruments", { method: "POST", body: JSON.stringify({
         issuerLegalName: data.get("issuerLegalName"), name: data.get("name"), ticker: data.get("ticker"),
@@ -292,50 +310,92 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
       } catch {
         setMessage("Draft создан, но список не обновился. Нажмите «Обновить» и не создавайте его повторно.");
       }
-    } catch (error) {
+    } catch (error) { setCreateError(error instanceof Error ? error.message : "Запрос не выполнен."); setError(error instanceof Error ? error.message : "Запрос не выполнен.");
       setMessage(`${error instanceof Error ? error.message : "Не удалось создать draft."} При потере ответа сначала обновите список.`);
     } finally { setBusy(false); }
   }
 
+  const visible = filterRegistry(items, filters, row=>[row.ticker,row.name,row.issuer.legalName,row.id].join(" "),row=>row.status,row=>row.ticker);
   const inputClass = "mt-1.5 w-full rounded-lg border border-[#cbd8d0] bg-white px-3 py-2.5 text-sm";
   const buttonClass = "rounded-lg border border-[#b9c9c0] px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50";
   return <section className="mt-6 border-t border-[#dbe5df] pt-6">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#28744a]">Инструменты</p>
-        <h3 className="mt-1 text-lg font-semibold">Тестовые облигации</h3>
-        <p className="mt-2 max-w-2xl text-xs leading-5 text-[#8a5b18]">Статус DRAFT означает только запись в PostgreSQL. Он не подтверждает mint, выпуск токенов или регистрацию в Solana.</p>
+        <h3 className="mt-1 text-lg font-semibold">Реестр инструментов</h3>
+        <details className="term-help"><summary>Как проверить выпуск</summary><p>Черновик — учётная запись в базе. Выпуск токенов, распределение, регистрация и активация подтверждаются отдельными транзакциями в сети.</p></details>
       </div>
       <button type="button" className={buttonClass} disabled={busy} onClick={() => void refresh()}>Обновить</button>
     </div>
+    {role !== "ADMINISTRATOR" && <p className="access-note mt-3">Режим чтения: выпуск и изменение инструмента доступны администратору с нужным signer.</p>}
 
-    {role === "ADMINISTRATOR" && <form className="mt-5 grid gap-3 rounded-xl border border-[#dbe5df] p-4 lg:grid-cols-2" onSubmit={event => void create(event)}>
-      <div className="lg:col-span-2"><p className="text-xs font-bold text-[#28744a]">ШАГ 1</p><h4 className="mt-1 font-semibold">Создать database draft</h4><p className="mt-1 text-xs leading-5 text-[#61746a]">Кошелёк текущей сессии станет issuer authority. Supply фиксирован: 35 неделимых bond tokens; circulating supply до выпуска равен 0.</p></div>
-      <label className="block text-sm">Эмитент<input className={inputClass} name="issuerLegalName" required minLength={2} maxLength={250} placeholder="LifecycleKASE Demo Issuer" disabled={busy} /></label>
-      <label className="block text-sm">Название облигации<input className={inputClass} name="name" required minLength={2} maxLength={250} placeholder="Canonical Demo Bond" disabled={busy} /></label>
-      <label className="block text-sm">Тикер<input className={`${inputClass} uppercase`} name="ticker" required minLength={2} maxLength={20} pattern="[A-Za-z0-9][A-Za-z0-9.-]+" placeholder="KDB26" disabled={busy} /></label>
-      <label className="block text-sm">Номинал, целых KZT-Test<input className={inputClass} name="faceValueKzt" type="number" required min="1" max="9223372036854" step="1" defaultValue="1000" disabled={busy} /></label>
-      <label className="block text-sm">Купон, bps<input className={inputClass} name="couponRateBps" type="number" required min="0" max="100000" step="1" defaultValue="1000" disabled={busy} /><span className="mt-1 block text-xs text-[#61746a]">1000 bps = 10%</span></label>
-      <label className="block text-sm">Выплат в год<select className={inputClass} name="paymentsPerYear" defaultValue="2" disabled={busy}><option value="1">1</option><option value="2">2</option><option value="4">4</option></select></label>
-      <label className="block text-sm">Дата выпуска<input className={inputClass} name="issueDate" type="date" required disabled={busy} /></label>
-      <label className="block text-sm">Дата погашения<input className={inputClass} name="maturityDate" type="date" required disabled={busy} /></label>
-      <div className="lg:col-span-2"><button className={`${buttonClass} border-[#163f2b] bg-[#163f2b] text-white`} disabled={busy}>Создать draft</button></div>
-    </form>}
+    {role === "ADMINISTRATOR" && <details className="advanced-details mt-5">
+      <summary>Создать новый инструмент</summary>
+      <form className="mb-4 grid gap-3 lg:grid-cols-2" onSubmit={event => void create(event)}>
+        <div className="lg:col-span-2">
+      <h4 className="mt-1 font-semibold">Создать черновик инструмента</h4>
+      <p className="mt-1 text-xs leading-5 text-[#61746a]">Кошелёк текущей сессии станет issuer authority. Supply фиксирован: 35 неделимых bond tokens; circulating supply до выпуска равен 0.</p>
+      </div>
+        <label className="block text-sm">Эмитент *<input className={inputClass} name="issuerLegalName" required minLength={2} maxLength={250} placeholder="LifecycleKASE Demo Issuer" disabled={busy} /></label>
+        <label className="block text-sm">Название облигации *<input className={inputClass} name="name" required minLength={2} maxLength={250} placeholder="Облигация развития 2026" disabled={busy} /></label>
+        <label className="block text-sm">Тикер *<input className={`${inputClass} uppercase`} name="ticker" required minLength={2} maxLength={20} pattern="[A-Za-z0-9][A-Za-z0-9.-]+" placeholder="KDB26" disabled={busy} /></label>
+        <label className="block text-sm">Номинал, целых KZT-Test<input className={inputClass} name="faceValueKzt" type="number" required min="1" max="9223372036854" step="1" defaultValue="1000" disabled={busy} /></label>
+        <label className="block text-sm">Купон, базисных пунктов *<input className={inputClass} name="couponRateBps" type="number" required min="0" max="100000" step="1" defaultValue="1000" disabled={busy} />
+      <span className="mt-1 block text-xs text-[#61746a]">1000 bps = 10%</span>
+      </label>
+        <label className="block text-sm">Выплат в год<select className={inputClass} name="paymentsPerYear" defaultValue="2" disabled={busy}><option value="1">1</option><option value="2">2</option><option value="4">4</option></select></label>
+        <label className="block text-sm">Дата выпуска *<input className={inputClass} name="issueDate" type="date" required disabled={busy} /></label>
+        <label className="block text-sm">Дата погашения *<input className={inputClass} name="maturityDate" type="date" required disabled={busy} /></label>
+        {createError && <p role="alert" className="form-error lg:col-span-2">{createError} Поля сохранены.</p>}
+        <div className="lg:col-span-2"><button className={`${buttonClass} border-[#163f2b] bg-[#163f2b] text-white`} disabled={busy}>Создать черновик</button><button type="button" disabled={busy} className="secondary-button ml-2" onClick={event => event.currentTarget.closest("details")?.removeAttribute("open")}>Отмена</button></div>
+      </form>
+    </details>}
 
+
+    <div ref={listView} hidden={Boolean(detailId)}>
+      <RegistryToolbar label="инструменты" filters={filters} onChange={setFilters} statuses={INSTRUMENT_STATUS_LABELS} loaded={items.length} shown={visible.length} sortLabel="Тикер" />
+      {busy && items.length === 0 && <RegistrySkeleton />}
+      <div className="table-scroll" hidden={items.length === 0} tabIndex={0} role="region" aria-label="Таблица инструментов">
+      <table className="registry-table">
+      <thead>
+      <tr>
+      <th>Инструмент</th>
+      <th>Статус</th>
+      <th className="numeric">В обращении / всего</th>
+      <th>Погашение</th>
+      </tr>
+      </thead>
+      <tbody>{visible.map(instrument=>
+      <tr key={instrument.id}>
+      <td>
+      <button type="button" className="table-object-link" disabled={busy} onClick={() => chooseRecord(instrument.id)}>{instrument.name}</button>
+      <span className="table-secondary">{instrument.ticker}</span>
+      </td>
+      <td>
+      <span className={"status-"+statusTone(instrument.status)}>{INSTRUMENT_STATUS_LABELS[instrument.status]??instrument.status}</span>
+      </td>
+      <td className="numeric">{instrument.circulatingSupply} / {instrument.totalSupply}</td>
+      <td>{formatWorkspaceDate(instrument.maturityAt, "UTC", true)}</td>
+      </tr>)}</tbody>
+      </table>
+      </div>
+      {!busy&&!error&&visible.length===0&&<p className="empty-state">{items.length===0?"Инструментов пока нет.":"По заданному поиску и статусу ничего не найдено."}</p>}
+    </div>
+    {detailId&&<button type="button" className="secondary-button mt-4" disabled={busy} onClick={backToList}>← К списку инструментов</button>}
+    {detailId&&!items.some(row=>row.id===detailId)&&<p className="empty-state">Этот UUID не найден в загруженной странице. Вернитесь к списку и загрузите следующие записи. Отдельное чтение карточки по UUID пока недоступно в API.</p>}
     <div className="mt-5 space-y-3">
       {items.length === 0 && !busy && <div className="rounded-xl border border-dashed border-[#cbd8d0] p-5 text-sm text-[#61746a]">Пока нет ни одного инструмента.</div>}
-      {items.map(instrument => <article className="rounded-xl border border-[#dbe5df] bg-white p-4 text-sm" key={instrument.id}>
+      {items.map(instrument => <article className="record-detail rounded-xl border border-[#dbe5df] bg-white p-4 text-sm" id={`instrument-${instrument.id}`} tabIndex={-1} key={instrument.id} hidden={detailId!==instrument.id}>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div><p className="font-semibold">{instrument.ticker} · {instrument.name}</p><p className="mt-1 text-xs text-[#61746a]">Эмитент: {instrument.issuer.legalName}</p></div>
-          <span className="status-wait">{instrument.status === "DRAFT" ? "Draft · не в сети" : instrument.status}</span>
+          <span className={`status-${statusTone(instrument.status)}`}>{instrument.status === "DRAFT" ? "Черновик · ещё не в сети" : INSTRUMENT_STATUS_LABELS[instrument.status] ?? instrument.status}</span>
         </div>
         <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
           <div><dt className="text-[#61746a]">Сеть</dt><dd>{instrument.network}</dd></div>
-          <div><dt className="text-[#61746a]">Issuer authority</dt><dd className="font-mono" title={instrument.issuerAuthority}>{shortAddress(instrument.issuerAuthority)}</dd></div>
+          <div><dt className="text-[#61746a]">Кошелёк эмитента</dt><dd><CopyValue value={instrument.issuerAuthority} label="Кошелёк эмитента" /></dd></div>
           <div><dt className="text-[#61746a]">Номинал</dt><dd>{formatMinor(instrument.faceValueMinor)} KZT-Test</dd></div>
           <div><dt className="text-[#61746a]">Купон</dt><dd>{instrument.couponRateBps} bps · {instrument.paymentsPerYear} выплат/год</dd></div>
-          <div><dt className="text-[#61746a]">Supply</dt><dd>{instrument.circulatingSupply} / {instrument.totalSupply}</dd></div>
-          <div><dt className="text-[#61746a]">Срок</dt><dd>{instrument.issueAt.slice(0, 10)} → {instrument.maturityAt.slice(0, 10)}</dd></div>
+          <div><dt className="text-[#61746a]">В обращении / объём выпуска</dt><dd>{instrument.circulatingSupply} / {instrument.totalSupply}</dd></div>
+          <div><dt className="text-[#61746a]">Срок</dt><dd>{formatWorkspaceDate(instrument.issueAt, "UTC", true)} → {formatWorkspaceDate(instrument.maturityAt, "UTC", true)}</dd></div>
         </dl>
         <p className="mt-3 text-xs leading-5 text-[#8a5b18]">{instrument.programId && instrument.mintAddress
           ? `Program: ${shortAddress(instrument.programId)} · Mint: ${shortAddress(instrument.mintAddress)}`
@@ -380,9 +440,9 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
       <button type="button" className={buttonClass} disabled={busy} onClick={() => setDistributionDraft(null)}>Отмена</button></div>
     </div>}
     {plan && <div className="mt-4 rounded-xl border border-[#d3b779] bg-[#fffaf0] p-4 text-sm">
-      <p className="font-semibold">Проверка фазы {plan.phase}</p>
+      <p className="font-semibold">{items.find(row => row.id === deployInstrumentId)?.ticker ?? deployInstrumentId} · проверка фазы {plan.phase}</p>
       <p className="mt-2 text-xs leading-5">Сеть: <strong>{plan.cluster}</strong>. {phaseSummary(plan.phase)}</p>
-      <dl className="mt-3 space-y-1 text-xs"><div><dt className="text-[#61746a]">Signer</dt><dd className="break-all font-mono">{plan.requiredSigner}</dd></div>
+      <dl className="mt-3 space-y-1 text-xs"><div><dt className="text-[#61746a]">Подписант</dt><dd><CopyValue value={plan.requiredSigner} label="Подписант выпуска" /></dd></div>
         {plan.bondMint && <div><dt className="text-[#61746a]">Bond mint</dt><dd className="break-all font-mono">{plan.bondMint}</dd></div>}
         {plan.settlementMint && <div><dt className="text-[#61746a]">KZT-Test mint</dt><dd className="break-all font-mono">{plan.settlementMint}</dd></div>}
         {plan.instrumentAddress && <div><dt className="text-[#61746a]">Instrument PDA</dt><dd className="break-all font-mono">{plan.instrumentAddress}</dd></div>}
@@ -397,7 +457,7 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
         <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || signature.length < 64}
           onClick={() => void runDeployment(confirmDeployment)}>Проверить finalized и on-chain состояние</button></div>}
     </div>}
-    {nextCursor && <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy} onClick={() => void refresh(nextCursor)}>Загрузить ещё</button>}
-    <p role="status" aria-live="polite" className="mt-4 text-xs leading-5 text-[#61746a]">{busy ? "Операция выполняется… " : ""}{message}</p>
+    {!detailId && nextCursor && <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy} onClick={() => void refresh(nextCursor)}>Загрузить ещё</button>}
+    <RequestNotice busy={busy} message={message} error={error} onRetry={() => void refresh()} />
   </section>;
 }
