@@ -49,3 +49,28 @@ test("successful requests preserve the response and caller cancellation without 
   assert.deepEqual(await request("/api/v1/instruments/test/deploy/confirm", { signal: controller.signal }), payload);
   assert.deepEqual(await apiRequest("/api/v1/auth/session", { signal: controller.signal }, fetchRequest), payload);
 });
+
+test("connection loss reports a recoverable state without replaying a signed POST", async () => {
+  let calls = 0;
+  const changes: boolean[] = [];
+  const request = createOperatorRequest(() => assert.fail("no auth recovery"), async () => {
+    calls += 1;
+    if (calls === 1) throw new TypeError("network unavailable");
+    return Response.json({ status: "UNKNOWN_CONFIRMATION", signature: "original" });
+  }, lost => changes.push(lost));
+  await assert.rejects(request("/api/v1/corporate-actions/test/submit", { method: "POST", body: "signed" }),
+    (error: unknown) => error instanceof OperatorApiError && error.code === "CONNECTION_UNAVAILABLE");
+  assert.equal(calls, 1);
+  assert.deepEqual(changes, [true]);
+  await request("/api/v1/corporate-actions/test");
+  assert.deepEqual(changes, [true, false]);
+  assert.equal(calls, 2);
+});
+
+test("caller cancellation is preserved and does not report connection loss", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  const cancelled = new DOMException("cancelled", "AbortError");
+  const request = createOperatorRequest(() => assert.fail(), async () => { throw cancelled; }, () => assert.fail("intentional abort"));
+  await assert.rejects(request("/api/v1/investors", { signal: controller.signal }), error => error === cancelled);
+});

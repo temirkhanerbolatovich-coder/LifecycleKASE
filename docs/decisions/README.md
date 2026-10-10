@@ -21,3 +21,6 @@
 - [ADR-019: Immutable on-chain calculations before approval](ADR-019-on-chain-calculation-registration.md)
 - [ADR-020: Independent outbound Telegram watchdog](ADR-020-independent-telegram-monitor.md)
 - [ADR-021: Phased Phantom Localnet loader upgrade](ADR-021-phantom-localnet-program-upgrade.md)
+- [ADR-022: Durable Localnet upgrade maintenance](ADR-022-durable-program-upgrade-maintenance.md)
+- [ADR-023: Separate action approver and custody reserve](ADR-023-action-approval-and-custody-reserve.md)
+- [ADR-024: Atomic coupon receipts and finalized database projection](ADR-024-atomic-coupon-receipts.md)

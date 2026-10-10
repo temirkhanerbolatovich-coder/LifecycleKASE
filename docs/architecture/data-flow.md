@@ -1,6 +1,6 @@
 # Data flow and evidence boundaries
 
-Reviewed: 2026-10-09. This describes implemented flows and identifies unfinished settlement paths. The [architecture overview](overview.md), [persistence model](persistence.md) and [current audit](../PROJECT_AUDIT_2026-10-09.md) provide component, schema and checkpoint details.
+Reviewed: 2026-10-10. This describes implemented flows and identifies unfinished settlement paths. The [architecture overview](overview.md), [persistence model](persistence.md) and [current audit](../PROJECT_AUDIT_2026-10-10.md) provide component, schema and checkpoint details.
 
 ## Operator authentication and registry writes
 
@@ -29,7 +29,7 @@ Issuance proceeds through MINT_SETUP → DISTRIBUTION → INITIALIZE → ACTIVAT
 
 Corporate-action DRAFT terms are stored and audited before SCHEDULE commits their Action PDA. Snapshot capture then reads all mint-filtered Token-2022 accounts in one finalized RPC context, requires complete positive-balance coverage, maps verified wallets to investors and creates canonical snapshot-v2 JSON. The API stores its SHA-256 commitment, rows, planned record time and actual capture slot in a serializable transaction. REGISTER_SNAPSHOT confirmation requires exact finalized wire and matching Action PDA hash/slot before SNAPSHOT_CREATED is projected.
 
-DEMO_CAPTURE_SLOT proves ownership at the actual finalized capture slot within the allowed window. It does not reconstruct earlier ownership at a historical record date. Missing the window blocks preparation; automatic SNAPSHOT_MISSED transitions remain open. See [corporate actions](../features/corporate-actions.md).
+DEMO_CAPTURE_SLOT proves ownership at the actual finalized capture slot within the allowed window. It does not reconstruct earlier ownership at a historical record date. Missing the window blocks preparation and an explicit guarded check can project SNAPSHOT_MISSED using finalized Clock/PDA evidence, version checks and atomic audit. A background sweeper and on-chain terminal instruction remain open. See [corporate actions](../features/corporate-actions.md).
 
 ## Calculation, review and funding
 
@@ -37,10 +37,10 @@ The API rebuilds the immutable snapshot commitment and calculates checked intege
 
 Localnet coupon funding reads the whole-coupon budget, settlement mint, treasury and issuer SOL. It prepares only the KZT-Test deficit. Finalized confirmation verifies exact Token-2022 wire and treasury delta before updating the funding attempt and audit. Funding neither pays investors nor reserves tokens for a particular action. See [entitlements](../features/entitlements-and-review.md) and [funding](../features/coupon-funding.md).
 
-The entitlement REGISTER/RESET/FINALIZE candidate also follows exact-wire/PDA/projection checks behind a fail-closed feature flag. Its disposable acceptance does not mean the retained owner program has been upgraded. See [registration boundary](../features/on-chain-entitlement-registration.md).
+The entitlement REGISTER/RESET/FINALIZE candidate also follows exact-wire/PDA/projection checks behind a fail-closed feature flag. The retained owner registration candidate was historically upgraded on October 9, and RESET plus three REGISTER were accepted; the signed FINALIZE remains UNKNOWN_CONFIRMATION. Owner API/RPC are unavailable in the October 10 audit, so SQL status is not fresh chain proof. See [registration boundary](../features/on-chain-entitlement-registration.md).
 
-## Remaining settlement flow
+## Coupon settlement and remaining redemption flow
 
-On-chain action approval, action-specific reserve, coupon execution, atomic redemption payment/burn, receipts and full Cash/Asset Leg reconciliation are pending. The intended evidence chain is approved calculation → governed funded action → finalized entitlement operation → matching cash/asset facts → verifiable action receipt. None of those later states may be inferred from a funded treasury, a submitted signature, a health response or an application-only approval.
+The isolated default-off Localnet candidate implements separate on-chain approver, whole-action vault reserve, atomic coupon transfer/state/EntitlementReceipt, exact finalized token-delta confirmation and serializable database Cash Leg CONFIRMED / Asset Leg NOT_APPLICABLE reconciliation. A separate finalization verifies the complete paid entitlement set and commits the canonical ActionReceipt JSON hash/PDA. Receipt access is authenticated and audited. Owner installation and financial acceptance remain open. Atomic early/maturity payment/burn/records and redemption Cash/Asset reconciliation remain unimplemented. The intended evidence chain is approved calculation → governed funded action → finalized entitlement operation → matching cash/asset facts → verifiable action receipt. None of those later states may be inferred from a funded treasury, a submitted signature, a health response or an application-only approval.
 
 The independent [Telegram watchdog](../features/telegram-monitoring.md) reads health/RPC/optional aggregate facts and stores ignored notification state. It cannot sign, approve, pay or repair financial state. Durable execution jobs and automatic reindex/reconciliation remain open in the [delivery checklist](../deployment/DEVNET_TO_MVP_CHECKLIST.md).

@@ -18,7 +18,8 @@ import { confirmSnapshotRegistration } from "./snapshot-confirmation.js";
 import { prepareSnapshotRegistrationForAction, snapshotHttpOptionsFromEnvironment } from "./snapshot-http.js";
 import { submitSnapshotRegistration } from "./snapshot-submission.js";
 import { TransactionWorkflowError } from "./transaction-workflow.js";
-import { instrumentDeploymentOptions } from "./instrument-deployment.js";
+import { InstrumentDeploymentError, instrumentDeploymentOptions } from "./instrument-deployment.js";
+import { checkSnapshotWindow } from "./snapshot-window.js";
 
 type HttpRequest = {
   headers?: { cookie?: string };
@@ -29,7 +30,7 @@ type HttpResponse = { setHeader(name: string, value: string): void };
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function httpError(error: unknown, response?: HttpResponse): never {
-  if (error instanceof TransactionWorkflowError) throw new HttpException({ code: error.code, message: error.message }, error.status);
+  if (error instanceof TransactionWorkflowError || error instanceof InstrumentDeploymentError) throw new HttpException({ code: error.code, message: error.message }, error.status);
   if (error instanceof AuthFlowError) {
     if (error instanceof AuthRateLimitError && response) {
       response.setHeader("Retry-After", String(error.retryAfterSeconds));
@@ -90,11 +91,30 @@ export class SnapshotController {
         rpc,
         actionId,
         { id: session.user.id, walletAddress: session.walletAddress, correlationId },
-        { ...options, now: new Date() }
+        { ...options, programId: instrumentDeploymentOptions().programId, now: new Date() }
       );
     } catch (error) {
       httpError(error, response);
     }
+  }
+
+  @Post(":id/snapshot/check-window")
+  @Header("Cache-Control", "no-store")
+  async checkWindow(@Param("id") actionId: string, @Body() body: unknown, @Req() request: HttpRequest,
+    @Res({ passthrough: true }) response: HttpResponse, @Headers("origin") origin?: string) {
+    const correlationId = randomUUID();
+    response.setHeader("X-Correlation-ID", correlationId);
+    try {
+      requireAuthenticationEnabled();
+      requireRequestOrigin(origin, authOptionsFromEnvironment());
+      this.rateLimit.consumeMutation(authenticationClientKey(request));
+      const session = await readOperatorSession(this.prisma, sessionTokenFromCookieHeader(request.headers?.cookie), new Date());
+      if (session.user.role !== "ADMINISTRATOR") throw new AuthFlowError("ROLE_FORBIDDEN", "Administrator role is required", 403);
+      const options = snapshotHttpOptionsFromEnvironment();
+      return await checkSnapshotWindow(this.prisma, new HttpSolanaRpc(options.rpcEndpoint, options.rpcTimeoutMs), actionId, body,
+        { id: session.user.id, walletAddress: session.walletAddress, correlationId },
+        { ...options, programId: instrumentDeploymentOptions().programId });
+    } catch (error) { httpError(error, response); }
   }
 
   @Post(":id/snapshot/confirm")

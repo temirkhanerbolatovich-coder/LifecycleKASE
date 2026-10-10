@@ -37,13 +37,27 @@ export function operatorApiRewrites(environment = process.env) {
     "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/coupon/budget",
     "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/coupon/funding/prepare",
     "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/coupon/funding/submit",
-    "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/coupon/funding/confirm"
+    "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/coupon/funding/confirm",
+    "/api/v1/program-upgrade", "/api/v1/program-upgrade/prepare", "/api/v1/program-upgrade/submit", "/api/v1/program-upgrade/confirm",
+    "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/snapshot/check-window",
+    "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/approval",
+    "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/approval/prepare",
+    "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/approval/submit",
+    "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/approval/confirm",
+    "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/coupon/execution",
+    "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/coupon/execution/prepare",
+    "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/coupon/execution/submit",
+    "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/coupon/execution/confirm",
+    "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/receipt",
+    "/api/v1/transactions", "/api/v1/transactions/:signature([1-9A-HJ-NP-Za-km-z]{64,88})",
+    "/api/v1/audit", "/api/v1/corporate-actions/:id([0-9a-fA-F-]{36})/audit"
   ];
   return sources.map((source) => ({
     source,
     destination: origin.origin + source
       .replace(":id([0-9a-fA-F-]{36})", ":id")
       .replace(":walletId([0-9a-fA-F-]{36})", ":walletId")
+      .replace(":signature([1-9A-HJ-NP-Za-km-z]{64,88})", ":signature")
   }));
 }
 

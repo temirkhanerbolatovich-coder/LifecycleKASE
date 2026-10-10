@@ -1,6 +1,10 @@
 use crate::program::LifecycleKase;
 use anchor_lang::prelude::*;
+pub mod approval;
+pub mod coupon;
 pub mod entitlement;
+pub use approval::*;
+pub use coupon::*;
 pub mod financial;
 use anchor_spl::token_2022::spl_token_2022::{
     extension::StateWithExtensions, state::Account as TokenAccount,
@@ -251,6 +255,43 @@ pub mod lifecycle_kase {
 
     pub fn reset_calculation<'info>(ctx: Context<'info, ResetCalculation<'info>>) -> Result<()> {
         entitlement::reset(ctx)
+    }
+
+    pub fn assign_approver(
+        ctx: Context<AssignApprover>,
+        approver: Pubkey,
+        network_reserve_lamports: u64,
+    ) -> Result<()> {
+        approval::assign(ctx, approver, network_reserve_lamports)
+    }
+    pub fn fund_action_reserve(
+        ctx: Context<FundActionReserve>,
+        snapshot_hash: [u8; 32],
+        amount_minor: u64,
+    ) -> Result<()> {
+        approval::fund(ctx, snapshot_hash, amount_minor)
+    }
+    pub fn approve_action(
+        ctx: Context<ApproveAction>,
+        snapshot_hash: [u8; 32],
+        amount_minor: u64,
+    ) -> Result<()> {
+        approval::approve(ctx, snapshot_hash, amount_minor)
+    }
+    pub fn release_action_reserve(
+        ctx: Context<ReleaseActionReserve>,
+        snapshot_hash: [u8; 32],
+        amount_minor: u64,
+    ) -> Result<()> {
+        approval::release(ctx, snapshot_hash, amount_minor)
+    }
+
+    pub fn execute_coupon(ctx: Context<ExecuteCoupon>, idempotency_hash: [u8; 32]) -> Result<()> {
+        coupon::execute(ctx, idempotency_hash)
+    }
+
+    pub fn finalize_coupon(ctx: Context<FinalizeCoupon>, receipt_hash: [u8; 32]) -> Result<()> {
+        coupon::finalize_coupon_receipt(ctx, receipt_hash)
     }
 }
 
@@ -602,6 +643,11 @@ pub enum CorporateActionStatus {
     SnapshotCreated,
     Calculated,
     UnderReview,
+    Approved,
+    Reserved,
+    Processing,
+    Settled,
+    Finalized,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, PartialEq, Eq, InitSpace)]
@@ -678,6 +724,18 @@ pub enum ErrorCode {
     IncompleteCalculation,
     #[msg("Calculation amounts or counters overflowed")]
     CalculationOverflow,
+    #[msg("Approver must be distinct from issuer and calculation authority")]
+    InvalidApprover,
+    #[msg("Only the configured approver may approve this action")]
+    UnauthorizedApprover,
+    #[msg("Action reserve identity, mint, amount or state is invalid")]
+    InvalidActionReserve,
+    #[msg("Approval network budget is insufficient or invalid")]
+    InvalidApprovalBudget,
+    #[msg("Coupon execution is premature, repeated or incomplete")]
+    InvalidCouponExecution,
+    #[msg("Receipt identity or hash is invalid")]
+    InvalidReceipt,
 }
 
 #[cfg(test)]

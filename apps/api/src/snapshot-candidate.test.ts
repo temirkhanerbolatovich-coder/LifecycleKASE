@@ -191,7 +191,7 @@ test("stops before capture on wrong network or missed window", async () => {
   const premature = fixture({ now: new Date("2026-09-28T23:59:59.000Z") });
   await assert.rejects(
     prepareSnapshotCandidate(premature.database, premature.rpc, ACTION_ID, premature.options),
-    (error: unknown) => error instanceof SnapshotPreparationError && error.code === "SNAPSHOT_WINDOW_MISSED"
+    (error: unknown) => error instanceof SnapshotPreparationError && error.code === "RECORD_DATE_NOT_REACHED"
   );
   const alreadyCaptured = fixture({ snapshotExists: true });
   await assert.rejects(

@@ -74,6 +74,10 @@ if [[ "$profile" == devnet ]]; then
     node.exe "$(wslpath -w "$repo_root/scripts/check-program-identity.mjs")" \
         "$(wslpath -w "$idl_path")" "$(wslpath -w "$program_path")"
 fi
+if [[ "${COUPON_ACCEPTANCE:-false}" == true ]]; then
+    # Coupon acceptance verifies the browser parser against real API plans; compile it without requiring a prior web build.
+    node.exe "$(wslpath -w "$repo_root/node_modules/typescript/bin/tsc")" -p "$(wslpath -w "$repo_root/apps/web/tsconfig.test.json")"
+fi
 program_id="$(node.exe -e 'console.log(JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")).address)' "$(wslpath -w "$idl_path")" | tr -d '\r')"
 if [[ ! "$program_id" =~ ^[1-9A-HJ-NP-Za-km-z]{32,44}$ ]]; then
     echo "The built Anchor IDL does not contain a valid program address" >&2

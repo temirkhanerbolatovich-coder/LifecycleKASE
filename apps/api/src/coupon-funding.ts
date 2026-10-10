@@ -129,6 +129,11 @@ export async function prepareCouponFunding(database: PrismaClient, rpc: SolanaRp
       const current = await tx.corporateAction.findUnique({ where: { id } });
       if (!current || current.version !== action.version || current.status !== action.status) throw new TransactionWorkflowError("ACTION_CONFLICT", "Action changed during funding preparation");
       await requireCouponFundingCalculation(tx, id);
+      if (await tx.blockchainTransaction.findFirst({ where: { corporateActionId: id,
+        operationType: { in: ["ACTION_RESERVE_FUND", "ACTION_RESERVE_RELEASE", "ACTION_APPROVAL"] },
+        status: { in: [...ACTIVE_TRANSACTION_STATUSES, "FINALIZED"] } }, select: { id: true } })) {
+        throw new TransactionWorkflowError("ACTION_OPERATION_PENDING", "Action reserve funding has begun; reconcile its recorded reserve workflow");
+      }
       const row = await tx.blockchainTransaction.create({ data: { instrumentId: action.instrumentId, corporateActionId: id,
         operationType: OPERATION, requiredSigner: actor.walletAddress, networkGenesisHash: options.expectedGenesisHash,
         preparedTransactionBase64: wire, preparedPayload: payload, ...blockhash, lastValidBlockHeight: BigInt(blockhash.lastValidBlockHeight) } });

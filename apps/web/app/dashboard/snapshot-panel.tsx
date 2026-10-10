@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { isActionId, preparedSnapshot, requireFinalizedResponse, resumedDeploymentSignature, walletChainForCluster, type PreparedSnapshot, type SupportedSnapshotCluster } from "./snapshot-workflow";
 import { signAndSubmitPrepared, supportsPreparedTransaction } from "./wallet-transaction";
 import { waitForFinalizedCheck } from "./finalized-check";
+import { OperatorApiError } from "./operator-api";
 
 type Props = {
   wallet: Wallet | undefined;
@@ -13,6 +14,7 @@ type Props = {
   onBusyChange: (busy: boolean) => void;
   selectedActionId?: string;
   onConfirmed?: () => void;
+  onWindowMissed?: () => Promise<void>;
 };
 
 function networkDescription(cluster: SupportedSnapshotCluster): string {
@@ -21,7 +23,7 @@ function networkDescription(cluster: SupportedSnapshotCluster): string {
     : "Devnet — публичная тестовая сеть; комиссия оплачивается тестовым SOL.";
 }
 
-export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange, selectedActionId, onConfirmed }: Props) {
+export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange, selectedActionId, onConfirmed, onWindowMissed }: Props) {
   const [actionId, setActionId] = useState(selectedActionId ?? "");
   const [plan, setPlan] = useState<PreparedSnapshot | null>(null);
   const [operationId, setOperationId] = useState("");
@@ -39,7 +41,13 @@ export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange, se
     setBusy(true);
     onBusyChange(true);
     try { await task(); }
-    catch (error) { setMessage(error instanceof Error ? error.message : "Операция не выполнена."); }
+    catch (error) {
+      setMessage(error instanceof Error ? error.message : "Операция не выполнена.");
+      if (error instanceof OperatorApiError && error.code === "SNAPSHOT_WINDOW_MISSED" && onWindowMissed) {
+        try { await onWindowMissed(); }
+        catch { setMessage("Capture закрыт; обновить карточку не удалось. Обновите данные перед продолжением."); }
+      }
+    }
     finally { inFlight.current = false; setBusy(false); onBusyChange(false); }
   }
 

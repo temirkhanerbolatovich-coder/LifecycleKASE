@@ -59,6 +59,9 @@ export async function prepareSnapshotCandidate(
   if (!action) {
     throw new SnapshotPreparationError("ACTION_NOT_FOUND", "Corporate action was not found");
   }
+  if (action.status === "SNAPSHOT_MISSED") {
+    throw new SnapshotPreparationError("SNAPSHOT_WINDOW_MISSED", "Snapshot window was missed; create a new action");
+  }
   if (action.status !== "SCHEDULED" || action.snapshot) {
     throw new SnapshotPreparationError("ACTION_NOT_READY", "Corporate action is not ready for a snapshot");
   }
@@ -66,7 +69,10 @@ export async function prepareSnapshotCandidate(
     throw new SnapshotPreparationError("INSTRUMENT_NOT_ACTIVE", "Instrument mint is not active");
   }
   const sinceRecordMs = options.now.getTime() - action.recordAt.getTime();
-  if (sinceRecordMs < 0 || sinceRecordMs > options.graceSeconds * 1000) {
+  if (sinceRecordMs < 0) {
+    throw new SnapshotPreparationError("RECORD_DATE_NOT_REACHED", "Snapshot record-date window has not opened");
+  }
+  if (sinceRecordMs > options.graceSeconds * 1000) {
     throw new SnapshotPreparationError("SNAPSHOT_WINDOW_MISSED", "Snapshot is outside its record-date window");
   }
   const genesisHash = await rpc.request("getGenesisHash", []);

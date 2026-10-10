@@ -113,6 +113,7 @@ test("resumes a pending snapshot without recapturing holder balances", async () 
       expectedGenesisHash: KEY,
       walletNetwork: "SOLANA_DEVNET",
       graceSeconds: 300,
+      programId: PROGRAM,
       now: new Date("2026-09-30T10:03:00.000Z")
     }
   );
@@ -178,6 +179,7 @@ test("does not prepare an operation when a persisted snapshot belongs to another
         expectedGenesisHash: KEY,
         walletNetwork: "SOLANA_LOCALNET",
         graceSeconds: 300,
+        programId: PROGRAM,
         now: new Date("2026-09-30T10:03:00.000Z")
       }
     ),

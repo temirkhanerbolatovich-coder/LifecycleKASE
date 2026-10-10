@@ -4,6 +4,9 @@ import { isNativeError } from "node:util/types";
 import { AppModule } from "./app.module.js";
 import { authOptionsFromEnvironment } from "./auth.js";
 import { trustedProxyHopsFromEnvironment } from "./auth-rate-limit.js";
+import { programUpgradeEnabled } from "./program-upgrade.js";
+import { actionApprovalEnabled } from "./action-approval.js";
+import { couponExecutionEnabled } from "./coupon-execution.js";
 
 try {
   process.loadEnvFile(new URL("../../../.env", import.meta.url));
@@ -22,6 +25,9 @@ function apiPort(value: string | undefined): number {
   return port;
 }
 
+programUpgradeEnabled();
+actionApprovalEnabled();
+couponExecutionEnabled();
 const app = await NestFactory.create(AppModule);
 app.getHttpAdapter().getInstance().set("trust proxy", trustedProxyHopsFromEnvironment());
 app.setGlobalPrefix("api/v1");

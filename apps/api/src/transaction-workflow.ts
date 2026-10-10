@@ -63,7 +63,8 @@ export async function workflowBlockhash(rpc: SolanaRpc) {
 
 /** The only transport mutation: validates exact message/signature before loopback RPC broadcast. */
 export async function submitWorkflowTransaction(database: PrismaClient, rpc: SolanaRpc,
-  operation: BlockchainTransaction, signedTransactionBase64: string, actor: InstrumentActor, options: WorkflowNetwork) {
+  operation: BlockchainTransaction, signedTransactionBase64: string, actor: InstrumentActor,
+  options: WorkflowNetwork & { confirmationOnlyAfterSubmission?: boolean }) {
   if (options.cluster !== "localnet") throw new TransactionWorkflowError("TRUSTED_BROADCAST_NOT_AVAILABLE", "API broadcast is Localnet only");
   requireAttemptSigner(operation, actor.walletAddress, options.expectedGenesisHash);
   if (typeof signedTransactionBase64 !== "string" || signedTransactionBase64.length > 2_000) {
@@ -81,7 +82,8 @@ export async function submitWorkflowTransaction(database: PrismaClient, rpc: Sol
   await requireWorkflowNetwork(rpc, options.expectedGenesisHash);
   await database.$transaction(async tx => {
     const result = await tx.blockchainTransaction.updateMany({ where: { id: operation.id,
-      status: { in: [...ACTIVE_TRANSACTION_STATUSES] }, OR: [{ signature: null }, { signature }] },
+      status: options.confirmationOnlyAfterSubmission ? "PREPARED" : { in: [...ACTIVE_TRANSACTION_STATUSES] },
+      ...(options.confirmationOnlyAfterSubmission ? { signature: null } : { OR: [{ signature: null }, { signature }] }) },
     data: { signature, status: "SUBMITTED", submittedAt: new Date(), lastErrorCode: null } });
     if (result.count !== 1) throw new TransactionWorkflowError("TRANSACTION_CONFLICT", "Attempt changed concurrently");
     await tx.auditLog.create({ data: { actorId: actor.id, actorWallet: actor.walletAddress,

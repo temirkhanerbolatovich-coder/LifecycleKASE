@@ -5,6 +5,7 @@ import { MAX_SNAPSHOT_GRACE_SECONDS, prepareSnapshotCandidate, SnapshotPreparati
 import { persistSnapshotCandidate } from "./snapshot-persistence.js";
 import { preparePendingSnapshotRegistration } from "./snapshot-registration.js";
 import { requireActionIssuer, workflowDatabaseError } from "./corporate-action-registry.js";
+import { checkSnapshotWindow } from "./snapshot-window.js";
 import { ACTIVE_TRANSACTION_STATUSES, requireWorkflowNetwork, resumeWorkflowAttempt, rpcObject,
   TransactionWorkflowError } from "./transaction-workflow.js";
 
@@ -78,7 +79,7 @@ export async function prepareSnapshotRegistrationForAction(
   rpc: SolanaRpc,
   actionId: string,
   actor: { id: string; walletAddress: string; correlationId: string },
-  options: Omit<SnapshotHttpOptions, "rpcEndpoint" | "rpcTimeoutMs"> & { now: Date }
+  options: Omit<SnapshotHttpOptions, "rpcEndpoint" | "rpcTimeoutMs"> & { now: Date; programId: string }
 ): Promise<Awaited<ReturnType<typeof preparePendingSnapshotRegistration>> & {
   operationId: string; recordAt: string; effectiveBlockTime: string; effectiveSlot: string;
   recordPointMode: "DEMO_CAPTURE_SLOT"; transactionFormat: "SOLANA_V0_WIRE_TRANSACTION_BASE64";
@@ -90,6 +91,9 @@ export async function prepareSnapshotRegistrationForAction(
   const action = await database.corporateAction.findUnique({ where: { id: actionId }, include: { instrument: true } });
   if (!action) throw new SnapshotPreparationError("ACTION_NOT_FOUND", "Corporate action was not found");
   requireActionIssuer(action.instrument, actor);
+  if (action.instrument.programId !== options.programId) {
+    throw new SnapshotPreparationError("WRONG_SOLANA_NETWORK", "Instrument program differs from configuration");
+  }
   await requireWorkflowNetwork(rpc, options.expectedGenesisHash);
   const pendingCancellation = await database.blockchainTransaction.findFirst({ where: { corporateActionId: actionId,
     operationType: "ACTION_CANCEL", status: { in: [...ACTIVE_TRANSACTION_STATUSES] } } });
@@ -127,28 +131,35 @@ export async function prepareSnapshotRegistrationForAction(
     effectiveSlot = existing.solanaSlot.toString();
     resumed = true;
   } else {
-    const candidate = await prepareSnapshotCandidate(database, rpc, actionId, {
-      cluster: options.cluster,
-      expectedGenesisHash: options.expectedGenesisHash,
-      walletNetwork: options.walletNetwork,
-      graceSeconds: options.graceSeconds,
-      now: options.now
-    });
-    const persisted = await persistSnapshotCandidate(database, candidate, {
-      now: options.now,
-      graceSeconds: options.graceSeconds,
-      walletNetwork: options.walletNetwork,
-      audit: {
-        actorId: actor.id,
-        actorWallet: actor.walletAddress,
-        correlationId: actor.correlationId
+    try {
+      const candidate = await prepareSnapshotCandidate(database, rpc, actionId, {
+        cluster: options.cluster,
+        expectedGenesisHash: options.expectedGenesisHash,
+        walletNetwork: options.walletNetwork,
+        graceSeconds: options.graceSeconds,
+        now: options.now
+      });
+      const persisted = await persistSnapshotCandidate(database, candidate, {
+        now: options.now,
+        graceSeconds: options.graceSeconds,
+        walletNetwork: options.walletNetwork,
+        audit: {
+          actorId: actor.id,
+          actorWallet: actor.walletAddress,
+          correlationId: actor.correlationId
+        }
+      });
+      snapshotId = persisted.snapshotId;
+      recordAt = candidate.snapshot.record_at;
+      effectiveBlockTime = candidate.snapshot.block_time;
+      effectiveSlot = candidate.snapshot.solana_slot;
+      resumed = false;
+    } catch (error) {
+      if (error instanceof SnapshotPreparationError && error.code === "SNAPSHOT_WINDOW_MISSED") {
+        await checkSnapshotWindow(database, rpc, actionId, { expectedVersion: action.version }, actor, options, options.now);
       }
-    });
-    snapshotId = persisted.snapshotId;
-    recordAt = candidate.snapshot.record_at;
-    effectiveBlockTime = candidate.snapshot.block_time;
-    effectiveSlot = candidate.snapshot.solana_slot;
-    resumed = false;
+      throw error;
+    }
   }
   const registration = await preparePendingSnapshotRegistration(database, rpc, snapshotId, {
     expectedGenesisHash: options.expectedGenesisHash,

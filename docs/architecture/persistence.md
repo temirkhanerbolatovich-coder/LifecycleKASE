@@ -1,7 +1,11 @@
 # Persistence architecture
 
+Migration 19 adds durable program-upgrade maintenance and business-write triggers. Coupon confirmation atomically persists the finalized attempt, PAID entitlement, MATCHED settlement/legs, action counters/version and audit; receipt finalization commits the canonical hash/PDA and application FINALIZED only after chain verification. Snapshot and finalized-receipt immutability remain enforced. Current owner SQL and unavailable chain boundary are in the [audit](../PROJECT_AUDIT_2026-10-10.md).
+
+`npm run test:database` targets the Compose `postgres` service directly and ignores DATABASE_URL. Run it only against an explicitly isolated Compose project, or pipe the same SQL to a newly created disposable container; never target the populated owner database. ExecutionJob schema/uniqueness does not mean a worker is implemented.
+
 Status: guarded snapshot, issuance/action/funding attempts and stored entitlements/review
-Last updated: 2026-10-03
+Last updated: 2026-10-10
 
 ## Responsibility
 

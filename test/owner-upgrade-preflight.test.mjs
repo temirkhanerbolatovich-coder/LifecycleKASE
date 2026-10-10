@@ -71,6 +71,7 @@ test("preflight rejects altered artifacts, non-local origins, wrong genesis, poi
     f => { f.accounts[2].lamports = 1; },
     f => { f.buffer[4] = 0; f.accounts[3].data[0] = f.buffer.toString("base64"); },
     f => { f.buffer[37] = 0; f.accounts[3].data[0] = f.buffer.toString("base64"); },
+    f => { f.accounts[3].data[0] = Buffer.concat([f.buffer, Buffer.from([0])]).toString("base64"); },
     f => { f.data[45] = 0; f.accounts[1].data[0] = f.data.toString("base64"); },
     f => { f.plan.candidateSha256 = "a".repeat(64); }
   ]) {

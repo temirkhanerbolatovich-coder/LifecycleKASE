@@ -2,11 +2,18 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { once } from "node:events";
+import { cp, mkdtemp } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const nextCli = path.join(root, "node_modules/next/dist/bin/next");
+// Next writes generated types and build output. Use a dedicated app copy while the owner web runs.
+const runDirectory = await mkdtemp(path.join(root, ".local-web-proxy-"));
+const webDirectory = path.join(runDirectory, "web");
+for (const item of ["app", "public", "package.json", "tsconfig.json", "next.config.mjs", "postcss.config.mjs"]) {
+  await cp(path.join(root, "apps/web", item), path.join(webDirectory, item), { recursive: true });
+}
 const seen = [];
 const backend = createServer(async (request, response) => {
   let body = "";
@@ -21,7 +28,7 @@ const backend = createServer(async (request, response) => {
 });
 
 function nextProcess(args, environment) {
-  return spawn(process.execPath, [nextCli, ...args], { cwd: path.join(root, "apps/web"), env: environment, stdio: ["ignore", "pipe", "pipe"] });
+  return spawn(process.execPath, [nextCli, ...args], { cwd: webDirectory, env: environment, stdio: ["ignore", "pipe", "pipe"] });
 }
 
 let web;
@@ -72,18 +79,24 @@ try {
     assert.deepEqual(seen.at(-1), { path: route, method: "POST", origin: webOrigin,
       cookie: "lifecyclekase_session=synthetic-smoke-only", body });
   }
-  for (const suffix of ["", `/${actionId}`, `/${actionId}/prepare`, `/${actionId}/submit`, `/${actionId}/confirm`, `/${actionId}/cancel`, `/${actionId}/snapshot/submit`,
+  for (const suffix of ["", `/${actionId}`, `/${actionId}/prepare`, `/${actionId}/submit`, `/${actionId}/confirm`, `/${actionId}/cancel`, `/${actionId}/snapshot/submit`, `/${actionId}/snapshot/check-window`,
     `/${actionId}/entitlements`, `/${actionId}/entitlements/calculate`, `/${actionId}/entitlements/review`,
     `/${actionId}/entitlements/onchain/prepare`, `/${actionId}/entitlements/onchain/submit`, `/${actionId}/entitlements/onchain/confirm`,
-    `/${actionId}/coupon/budget`, `/${actionId}/coupon/funding/prepare`, `/${actionId}/coupon/funding/submit`, `/${actionId}/coupon/funding/confirm`]) {
+    `/${actionId}/coupon/budget`, `/${actionId}/coupon/funding/prepare`, `/${actionId}/coupon/funding/submit`, `/${actionId}/coupon/funding/confirm`,
+    `/${actionId}/approval`, `/${actionId}/approval/prepare`, `/${actionId}/approval/submit`, `/${actionId}/approval/confirm`,
+    `/${actionId}/coupon/execution`, `/${actionId}/coupon/execution/prepare`, `/${actionId}/coupon/execution/submit`, `/${actionId}/coupon/execution/confirm`, `/${actionId}/receipt`, `/${actionId}/audit`]) {
     const route = "/api/v1/corporate-actions" + suffix;
-    const method = suffix === "" || suffix === `/${actionId}` || suffix === `/${actionId}/entitlements` || suffix === `/${actionId}/coupon/budget` ? "GET" : "POST";
+    const method = suffix === "" || suffix === `/${actionId}` || suffix === `/${actionId}/entitlements` || suffix === `/${actionId}/coupon/budget` || suffix === `/${actionId}/approval` || suffix === `/${actionId}/coupon/execution` || suffix === `/${actionId}/receipt` || suffix === `/${actionId}/audit` ? "GET" : "POST";
     const body = method === "POST" ? '{"synthetic":true}' : undefined;
     const response = await fetch(webOrigin + route, { method,
       headers: { Origin: webOrigin, Cookie: "lifecyclekase_session=synthetic-smoke-only" }, ...(body ? { body } : {}) });
     assert.equal(response.status, 200);
     assert.equal(seen.at(-1).path, route); assert.equal(seen.at(-1).method, method);
     assert.equal(seen.at(-1).cookie, "lifecyclekase_session=synthetic-smoke-only");
+  }
+  for (const suffix of ["/transactions?limit=2&cursor=" + actionId, "/transactions/" + "1".repeat(64), "/audit?actionId=" + actionId]) {
+    assert.equal((await fetch(webOrigin + "/api/v1" + suffix, { headers: { Cookie: "lifecyclekase_session=synthetic-smoke-only" } })).status, 200);
+    assert.equal(seen.at(-1).path, "/api/v1" + suffix);
   }
   const beforeUnknown = seen.length;
   assert.equal((await fetch(webOrigin + "/api/v1/unimplemented-route")).status, 404);

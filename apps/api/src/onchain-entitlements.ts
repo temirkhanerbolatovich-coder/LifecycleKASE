@@ -179,7 +179,7 @@ export async function prepareOnchainCalculation(database: PrismaClient, rpc: Sol
         event: phase === "REGISTER" ? "ENTITLEMENT_ONCHAIN_PREPARED" : phase === "FINALIZE" ?
           "CALCULATION_ONCHAIN_FINALIZATION_PREPARED" : "CALCULATION_ONCHAIN_RESET_PREPARED",
         entityType: phase === "REGISTER" ? "Entitlement" : "CorporateAction", entityId: entitlement?.id ?? action.id,
-        corporateActionId: action.id, entitlementId: entitlement?.id, blockchainTransactionId: row.id,
+        corporateActionId: action.id, blockchainTransactionId: row.id,
         metadataJson: { ...payload, onChain: false } } });
       return row;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
@@ -284,7 +284,7 @@ export async function confirmOnchainCalculation(database: PrismaClient, rpc: Sol
         event: phase === "REGISTER" ? "ENTITLEMENT_ONCHAIN_FINALIZED" : phase === "FINALIZE" ?
           "CALCULATION_ONCHAIN_UNDER_REVIEW" : "CALCULATION_ONCHAIN_RESET",
         entityType: phase === "REGISTER" ? "Entitlement" : "CorporateAction", entityId: operation.entitlementId ?? action.id,
-        corporateActionId: action.id, entitlementId: operation.entitlementId, blockchainTransactionId: operation.id,
+        corporateActionId: action.id, blockchainTransactionId: operation.id,
         metadataJson: { signature, finalizedSlot: slot, actionAddress, entitlementAddress, onChainStatus: chain.status } } });
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   } catch (error) { return workflowDatabaseError(error); }
