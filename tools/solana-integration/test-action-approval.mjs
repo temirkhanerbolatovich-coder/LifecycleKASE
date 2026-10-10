@@ -79,7 +79,8 @@ export async function testActionApproval({ connection, program, issuer, calculat
   const secondSchedule = await buildCorporateActionSchedule({ ...input, actionId: secondId, issuerAuthority: input.issuer, type: "COUPON_PAYMENT", recordAt, executeAt: recordAt + 3600n,
     redemptionPercentageBps: null, redemptionPriceMinor: null });
   await sendPreparedInstructions([secondSchedule.instruction]);
-  let snapshotSlot = nowSlot;
+  // Scheduling may outlive the validator's history window; capture a fresh finalized slot.
+  let snapshotSlot = await connection.getSlot("finalized");
   const deadline = Date.now() + 90_000;
   while ((await connection.getBlockTime(snapshotSlot)) < Number(recordAt) + 1) {
     if (Date.now() > deadline) throw new Error("Second reserve test record date timed out");

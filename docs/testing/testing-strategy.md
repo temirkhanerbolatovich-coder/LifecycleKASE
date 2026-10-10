@@ -63,6 +63,8 @@ cargo +1.98.1 clippy -p lifecycle_kase --all-targets --locked --features devnet 
 
 Host tests do not replace SBF compilation or validator execution. The isolated legacy Anchor/web3 integration dependency graph has 12 known advisories at the prior audit; it must remain restricted to trusted disposable local RPC and excluded from Render/root dependencies until replaced.
 
+Long-running runtime tests must refresh a finalized capture slot after an awaited transaction rather than reuse a pre-transaction slot: disposable validator history can be pruned during confirmation. The October 10 full audit reproduced this in direct approval acceptance and corrected the stale-slot read. The complete retained-to-current-candidate runtime suite then passed with exit 0, including second-action custody/refund/approval/replay and 34/35 rejection. The earlier failing run remains a failure even though its loader/maintenance groups passed. See the [audit evidence](../PROJECT_AUDIT_2026-10-10.md).
+
 ## Critical acceptance assertions
 
 - Authentication: wrong Origin, replay, expired/revoked session, Auditor write and non-issuer operation are rejected server-side.
