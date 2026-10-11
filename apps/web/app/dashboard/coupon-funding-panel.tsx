@@ -1,8 +1,8 @@
 "use client";
+import { useLocale, useLocalizedTextState } from "./locale-context";
 
 import { useEffect, useRef, useState } from "react";
 import type { Wallet } from "@wallet-standard/base";
-import { formatMinorKzt } from "./entitlement-workflow";
 import { couponBudget, couponFundingReviewChanged, couponFundingSignature, preparedCouponFunding,
   refreshCouponFundingPlan, unsignedFundingPlanIsStale, type CouponBudget, type CouponFundingPlan } from "./coupon-workflow";
 import { signAndSubmitPrepared, supportsPreparedTransaction } from "./wallet-transaction";
@@ -15,10 +15,11 @@ export function CouponFundingPanel({ actionId, canWrite, wallet, walletAddress, 
   onBusyChange: (busy: boolean) => void; onChanged: () => Promise<void>;
   redemption?: boolean;
 }) {
+  const { locale, displayMessage: financialCopy, formatAmount, formatDate } = useLocale();
   const [budget, setBudget] = useState<CouponBudget | null>(null); const [plan, setPlan] = useState<CouponFundingPlan | null>(null);
   const [signature, setSignature] = useState(""); const [reviewed, setReviewed] = useState(false);
   const [sendInvoked, setSendInvoked] = useState(false); const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("Проверьте finalized бюджет всего действия перед финансированием."); const inFlight = useRef(false);
+  const [message, setMessage] = useLocalizedTextState("Проверьте finalized бюджет всего действия перед финансированием."); const inFlight = useRef(false);
   const path = `/api/v1/corporate-actions/${actionId}/coupon`;
   async function run(task: () => Promise<void>) {
     if (inFlight.current) return; inFlight.current = true; setBusy(true); onBusyChange(true);
@@ -70,21 +71,21 @@ export function CouponFundingPanel({ actionId, canWrite, wallet, walletAddress, 
     setSendInvoked(true); await refreshBudget(); await onChanged();
     setMessage("Финансирование FINALIZED: точный прирост treasury подтверждён. Выплаты инвесторам ещё не выполнены.");
   }
-  return <section className="mt-5 border-t border-[#dbe5df] pt-5" aria-label={redemption ? "Финансирование погашения" : "Финансирование купона"}>
-    <h4 className="font-semibold">Бюджет и финансирование {redemption ? "погашения" : "купона"} · Localnet</h4>
-    <p className="mt-2 text-xs text-[#61746a]">KZT-Test — SIMULATED ASSET. Not issued by the National Bank of Kazakhstan. Финансирование выпускает тестовые токены в treasury; согласование и выплаты выполняются отдельно.</p>
-    <div className="mt-3 flex flex-wrap gap-2"><button className={button} disabled={busy} onClick={() => void run(async () => { await refreshBudget(); setMessage("Текущий finalized бюджет получен; транзакций не отправлял."); })}>Проверить бюджет</button>
-      {canWrite && <button className={button} disabled={busy || sendInvoked} onClick={() => void run(prepare)}>Подготовить / восстановить финансирование</button>}</div>
-    {budget && <div className="mt-3 text-sm"><p>Бюджет действия: <strong>{formatMinorKzt(budget.totalCouponMinor)}</strong> · Treasury: {formatMinorKzt(budget.treasuryBalanceMinor)}</p>
-      <p>Не хватает: {formatMinorKzt(budget.deficitMinor)} · Slot: {budget.finalizedSlot}</p><p className="break-all font-mono text-xs">Mint: {budget.settlementMint}<br />Treasury: {budget.treasuryTokenAccount}</p>
-      <p className="mt-2">{budget.hasNetworkBudget ? "Сетевой бюджет достаточен" : "Не хватает SOL для финансирования и резерва"} · {budget.hasCouponBudget ? "Действие обеспечено тестовыми токенами" : "Требуется финансирование"}</p>
-      <details className="mt-2 text-xs"><summary>Сетевой бюджет</summary><p>SOL в lamports: {budget.payerLamports}; требуется: {budget.requiredLamports}; резерв: {budget.networkReserveLamports}. Резерв — установленный запас; средства не заблокированы. Исполнение отдельно проверит собственные комиссии и rent.</p></details></div>}
-    {plan && canWrite && <div className="mt-4 rounded-lg border border-[#e4b45f] bg-[#fffaf0] p-4 text-sm"><p>Проверка COUPON_FUNDING: выпустить {formatMinorKzt(plan.amountMinor)} в treasury</p>
-      <p className="mt-2 break-all text-xs">Signer: {plan.requiredSigner}<br />Genesis: {plan.networkGenesisHash}<br />Попытка: {plan.operationId}</p>
-      <label className="mt-3 flex gap-2"><input type="checkbox" checked={reviewed} disabled={busy || sendInvoked} onChange={event => setReviewed(event.target.checked)} />Проверил Localnet, mint, treasury и сумму тестового выпуска</label>
-      <button className={`mt-3 ${button}`} disabled={busy || sendInvoked || !reviewed || !supportsPreparedTransaction(wallet, "localnet")} onClick={() => void run(send)}>Подписать финансирование в Phantom</button>
-      <label className="mt-3 block text-xs">Подпись транзакции<input className="mt-1 w-full rounded-lg border border-[#cbd8d0] bg-white p-2" disabled={busy} maxLength={88} value={signature} onChange={event => setSignature(event.target.value.trim())} /></label>
-      <button className={`mt-3 ${button}`} disabled={busy || !/^[1-9A-HJ-NP-Za-km-z]{64,88}$/.test(signature)} onClick={() => void run(confirm)}>Проверить finalized и прирост treasury</button></div>}
-    <p role="status" aria-live="polite" className="mt-3 text-sm">{busy ? "Операция выполняется… " : ""}{message}</p>
+  return <section className="mt-5 border-t border-[#dbe5df] pt-5" aria-label={redemption ? financialCopy("Финансирование погашения") : financialCopy("Финансирование купона")}>
+    <h4 className="font-semibold">{financialCopy("Бюджет и финансирование")} {redemption ? financialCopy("погашения") : financialCopy("купона")} · Localnet</h4>
+    <p className="mt-2 text-xs text-[#61746a]">{financialCopy("KZT-Test — SIMULATED ASSET. Not issued by the National Bank of Kazakhstan. Финансирование выпускает тестовые токены в treasury; согласование и выплаты выполняются отдельно.")}</p>
+    <div className="mt-3 flex flex-wrap gap-2"><button className={button} disabled={busy} onClick={() => void run(async () => { await refreshBudget(); setMessage(financialCopy("Текущий finalized бюджет получен; транзакций не отправлял.")); })}>{financialCopy("Проверить бюджет")}</button>
+      {canWrite && <button className={button} disabled={busy || sendInvoked} onClick={() => void run(prepare)}>{financialCopy("Подготовить / восстановить финансирование")}</button>}</div>
+    {budget && <div className="mt-3 text-sm"><p>{financialCopy("Бюджет действия:")} <strong>{formatAmount(budget.totalCouponMinor)}</strong> · Treasury: {formatAmount(budget.treasuryBalanceMinor)}</p>
+      <p>{financialCopy("Не хватает:")} {formatAmount(budget.deficitMinor)} · Slot: {budget.finalizedSlot}</p><p className="break-all font-mono text-xs">Mint: {budget.settlementMint}<br />Treasury: {budget.treasuryTokenAccount}</p>
+      <p className="mt-2">{budget.hasNetworkBudget ? financialCopy("Сетевой бюджет достаточен") : financialCopy("Не хватает SOL для финансирования и резерва")} · {budget.hasCouponBudget ? financialCopy("Действие обеспечено тестовыми токенами") : financialCopy("Требуется финансирование")}</p>
+      <details className="mt-2 text-xs"><summary>{financialCopy("Сетевой бюджет")}</summary><p>{financialCopy("SOL в lamports:")} {budget.payerLamports}{financialCopy("; требуется:")} {budget.requiredLamports}{financialCopy("; резерв:")} {budget.networkReserveLamports}{financialCopy(". Резерв — установленный запас; средства не заблокированы. Исполнение отдельно проверит собственные комиссии и rent.")}</p></details></div>}
+    {plan && canWrite && <div className="mt-4 rounded-lg border border-[#e4b45f] bg-[#fffaf0] p-4 text-sm"><p>{financialCopy("Проверка COUPON_FUNDING: выпустить")} {formatAmount(plan.amountMinor)} {financialCopy("в treasury")}</p>
+      <p className="mt-2 break-all text-xs">Signer: {plan.requiredSigner}<br />Genesis: {plan.networkGenesisHash}<br />{financialCopy("Попытка:")} {plan.operationId}</p>
+      <label className="mt-3 flex gap-2"><input type="checkbox" checked={reviewed} disabled={busy || sendInvoked} onChange={event => setReviewed(event.target.checked)} />{financialCopy("Проверил Localnet, mint, treasury и сумму тестового выпуска")}</label>
+      <button className={`mt-3 ${button}`} disabled={busy || sendInvoked || !reviewed || !supportsPreparedTransaction(wallet, "localnet")} onClick={() => void run(send)}>{financialCopy("Подписать финансирование в Phantom")}</button>
+      <label className="mt-3 block text-xs">{financialCopy("Подпись транзакции")}<input className="mt-1 w-full rounded-lg border border-[#cbd8d0] bg-white p-2" disabled={busy} maxLength={88} value={signature} onChange={event => setSignature(event.target.value.trim())} /></label>
+      <button className={`mt-3 ${button}`} disabled={busy || !/^[1-9A-HJ-NP-Za-km-z]{64,88}$/.test(signature)} onClick={() => void run(confirm)}>{financialCopy("Проверить finalized и прирост treasury")}</button></div>}
+    <p role="status" aria-live="polite" className="mt-3 text-sm">{busy ? financialCopy("Операция выполняется… ") : ""}{message}</p>
   </section>;
 }

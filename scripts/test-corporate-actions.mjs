@@ -161,22 +161,31 @@ try {
       }
       const calculated = await request(path + "/calculate", write({ version: state.actionVersion, receivers }));
       assert.equal(calculated.status, 201, JSON.stringify(calculated.payload)); state = calculated.payload;
+      const reviewEvents = await database.auditLog.count({ where: { entityId: actionId, event: "ENTITLEMENTS_REVIEW_DECIDED" } });
       const reviewed = await request(path + "/review", write({ version: state.actionVersion, decision: "SUBMIT", note: "Review zero rounding" }));
-      assert.equal(reviewed.status, 201); state = reviewed.payload;
-      const approved = await request(path + "/review", write({ version: state.actionVersion, decision: "APPROVE", note: "Explicit zero rounding decision" }));
       if (percentage === 1) {
-        assert.equal(approved.status, 409); assert.equal(approved.payload.code, "CALCULATION_INCOMPLETE");
+        assert.equal(reviewed.status, 409); assert.equal(reviewed.payload.code, "CALCULATION_INCOMPLETE");
         assert.ok(state.items.every(row => row.status === "NOT_ELIGIBLE_ZERO_ROUNDING"));
-        const rejected = await request(path + "/review", write({ version: state.actionVersion, decision: "REJECT", note: "All rows round to zero" }));
-        assert.equal(rejected.status, 201); assert.equal(rejected.payload.status, "REJECTED");
-        assert.equal((await request(path + "/calculate", write({ version: rejected.payload.actionVersion, receivers }))).status, 409);
+        const unchanged = await request(path, { cookie: administrator.cookie });
+        assert.equal(unchanged.status, 200); assert.equal(unchanged.payload.status, "CALCULATED");
+        assert.equal(unchanged.payload.actionVersion, state.actionVersion);
+        assert.equal(await database.auditLog.count({ where: { entityId: actionId, event: "ENTITLEMENTS_REVIEW_DECIDED" } }), reviewEvents);
+        const approved = await request(path + "/review", write({ version: state.actionVersion, decision: "APPROVE", note: "Cannot bypass a zero submission" }));
+        assert.equal(approved.status, 409); assert.equal(approved.payload.code, "REVIEW_NOT_ALLOWED");
+        const recalculated = await request(path + "/calculate", write({ version: state.actionVersion, receivers }));
+        assert.equal(recalculated.status, 409); assert.equal(recalculated.payload.code, "CALCULATION_NOT_ALLOWED");
+        const finalState = await request(path, { cookie: administrator.cookie });
+        assert.equal(finalState.payload.status, "CALCULATED"); assert.equal(finalState.payload.totalEntitlementMinor, "0");
+        assert.equal(finalState.payload.actionVersion, state.actionVersion);
       } else {
+        assert.equal(reviewed.status, 201, JSON.stringify(reviewed.payload)); state = reviewed.payload;
+        const approved = await request(path + "/review", write({ version: state.actionVersion, decision: "APPROVE", note: "Explicit zero rounding decision" }));
         assert.equal(approved.status, 201); assert.equal(approved.payload.eligibleHolders, 2);
         assert.equal(approved.payload.items.filter(row => row.status === "READY").length, 2);
         assert.equal(approved.payload.items.filter(row => row.status === "NOT_ELIGIBLE_ZERO_ROUNDING").length, 1);
       }
     }
-    console.log("PASS zero-rounding exclusion, all-zero approval rejection, terminal rejection and complete calculation/audit rollback");
+    console.log("PASS mixed zero-rounding approval, all-zero submission rejection with unchanged audit/version, readable blocked calculation and calculation/audit rollback");
     console.log("Synthetic finalized snapshot fixtures test application logic; they do not prove any chain registration");
     await testActionApprovalFlow({ ...calculationFixture, database, instrument, administrator, approver: outsider, auditor, otherRole, request, write });
   }

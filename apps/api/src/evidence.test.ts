@@ -23,7 +23,9 @@ test("evidence pagination is bounded, deterministic and excludes signed/prepared
 test("journals require an active authenticated Administrator or Auditor and reject other roles", async () => {
   const previous = process.env.AUTH_ENABLED; process.env.AUTH_ENABLED = "true";
   let role = "AUDITOR"; let revokedAt: Date | null = null;
-  const database = { session: { findUnique: async () => ({ walletAddress: "11111111111111111111111111111111", revokedAt,
+  const database = { wallet: { findUnique: async () => ({ userId: "00000000-0000-4000-8000-000000000001",
+    status: "ACTIVE", verifiedAt: new Date("2026-09-29"), revokedAt: null }) },
+    session: { findUnique: async () => ({ walletAddress: "11111111111111111111111111111111", revokedAt,
     expiresAt: new Date("2099-01-01"), user: { id: "00000000-0000-4000-8000-000000000001", role } }) }, auditLog: { findMany: async () => [] } };
   const controller = new EvidenceController(database as never);
   const request = { headers: { cookie: `lifecyclekase_session=${"x".repeat(43)}` } };

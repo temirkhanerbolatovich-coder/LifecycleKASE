@@ -2,8 +2,11 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { CopyValue, RegistrySkeleton, RegistryToolbar, RequestNotice } from "./workspace-controls";
-import { filterRegistry, INITIAL_FILTERS, statusTone, formatWorkspaceDate } from "./workspace-presentation";
+import { filterRegistry, INITIAL_FILTERS, statusTone } from "./workspace-presentation";
 import { workspaceSelectionFromHash, workspaceSectionHash, workspaceSectionFromHash } from "./workspace-navigation";
+import { encodeBase58 } from "./snapshot-workflow";
+
+import { useLocale, useLocalizedTextState } from "./locale-context";
 
 type Investor = {
   id: string; displayName: string; externalReference: string | null; countryCode: string; type?: string; status?: string;
@@ -43,21 +46,22 @@ const REVOCATION_REASON_LABELS: Record<string, string> = {
   LEGACY_STATUS_IMPORT: "Перенесено из прежней версии"
 };
 
-function statusLabel(status: string): string {
-  return STATUS_LABELS[status] ?? status;
-}
-
 function shortAddress(address: string): string {
   return address.length > 15 ? `${address.slice(0, 6)}…${address.slice(-6)}` : address;
 }
 
 
-export function InvestorPanel({ role, request, signWalletMessage, activeWalletAddress }: {
+export function InvestorPanel({ role, request, signWalletMessage, activeWalletAddress, qaMode = false }: {
   role: string;
   request: Request;
   signWalletMessage?: ((address: string, message: string) => Promise<string>) | undefined;
   activeWalletAddress?: string | undefined;
+  qaMode?: boolean;
 }) {
+  const { t, formatDate, displayMessage } = useLocale();
+  function statusLabel(status: string): string {
+    return STATUS_LABELS[status] ? displayMessage(STATUS_LABELS[status]) : status;
+  }
   const [items, setItems] = useState<Investor[]>([]);
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [detailId, setDetailId] = useState("");
@@ -76,7 +80,7 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
   useEffect(()=>{ const sync=()=>{if(workspaceSectionFromHash(window.location.hash)==="investors") setDetailId(workspaceSelectionFromHash(window.location.hash,"investors")??"");}; sync();window.addEventListener("hashchange",sync);return()=>window.removeEventListener("hashchange",sync); },[]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useLocalizedTextState();
   const [selected, setSelected] = useState("");
   const [eligibilityChoices, setEligibilityChoices] = useState<Record<string, string>>({});
   const [revocationChoices, setRevocationChoices] = useState<Record<string, string>>({});
@@ -84,7 +88,7 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
   async function load(cursor?: string, signal?: AbortSignal) {
     const result = await request(`/api/v1/investors?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, signal ? { signal } : undefined);
     if (signal?.aborted) return;
-    if (!Array.isArray(result["items"])) throw new Error("Некорректный ответ реестра.");
+    if (!Array.isArray(result["items"])) throw new Error(t("registry.investor.invalidRegistryResponse"));
     const rows = result["items"] as Investor[];
     setItems(previous => cursor ? [...previous, ...rows] : rows);
     setNextCursor(typeof result["nextCursor"] === "string" ? result["nextCursor"] : null);
@@ -94,7 +98,7 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
     const abort = new AbortController();
     setError(null); setBusy(true);
     void load(undefined, abort.signal).catch((error: unknown) => {
-      if (!abort.signal.aborted) setError(error instanceof Error ? error.message : "Реестр недоступен.");
+      if (!abort.signal.aborted) setError(error instanceof Error ? error.message : t("registry.investor.registryUnavailable"));
     }).finally(() => { if (!abort.signal.aborted) setBusy(false); });
     return () => abort.abort();
   }, [request]);
@@ -112,9 +116,9 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
       form.reset();
       setSelected("");
       try { await load(); }
-      catch { setMessage("Инвестор создан, но обновление списка не удалось. Нажмите «Обновить», не создавайте повторно."); }
-    } catch (error) { setFormError({ form: "create", message: error instanceof Error ? error.message : "Запрос не выполнен." }); setError(error instanceof Error ? error.message : "Запрос не выполнен.");
-      setMessage(`${error instanceof Error ? error.message : "Запрос не выполнен."} При потере ответа обновите список и проверьте код перед повтором.`);
+      catch { setMessage(t("registry.investor.createdRefreshFailed")); }
+    } catch (error) { setFormError({ form: "create", message: error instanceof Error ? error.message : t("registry.investor.requestFailed") }); setError(error instanceof Error ? error.message : t("registry.investor.requestFailed"));
+      setMessage(t("registry.investor.createRecovery"));
     } finally { setBusy(false); }
   }
   async function attach(event: FormEvent<HTMLFormElement>) {
@@ -128,14 +132,14 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
       form.reset();
       setSelected("");
       try { await load(); }
-      catch { setMessage("Кошелёк добавлен как PENDING. Обновите список; не повторяйте привязку."); }
-    } catch (error) { setFormError({ form: "attach", message: error instanceof Error ? error.message : "Запрос не выполнен." }); setError(error instanceof Error ? error.message : "Запрос не выполнен."); setMessage(error instanceof Error ? error.message : "Не удалось привязать кошелёк."); }
+      catch { setMessage(t("registry.investor.walletAddedRefreshFailed")); }
+    } catch (error) { setFormError({ form: "attach", message: error instanceof Error ? error.message : t("registry.investor.requestFailed") }); setError(error instanceof Error ? error.message : t("registry.investor.requestFailed")); setMessage(error instanceof Error ? error.message : t("registry.investor.attachFailed")); }
     finally { setBusy(false); }
   }
   async function refresh(cursor?: string) {
     setError(null); setBusy(true);
     try { await load(cursor); }
-    catch (error) { setError(error instanceof Error ? error.message : "Запрос не выполнен."); setMessage(error instanceof Error ? error.message : "Не удалось загрузить реестр."); }
+    catch (error) { setError(error instanceof Error ? error.message : t("registry.investor.requestFailed")); setMessage(error instanceof Error ? error.message : t("registry.investor.loadFailed")); }
     finally { setBusy(false); }
   }
   async function decideEligibility(investorId: string) {
@@ -151,19 +155,19 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
       try {
         await load();
         setMessage(decision === "ELIGIBLE"
-          ? "Инвестор допущен для локального demo. Это не является реальным KYC или юридическим одобрением."
-          : "Инвестор отмечен как не допущенный для локального demo.");
+          ? t("registry.investor.eligibleDemo")
+          : t("registry.investor.notEligibleDemo"));
       } catch {
-        setMessage("Решение сохранено, но список не обновился. Нажмите «Обновить реестр»; не отправляйте решение повторно.");
+        setMessage(t("registry.investor.decisionRefreshFailed"));
       }
-    } catch (error) { setError(error instanceof Error ? error.message : "Запрос не выполнен.");
-      setMessage(error instanceof Error ? error.message : "Не удалось сохранить решение по допуску.");
+    } catch (error) { setError(error instanceof Error ? error.message : t("registry.investor.requestFailed"));
+      setMessage(error instanceof Error ? error.message : t("registry.investor.decisionFailed"));
     } finally { setBusy(false); }
   }
   async function revokeWallet(investorId: string, wallet: Investor["wallets"][number]) {
     const reasonCode = revocationChoices[wallet.id];
     if (!reasonCode) return;
-    if (!window.confirm(`Отозвать кошелёк ${shortAddress(wallet.address)}? Это действие нельзя отменить.`)) return;
+    if (!window.confirm(t(qaMode ? "registry.investor.qaRevokeConfirm" : "registry.investor.revokeConfirm", { address: shortAddress(wallet.address) }))) return;
     setError(null); setBusy(true);
     try {
       await request(`/api/v1/investors/${investorId}/wallets/${wallet.id}/revoke`, {
@@ -172,12 +176,12 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
       setRevocationChoices(previous => ({ ...previous, [wallet.id]: "" }));
       try {
         await load();
-        setMessage("Кошелёк отозван и больше не может использоваться для выплаты. Допуск инвестора автоматически не изменён.");
+        setMessage(t("registry.investor.walletRevoked"));
       } catch {
-        setMessage("Кошелёк отозван, но список не обновился. Нажмите «Обновить»; не отправляйте отзыв повторно.");
+        setMessage(t("registry.investor.revokedRefreshFailed"));
       }
-    } catch (error) { setError(error instanceof Error ? error.message : "Запрос не выполнен.");
-      setMessage(error instanceof Error ? error.message : "Не удалось отозвать кошелёк.");
+    } catch (error) { setError(error instanceof Error ? error.message : t("registry.investor.requestFailed"));
+      setMessage(error instanceof Error ? error.message : t("registry.investor.revokeFailed"));
     } finally { setBusy(false); }
   }
   async function verifyWallet(investorId: string, wallet: Investor["wallets"][number]) {
@@ -191,21 +195,21 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
       if (typeof challenge.challengeId !== "string" || typeof challenge.nonce !== "string" ||
           typeof challenge.message !== "string" || challenge.walletId !== wallet.id ||
           challenge.walletAddress !== wallet.address) {
-        throw new Error("Сервер вернул некорректный запрос подтверждения.");
+        throw new Error(t("registry.investor.invalidChallenge"));
       }
-      setMessage("Подпишите сообщение указанным инвесторским кошельком. Это не транзакция и не допуск к выплате.");
+      setMessage(qaMode ? t("registry.investor.qaVerifying") : t("registry.investor.signMessage"));
       const signature = await signWalletMessage(wallet.address, challenge.message);
       await request(`/api/v1/investors/${investorId}/wallets/${wallet.id}/verification/verify`, {
         method: "POST", body: JSON.stringify({ challengeId: challenge.challengeId, nonce: challenge.nonce, signature })
       });
       try {
         await load();
-        setMessage("Владение кошельком подтверждено. Eligibility остаётся PENDING_REVIEW.");
+        setMessage(qaMode ? t("registry.investor.qaVerified") : t("registry.investor.ownershipVerified"));
       } catch {
-        setMessage("Сервер подтвердил владение, но список не обновился. Нажмите «Обновить»; не подписывайте повторно.");
+        setMessage(t("registry.investor.verifiedRefreshFailed"));
       }
-    } catch (error) { setError(error instanceof Error ? error.message : "Запрос не выполнен.");
-      setMessage(`${error instanceof Error ? error.message : "Не удалось подтвердить владение кошельком."} При потере ответа обновите список перед повтором.`);
+    } catch (error) { setError(error instanceof Error ? error.message : t("registry.investor.requestFailed"));
+      setMessage(t("registry.investor.verifyRecovery"));
     } finally { setBusy(false); }
   }
   const visible = filterRegistry(items, filters, row=>[row.displayName,row.externalReference??"",row.id,...row.wallets.map(wallet=>wallet.address)].join(" "),row=>row.eligibilityStatus,row=>row.displayName);
@@ -214,63 +218,67 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
   return <section className="mt-6 border-t border-[#dbe5df] pt-6">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h3 className="mt-1 text-lg font-semibold">Реестр инвесторов</h3>
-        <details className="term-help"><summary>Кошелёк, допуск и KYC</summary><p>Используйте только синтетические данные. Подтверждение кошелька доказывает владение адресом; оно не является KYC, допуском к выплатам или блокчейн-транзакцией.</p></details>
+        <h3 className="mt-1 text-lg font-semibold">{t("registry.investor.title")}</h3>
+        <details className="term-help"><summary>{t("registry.investor.walletEligibilityHelp")}</summary><p>{t("registry.investor.syntheticHelp")}</p></details>
       </div>
-      <button type="button" className={buttonClass} disabled={busy} onClick={() => void refresh()}>Обновить реестр</button>
+      <button type="button" className={buttonClass} disabled={busy} onClick={() => void refresh()}>{t("registry.investor.refresh")}</button>
     </div>
-    {role !== "ADMINISTRATOR" && <p className="access-note mt-3">Режим чтения: добавление инвесторов, подтверждение и отзыв кошельков доступны администратору.</p>}
+    {role !== "ADMINISTRATOR" && <p className="access-note mt-3">{t("registry.investor.readOnly")}</p>}
 
-    {role === "ADMINISTRATOR" && <details className="advanced-details mt-5"><summary>Добавить инвестора или кошелёк</summary>
-    <details className="term-help"><summary>Как подготовить получателя</summary><p>Создайте инвестора, добавьте адрес и подтвердите владение сообщением из этого кошелька. Затем отдельно сохраните решение о тестовом допуске в карточке инвестора.</p></details>
+    {role === "ADMINISTRATOR" && <details className="advanced-details mt-5"><summary>{t("registry.investor.addInvestorWallet")}</summary>
+    <details className="term-help"><summary>{t("registry.investor.recipientHelp")}</summary><p>{t("registry.investor.recipientSteps")}</p></details>
 
     {role === "ADMINISTRATOR" && <div className="mt-5 grid gap-4 xl:grid-cols-2">
       <form className="space-y-3 rounded-xl border border-[#dbe5df] p-4" onSubmit={event => void create(event)}>
-        <h4 className="mt-1 font-semibold">Создать инвестора</h4>
-        <label className="block text-sm">Имя или название *<input className={inputClass} name="displayName" required maxLength={200} placeholder="Тестовый инвестор А" disabled={busy} /></label>
-        <label className="block text-sm">Учётный код *<input className={inputClass} name="externalReference" required maxLength={100} placeholder="DEMO-A" disabled={busy} /></label>
+        <h4 className="mt-1 font-semibold">{t("registry.investor.createInvestor")}</h4>
+        <label className="block text-sm">{t("registry.investor.nameField")}<input className={inputClass} name="displayName" required maxLength={200} placeholder={t("registry.investor.namePlaceholder")} disabled={busy} /></label>
+        <label className="block text-sm">{t("registry.investor.referenceField")}<input className={inputClass} name="externalReference" required maxLength={100} placeholder="DEMO-A" disabled={busy} /></label>
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block text-sm">Тип<select className={inputClass} name="type" disabled={busy}><option value="INDIVIDUAL">Физлицо (тест)</option><option value="INSTITUTIONAL">Организация (тест)</option></select></label>
-          <label className="block text-sm">Страна *<input className={inputClass} name="countryCode" required minLength={2} maxLength={2} pattern="[A-Za-z]{2}" defaultValue="KZ" disabled={busy} /></label>
+          <label className="block text-sm">{t("registry.investor.typeField")}<select className={inputClass} name="type" disabled={busy}><option value="INDIVIDUAL">{t("registry.investor.individualTest")}</option><option value="INSTITUTIONAL">{t("registry.investor.institutionTest")}</option></select></label>
+          <label className="block text-sm">{t("registry.investor.countryField")}<input className={inputClass} name="countryCode" required minLength={2} maxLength={2} pattern="[A-Za-z]{2}" defaultValue="KZ" disabled={busy} /></label>
         </div>
-        {formError?.form === "create" && <p role="alert" className="form-error">{formError.message} Поля сохранены.</p>}
-        <button className={`${buttonClass} border-[#163f2b] bg-[#163f2b] text-white`} disabled={busy}>Создать инвестора</button>
-        <button type="button" className="secondary-button ml-2" disabled={busy} onClick={event => event.currentTarget.closest("details")?.removeAttribute("open")}>Отмена</button>
+        {formError?.form === "create" && <p role="alert" className="form-error">{displayMessage(formError.message)}{" "}{t("registry.investor.fieldsPreserved")}</p>}
+        <button className={`${buttonClass} border-[#163f2b] bg-[#163f2b] text-white`} disabled={busy}>{t("registry.investor.createInvestor")}</button>
+        <button type="button" className="secondary-button ml-2" disabled={busy} onClick={event => event.currentTarget.closest("details")?.removeAttribute("open")}>{t("registry.investor.cancel")}</button>
       </form>
       <form className="space-y-3 rounded-xl border border-[#dbe5df] p-4" onSubmit={event => void attach(event)}>
-        <h4 className="mt-1 font-semibold">Добавить кошелёк</h4>
-        <p className="text-xs leading-5 text-[#61746a]">Адрес сначала получит статус «Ожидает подписи». Подтвердите владение отдельно в карточке инвестора.</p>
-        <label className="block text-sm">Инвестор *<select className={inputClass} required value={selected} disabled={busy || items.length === 0} onChange={event => setSelected(event.target.value)}>
-      <option value="">{items.length === 0 ? "Сначала создайте инвестора" : "Выберите инвестора"}</option>{items.map(investor => <option key={investor.id} value={investor.id}>{investor.displayName}</option>)}</select>
+        <h4 className="mt-1 font-semibold">{t("registry.investor.attachWallet")}</h4>
+        <p className="text-xs leading-5 text-[#61746a]">{qaMode ? t("registry.investor.qaAttachHelp") : t("registry.investor.attachHelp")}</p>
+        <label className="block text-sm">{t("registry.investor.investorField")}<select className={inputClass} required value={selected} disabled={busy || items.length === 0} onChange={event => setSelected(event.target.value)}>
+      <option value="">{items.length === 0 ? t("registry.investor.createFirst") : t("registry.investor.selectInvestor")}</option>{items.map(investor => <option key={investor.id} value={investor.id}>{investor.displayName}</option>)}</select>
       </label>
-        <label className="block text-sm">Публичный адрес Solana *<input className={`${inputClass} font-mono`} name="address" required minLength={32} maxLength={44} pattern="[1-9A-HJ-NP-Za-km-z]+" placeholder="Вставьте публичный адрес" disabled={busy || items.length === 0} />
+        <label className="block text-sm">{t("registry.investor.addressField")}<input className={`${inputClass} font-mono`} name="address" required minLength={32} maxLength={44} pattern="[1-9A-HJ-NP-Za-km-z]+" placeholder={t("registry.investor.addressPlaceholder")} disabled={busy || items.length === 0} />
       </label>
-        {formError?.form === "attach" && <p role="alert" className="form-error">{formError.message} Адрес сохранён.</p>}
-        <button className={`${buttonClass} border-[#163f2b] bg-[#163f2b] text-white`} disabled={busy || !selected}>Добавить кошелёк</button>
-        <button type="button" className="secondary-button ml-2" disabled={busy} onClick={event => event.currentTarget.closest("details")?.removeAttribute("open")}>Отмена</button>
+        {formError?.form === "attach" && <p role="alert" className="form-error">{displayMessage(formError.message)}{" "}{t("registry.investor.addressPreserved")}</p>}
+        {qaMode && <button type="button" className="secondary-button" disabled={busy || !selected} onClick={event => {
+          const addressInput = event.currentTarget.form?.elements.namedItem("address");
+          if (addressInput instanceof HTMLInputElement) addressInput.value = encodeBase58(crypto.getRandomValues(new Uint8Array(32)));
+        }}>{t("registry.investor.generateQaAddress")}</button>}
+        <button className={`${buttonClass} border-[#163f2b] bg-[#163f2b] text-white`} disabled={busy || !selected}>{t("registry.investor.attachWallet")}</button>
+        <button type="button" className="secondary-button ml-2" disabled={busy} onClick={event => event.currentTarget.closest("details")?.removeAttribute("open")}>{t("registry.investor.cancel")}</button>
       </form>
     </div>}
 
     </details>}
 
     <div ref={listView} hidden={Boolean(detailId)}>
-      <RegistryToolbar label="инвесторы" filters={filters} onChange={setFilters} statuses={{ELIGIBLE:"Допущен",PENDING_REVIEW:"Ожидает решения",NOT_ELIGIBLE:"Не допущен"}} loaded={items.length} shown={visible.length} />
+      <RegistryToolbar label={t("registry.investor.registryLabel")} filters={filters} onChange={setFilters} statuses={{ELIGIBLE:t("registry.investor.statusEligible"),PENDING_REVIEW:t("registry.investor.statusAwaitingDecision"),NOT_ELIGIBLE:t("registry.investor.statusNotEligible")}} loaded={items.length} shown={visible.length} />
       {busy && items.length === 0 && <RegistrySkeleton />}
-      <div className="table-scroll" hidden={items.length === 0} tabIndex={0} role="region" aria-label="Таблица инвесторов">
+      <div className="table-scroll" hidden={items.length === 0} tabIndex={0} role="region" aria-label={t("registry.investor.tableLabel")}>
       <table className="registry-table">
       <thead>
       <tr>
-      <th>Инвестор / код</th>
-      <th>Допуск</th>
+      <th>{t("registry.investor.investorReference")}</th>
+      <th>{t("registry.investor.eligibility")}</th>
       <th>KYC</th>
-      <th className="numeric">Кошельки</th>
+      <th className="numeric">{t("registry.investor.wallets")}</th>
       </tr>
       </thead>
       <tbody>{visible.map(investor=>
       <tr key={investor.id}>
       <td>
       <button type="button" className="table-object-link" disabled={busy} onClick={() => chooseRecord(investor.id)}>{investor.displayName}</button>
-      <span className="table-secondary">{investor.externalReference??"Без кода"}</span>
+      <span className="table-secondary">{investor.externalReference??t("registry.investor.noReference")}</span>
       </td>
       <td>
       <span className={"status-"+statusTone(investor.eligibilityStatus)}>{statusLabel(investor.eligibilityStatus)}</span>
@@ -280,82 +288,82 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
       </tr>)}</tbody>
       </table>
       </div>
-      {!busy&&!error&&visible.length===0&&<p className="empty-state">{items.length===0?"Реестр пуст. Администратор может добавить тестового инвестора.":"По заданному поиску и статусу ничего не найдено."}</p>}
+      {!busy&&!error&&visible.length===0&&<p className="empty-state">{items.length===0?t("registry.investor.emptyRegistry"):t("registry.investor.noMatches")}</p>}
     </div>
-    {detailId&&<button type="button" className="secondary-button mt-4" disabled={busy} onClick={backToList}>← К списку инвесторов</button>}
-    {detailId&&!items.some(row=>row.id===detailId)&&<p className="empty-state">UUID отсутствует в загруженных записях. Вернитесь к списку и загрузите следующую страницу.</p>}
+    {detailId&&<button type="button" className="secondary-button mt-4" disabled={busy} onClick={backToList}>{t("registry.investor.back")}</button>}
+    {detailId&&!items.some(row=>row.id===detailId)&&<p className="empty-state">{t("registry.investor.missingRecord")}</p>}
     <div className="mt-6" hidden={!detailId}>
       <div className="flex items-center justify-between gap-3">
-        <h4 className="font-semibold">Кошельки и допуск</h4>
+        <h4 className="font-semibold">{t("registry.investor.walletsEligibility")}</h4>
       </div>
-      {items.length === 0 && !busy && <div className="mt-3 rounded-xl border border-dashed border-[#cbd8d0] p-5 text-sm text-[#61746a]">Реестр пуст. Начните с шага 1.</div>}
+      {items.length === 0 && !busy && <div className="mt-3 rounded-xl border border-dashed border-[#cbd8d0] p-5 text-sm text-[#61746a]">{t("registry.investor.startAtStepOne")}</div>}
       <ul className="mt-3 space-y-3">
         {items.map(investor => <li className="record-detail rounded-xl border border-[#dbe5df] bg-white p-4 text-sm" id={`investor-${investor.id}`} tabIndex={-1} key={investor.id} hidden={detailId !== investor.id}>
           <div className="flex flex-wrap items-start justify-between gap-2">
-            <div><p className="font-semibold">{investor.displayName}</p><p className="mt-1 text-xs text-[#61746a]">Код: {investor.externalReference ?? "не указан"} · Страна: {investor.countryCode}</p></div>
+            <div><p className="font-semibold">{investor.displayName}</p><p className="mt-1 text-xs text-[#61746a]">{t("registry.investor.referenceLabel")}{" "}{investor.externalReference ?? t("registry.investor.referenceMissing")}{" "}{t("registry.investor.countryLabel")}{" "}{investor.countryCode}</p></div>
           </div>
-          <dl className="object-facts mt-4"><div><dt>Тип инвестора</dt><dd>{investor.type === "INDIVIDUAL" ? "Физическое лицо" : investor.type === "INSTITUTIONAL" ? "Организация" : "Не указан"}</dd></div><div><dt>Учётная запись</dt><dd>{investor.status === "ACTIVE" ? "Активна" : investor.status ?? "Не указано"}</dd></div><div><dt>Допуск</dt><dd>{statusLabel(investor.eligibilityStatus)}</dd></div><div><dt>KYC</dt><dd>{statusLabel(investor.kycStatus)}</dd></div></dl>
-          <p className="mt-3 text-xs font-semibold text-[#52675b]">Кошельки: {investor._count.wallets}{investor._count.wallets > 20 ? " · показаны первые 20" : ""}</p>
+          <dl className="object-facts mt-4"><div><dt>{t("registry.investor.investorType")}</dt><dd>{investor.type === "INDIVIDUAL" ? t("registry.investor.individual") : investor.type === "INSTITUTIONAL" ? t("registry.investor.institution") : t("registry.investor.typeMissing")}</dd></div><div><dt>{t("registry.investor.account")}</dt><dd>{investor.status === "ACTIVE" ? t("registry.investor.accountActive") : investor.status ?? t("registry.investor.missing")}</dd></div><div><dt>{t("registry.investor.eligibility")}</dt><dd>{statusLabel(investor.eligibilityStatus)}</dd></div><div><dt>KYC</dt><dd>{statusLabel(investor.kycStatus)}</dd></div></dl>
+          <p className="mt-3 text-xs font-semibold text-[#52675b]">{t("registry.investor.walletsLabel")}{" "}{investor._count.wallets}{investor._count.wallets > 20 ? t("registry.investor.firstTwenty") : ""}</p>
           {investor.wallets.map(wallet => {
-            const readyToVerify = activeWalletAddress === wallet.address;
+            const readyToVerify = qaMode || activeWalletAddress === wallet.address;
             return <div className="mt-2 rounded-lg border border-[#e3eae6] bg-[#f8faf9] p-3" key={wallet.id}>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <CopyValue value={wallet.address} label={`Кошелёк ${investor.displayName}`} />
+                <CopyValue value={wallet.address} label={t("registry.investor.walletCopyLabel", { name: investor.displayName })} />
                 <span className={wallet.status === "ACTIVE" ? "status-ready" : "status-wait"}>{statusLabel(wallet.status)}</span>
               </div>
-              <p className="mt-1 text-xs text-[#708278]">Сеть: {wallet.network === "SOLANA_LOCALNET" ? "Solana Localnet" : wallet.network}</p>
+              <p className="mt-1 text-xs text-[#708278]">{t("registry.investor.networkLabel")}{" "}{wallet.network === "SOLANA_LOCALNET" ? "Solana Localnet" : wallet.network}</p>
               {role === "ADMINISTRATOR" && wallet.status === "PENDING" && signWalletMessage && <div className="mt-3 border-t border-[#e3eae6] pt-3">
                 <p className={`text-xs leading-5 ${readyToVerify ? "text-[#176a38]" : "text-[#8a5b18]"}`}>{readyToVerify
-                  ? "Нужный аккаунт выбран в Phantom. Можно подписывать подтверждение."
-                  : `В Phantom переключитесь на ${shortAddress(wallet.address)}. Кнопка станет доступна автоматически.`}</p>
+                  ? qaMode ? t("registry.investor.qaVerifyHelp") : t("registry.investor.phantomReady")
+                  : t("registry.investor.phantomSwitch", { address: shortAddress(wallet.address) })}</p>
                 <button type="button" className={`${buttonClass} mt-2 ${readyToVerify ? "border-[#163f2b] bg-[#163f2b] text-white" : "bg-white"}`}
-                  disabled={busy || !readyToVerify} onClick={() => void verifyWallet(investor.id, wallet)}>{readyToVerify ? "Подтвердить владение" : "Ожидается нужный аккаунт Phantom"}</button>
+                  disabled={busy || !readyToVerify} onClick={() => void verifyWallet(investor.id, wallet)}>{qaMode ? t("registry.investor.simulateVerification") : readyToVerify ? t("registry.investor.verifyOwnership") : t("registry.investor.awaitingPhantom")}</button>
               </div>}
               {role === "ADMINISTRATOR" && wallet.status !== "REVOKED" && <details className="mt-3 border-t border-[#e3eae6] pt-3">
-                <summary className="cursor-pointer text-xs font-semibold text-[#7b3e28]">Отозвать кошелёк</summary>
-                <p className="mt-1 text-xs leading-5 text-[#61746a]">Необратимо запрещает использовать адрес для выплаты. Баланс адреса может остаться в snapshot для сверки; допуск инвестора автоматически не меняется.</p>
+                <summary className="cursor-pointer text-xs font-semibold text-[#7b3e28]">{t("registry.investor.revokeWallet")}</summary>
+                <p className="mt-1 text-xs leading-5 text-[#61746a]">{t("registry.investor.revocationHelp")}</p>
                 <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                   <select className={`${inputClass} mt-0 sm:max-w-xs`} value={revocationChoices[wallet.id] ?? ""} disabled={busy}
-                    aria-label={`Причина отзыва ${shortAddress(wallet.address)}`}
+                    aria-label={t("registry.investor.revocationReasonLabel", { address: shortAddress(wallet.address) })}
                     onChange={event => setRevocationChoices(previous => ({ ...previous, [wallet.id]: event.target.value }))}>
-                    <option value="">Выберите причину</option>
-                    <option value="OWNER_REQUEST">По запросу владельца</option>
-                    <option value="SECURITY_CONCERN">Подозрение на компрометацию</option>
-                    <option value="WALLET_REPLACEMENT">Замена кошелька</option>
-                    <option value="REGISTRY_CORRECTION">Исправление записи реестра</option>
+                    <option value="">{t("registry.investor.chooseReason")}</option>
+                    <option value="OWNER_REQUEST">{t("registry.investor.ownerRequest")}</option>
+                    <option value="SECURITY_CONCERN">{t("registry.investor.securityConcern")}</option>
+                    <option value="WALLET_REPLACEMENT">{t("registry.investor.walletReplacement")}</option>
+                    <option value="REGISTRY_CORRECTION">{t("registry.investor.registryCorrection")}</option>
                   </select>
                   <button type="button" className={`danger-button ${buttonClass} border-[#9b4b32] bg-white text-[#7b3e28]`}
                     disabled={busy || !revocationChoices[wallet.id]}
-                    onClick={() => void revokeWallet(investor.id, wallet)}>Отозвать кошелёк</button>
+                    onClick={() => void revokeWallet(investor.id, wallet)}>{t("registry.investor.revokeWallet")}</button>
                 </div>
               </details>}
-              {wallet.status === "REVOKED" && wallet.revocationReasonCode && <p className="mt-2 text-xs text-[#7b3e28]">Причина: {REVOCATION_REASON_LABELS[wallet.revocationReasonCode] ?? wallet.revocationReasonCode}{wallet.revokedAt ? ` · ${formatWorkspaceDate(wallet.revokedAt)}` : ""}</p>}
+              {wallet.status === "REVOKED" && wallet.revocationReasonCode && <p className="mt-2 text-xs text-[#7b3e28]">{t("registry.investor.reasonLabel")}{" "}{displayMessage(REVOCATION_REASON_LABELS[wallet.revocationReasonCode] ?? wallet.revocationReasonCode)}{wallet.revokedAt ? ` · ${formatDate(wallet.revokedAt)}` : ""}</p>}
             </div>;
           })}
           {role === "ADMINISTRATOR" && investor.eligibilityStatus === "PENDING_REVIEW" && (() => {
             const hasVerifiedWallet = investor.wallets.some(wallet => wallet.status === "ACTIVE");
             const choice = eligibilityChoices[investor.id] ?? "";
             return <div className="mt-3 rounded-lg border border-[#d9e3dd] bg-[#f7faf8] p-3">
-              <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#28744a]">Решение по допуску</p>
-              <p className="mt-1 text-xs leading-5 text-[#61746a]">Одноразовое решение для локального demo. Оно не заменяет реальный KYC/AML. Для допуска требуется подтверждённый кошелёк.</p>
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#28744a]">{t("registry.investor.eligibilityDecision")}</p>
+              <p className="mt-1 text-xs leading-5 text-[#61746a]">{t("registry.investor.decisionHelp")}</p>
               <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                 <select className={`${inputClass} mt-0 sm:max-w-xs`} value={choice} disabled={busy}
-                  aria-label={`Решение по допуску ${investor.displayName}`} onChange={event => setEligibilityChoices(previous => ({ ...previous, [investor.id]: event.target.value }))}>
-                  <option value="">Выберите решение</option>
-                  <option value="ELIGIBLE" disabled={!hasVerifiedWallet}>Допустить · демо-критерии выполнены</option>
-                  <option value="NOT_ELIGIBLE">Не допустить · критерии не выполнены</option>
+                  aria-label={t("registry.investor.eligibilityLabel", { name: investor.displayName })} onChange={event => setEligibilityChoices(previous => ({ ...previous, [investor.id]: event.target.value }))}>
+                  <option value="">{t("registry.investor.chooseDecision")}</option>
+                  <option value="ELIGIBLE" disabled={!hasVerifiedWallet}>{t("registry.investor.approveDemo")}</option>
+                  <option value="NOT_ELIGIBLE">{t("registry.investor.rejectDemo")}</option>
                 </select>
                 <button type="button" className={`${buttonClass} border-[#163f2b] bg-[#163f2b] text-white`}
-                  disabled={busy || !choice} onClick={() => void decideEligibility(investor.id)}>Сохранить решение</button>
+                  disabled={busy || !choice} onClick={() => void decideEligibility(investor.id)}>{t("registry.investor.saveDecision")}</button>
               </div>
-              {!hasVerifiedWallet && <p className="mt-2 text-xs text-[#8a5b18]">Сначала подтвердите хотя бы один кошелёк инвестора.</p>}
+              {!hasVerifiedWallet && <p className="mt-2 text-xs text-[#8a5b18]">{t("registry.investor.verifyFirst")}</p>}
             </div>;
           })()}
-          {investor.eligibilityStatus !== "PENDING_REVIEW" && investor.eligibilityReasonCode && <p className="mt-3 text-xs text-[#61746a]">Основание: {REASON_LABELS[investor.eligibilityReasonCode] ?? investor.eligibilityReasonCode}{investor.eligibilityReviewedAt ? ` · ${formatWorkspaceDate(investor.eligibilityReviewedAt)}` : ""}</p>}
+          {investor.eligibilityStatus !== "PENDING_REVIEW" && investor.eligibilityReasonCode && <p className="mt-3 text-xs text-[#61746a]">{t("registry.investor.basisLabel")}{" "}{displayMessage(REASON_LABELS[investor.eligibilityReasonCode] ?? investor.eligibilityReasonCode)}{investor.eligibilityReviewedAt ? ` · ${formatDate(investor.eligibilityReviewedAt)}` : ""}</p>}
         </li>)}
       </ul>
     </div>
-    {!detailId && nextCursor && <button type="button" className={`${buttonClass} mt-3`} disabled={busy} onClick={() => void refresh(nextCursor)}>Показать ещё</button>}
-    <RequestNotice busy={busy} message={message} error={error} onRetry={()=>void refresh()} />
+    {!detailId && nextCursor && <button type="button" className={`${buttonClass} mt-3`} disabled={busy} onClick={() => void refresh(nextCursor)}>{t("registry.investor.showMore")}</button>}
+    <RequestNotice busy={busy} message={message} error={error === null ? null : displayMessage(error)} onRetry={()=>void refresh()} />
   </section>;
 }

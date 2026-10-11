@@ -7,6 +7,31 @@ import { AuthController } from "./auth.controller.js";
 import { AuthRateLimitError, type AuthRateLimitService } from "./auth-rate-limit.js";
 import type { PrismaService } from "./prisma.service.js";
 
+test("wallet invalidation returns the existing session-recovery HTTP contract", async () => {
+  const previous = process.env.AUTH_ENABLED;
+  process.env.AUTH_ENABLED = "true";
+  const user = { id: "00000000-0000-4000-8000-000000000001", role: "ADMINISTRATOR" };
+  let walletStatus = "ACTIVE";
+  const database = {
+    session: { findUnique: async () => ({ id: "session", walletAddress: "11111111111111111111111111111111",
+      expiresAt: new Date("2099-01-01"), revokedAt: null, user }) },
+    wallet: { findUnique: async () => ({ userId: user.id, status: walletStatus,
+      verifiedAt: new Date("2026-09-29"), revokedAt: null }) }
+  } as unknown as PrismaService;
+  const controller = new AuthController(database, {} as AuthRateLimitService);
+  const request = { headers: { cookie: `lifecyclekase_session=${"x".repeat(43)}` } };
+  try {
+    assert.equal((await controller.session(request)).user.id, user.id);
+    walletStatus = "BLOCKED";
+    await assert.rejects(controller.session(request),
+      (error: unknown) => error instanceof HttpException && error.getStatus() === 401 &&
+        (error.getResponse() as { code?: string }).code === "SESSION_INVALID");
+  } finally {
+    if (previous === undefined) delete process.env.AUTH_ENABLED;
+    else process.env.AUTH_ENABLED = previous;
+  }
+});
+
 test("authentication throttling returns 429 with Retry-After", async () => {
   const previous = process.env.AUTH_ENABLED;
   process.env.AUTH_ENABLED = "true";

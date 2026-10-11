@@ -1,5 +1,11 @@
 # LifecycleKASE
 
+English reviewers: start with the [reviewer guide](docs/submission/JUDGE_README.md). The **2026-10-11 candidate** adds RU/EN UI and fixes wallet-session invalidation and zero-rounded coupons; [acceptance and remaining submission gates](docs/testing/submission-readiness-2026-10-11.md) distinguish this source from public staging and retained-owner deployment.
+
+Initial audit checkpoint — **2026-10-11**, before the implementation above: [full findings and prioritized backlog](docs/PROJECT_AUDIT_2026-10-11.md). Fresh checks pass 330 Node tests, workspace types/builds, production proxy and both 18-test Rust profiles. Two confirmed defects remain: revoked operator-wallet sessions and mixed zero/positive coupon registration. Local QA browser flows pass; public `/qa` currently returns 404. See the [UI/UX results](docs/testing/ui-ux-audit-2026-10-11.md), [RU/KK/EN plan](docs/features/localization-plan.md) and [English demo/pitch scripts](docs/submission/ENGLISH_DEMO_AND_PITCH_PLAN.md). No code fix, deployment or submission was performed in this audit.
+
+The following October 10 paragraph is the preceding candidate implementation checkpoint; today's findings and checks are linked above.
+
 Current development: **2026-10-10** — 320 Node tests, production web build and both Rust profiles pass. The isolated default-off candidate adds [atomic partial/maturity redemption](docs/features/redemption-execution-and-receipts.md), immutable source/supply proof, exact-wire API/UI recovery and receipts. Runtime acceptance status is in [three-action verification](docs/testing/kase-three-actions-2026-10-10.md); owner rollout and public-network evidence remain separate. See the [audit checkpoint](docs/PROJECT_AUDIT_2026-10-10.md), [delivery plan](docs/deployment/DEVNET_TO_MVP_CHECKLIST.md) and [submission overview](docs/submission/TECHNICAL_OVERVIEW.md).
 
 Run `npm run demo:verify` with Docker and the documented non-root WSL toolchain to build a fresh candidate and verify coupon → partial 20% → maturity on a disposable validator/database. Use `npm run demo:verify -- -Profile localnet-candidate-redemption-20261010` to reuse an existing candidate. This never uses the retained owner signer/ledger. KZT-Test/eligibility are simulated; transfers, burns and Solana receipts are executed.
@@ -7,6 +13,8 @@ Run `npm run demo:verify` with Docker and the documented non-root WSL toolchain 
 Submission preparation — **2026-10-11**: the [submission package](docs/submission/README.md) includes an English-captioned Auditor demo, a [current requirements matrix](docs/submission/KASE_REQUIREMENTS_MATRIX.md), a [ready-to-paste form draft](docs/submission/COLLOSSEUM_SUBMISSION.md), three exact canonical receipts and run evidence. Main Colosseum registration/stages are owner-confirmed; the owner confirms that project submission has not yet occurred. Main and side-track submissions remain. Planned record date opens the capture window; the ownership cutoff is actual finalized capture slot/time.
 
 Public application staging — **2026-10-11**: [open LifecycleKASE](https://lifecyclekase-web.onrender.com/dashboard). Both existing Render services are Live at `bc62abfd947db6bc854624dccdcac61ec13036a3`; migration 19, public health/readiness, the dashboard and protected transaction routes were verified. Wallet login requires a registered operator. Render cannot reach the owner's loopback validator; authenticated signing and financial execution were not rerun. The Localnet badge does not prove a cloud chain connection. See the [deployment evidence and limits](docs/deployment/render-staging.md).
+
+Walletless UI QA: `/qa` reuses the operator workspace with page-local synthetic records, issuer/approver/Auditor identities and simulated coupon/redemption stages. Reload or reset starts fresh data; export marked QA JSON with a findings report. The real dashboard keeps wallet authentication. See the [QA instructions, checklist and limits](docs/features/qa-sandbox.md); QA implementation/deployment validation is recorded separately from the staging checkpoint above.
 
 ## Earlier owner and engineering checkpoints
 
@@ -132,4 +140,4 @@ The smoke test starts an isolated validator on port `18899`, waits for a JSON-RP
 - The validator smoke-test requires an external Solana CLI installation.
 - Docker Compose currently provisions PostgreSQL only; application containers will be added with their implementation milestone.
 - No production deployment, key custody, or real-money operation is supported.
-- The status-only staging dashboard is publicly deployed at <https://lifecyclekase-web.onrender.com/dashboard>; it is not a production application. Its free PostgreSQL has a short lifetime and no backups; do not store real data there. See the [deployment record](docs/deployment/render-staging.md).
+- The operator application is publicly deployed as disposable staging at <https://lifecyclekase-web.onrender.com/dashboard>; access requires a registered operator wallet. The recorded deployment does not prove authenticated financial execution or connectivity to the owner's loopback validator. Its free PostgreSQL has a short lifetime and no backups; do not store real data there. See the [deployment record](docs/deployment/render-staging.md).

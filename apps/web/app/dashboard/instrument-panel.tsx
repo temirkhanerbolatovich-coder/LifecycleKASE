@@ -4,13 +4,15 @@ import { SolanaSignAndSendTransaction, type SolanaSignAndSendTransactionFeature,
   SolanaSignTransaction, type SolanaSignTransactionFeature } from "@solana/wallet-standard-features";
 import type { Wallet, WalletWithFeatures } from "@wallet-standard/base";
 import { StandardConnect, type StandardConnectFeature } from "@wallet-standard/features";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { resumedDeploymentSignature, signedPreparedTransaction, transactionSignature, unsignedTransactionForSigner, walletChainForCluster,
   type SupportedSnapshotCluster } from "./snapshot-workflow";
 
 import { CopyValue, RegistrySkeleton, RegistryToolbar, RequestNotice } from "./workspace-controls";
-import { filterRegistry, INITIAL_FILTERS, statusTone, formatWorkspaceDate } from "./workspace-presentation";
+import { filterRegistry, INITIAL_FILTERS, statusTone } from "./workspace-presentation";
 import { workspaceSelectionFromHash, workspaceSectionHash, workspaceSectionFromHash } from "./workspace-navigation";
+
+import { useLocale, useLocalizedTextState } from "./locale-context";
 
 type Instrument = {
   id: string; name: string; ticker: string; network: string; status: string; issuerAuthority: string;
@@ -20,7 +22,7 @@ type Instrument = {
   settlementAsset: { code: string; name: string; mintAddress: string | null; disclaimer: string };
 };
 type Request = (path: string, init?: RequestInit) => Promise<Record<string, unknown>>;
-const INSTRUMENT_STATUS_LABELS: Record<string, string> = { DRAFT: "Черновик", DEPLOYING: "Выпуск", ACTIVE: "Активен", PAUSED: "Приостановлен" };
+const INSTRUMENT_STATUS_LABELS: Record<string, string> = { DRAFT: "Черновик", DEPLOYING: "Выпуск", ACTIVE: "Активен", PAUSED: "Приостановлен", REDEEMED: "Погашен" };
 type SendingWallet = WalletWithFeatures<StandardConnectFeature & SolanaSignAndSendTransactionFeature>;
 type SigningWallet = WalletWithFeatures<StandardConnectFeature & SolanaSignTransactionFeature>;
 type DistributionAllocation = { investorId: string; walletAddress: string; tokenAccount: string; amount: string };
@@ -67,14 +69,6 @@ function shortAddress(address: string): string {
   return address.length > 15 ? `${address.slice(0, 6)}…${address.slice(-6)}` : address;
 }
 
-function formatMinor(value: string): string {
-  if (!/^[0-9]+$/.test(value)) return value;
-  const amount = BigInt(value);
-  const whole = amount / 1_000_000n;
-  const fraction = (amount % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "");
-  return fraction ? `${whole}.${fraction}` : whole.toString();
-}
-
 function phaseSummary(phase: DeploymentPhase): string {
   if (phase === "MINT_SETUP") return "Будут созданы два mint, выпущено 35 bond tokens в treasury и необратимо отозвана mint authority.";
   if (phase === "DISTRIBUTION") return "35 bond tokens будут переведены трём проверенным инвесторам в долях 10/20/5.";
@@ -89,9 +83,13 @@ function phaseReview(phase: DeploymentPhase): string {
   return "Проверил signer, актуальный eligibility и полное покрытие supply балансами держателей";
 }
 
-export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyChange }: {
+export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyChange, renderQaControls }: {
   role: string; request: Request; wallet: Wallet | undefined; walletAddress: string; onBusyChange: (busy: boolean) => void;
+  renderQaControls?: ((instrument: { id: string; status: string }, onChanged: () => Promise<void>) => ReactNode) | undefined;
 }) {
+  const { t, formatDate, formatAmount, displayMessage } = useLocale();
+  const statusLabels = Object.fromEntries(Object.entries(INSTRUMENT_STATUS_LABELS)
+    .map(([status, label]) => [status, displayMessage(label)]));
   const [items, setItems] = useState<Instrument[]>([]);
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [detailId, setDetailId] = useState("");
@@ -110,7 +108,7 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
   useEffect(()=>{ const sync=()=>{if(workspaceSectionFromHash(window.location.hash)==="instruments") setDetailId(workspaceSelectionFromHash(window.location.hash,"instruments")??"");}; sync();window.addEventListener("hashchange",sync);return()=>window.removeEventListener("hashchange",sync); },[]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useLocalizedTextState();
   const [plan, setPlan] = useState<DeploymentPlan | null>(null);
   const [deployInstrumentId, setDeployInstrumentId] = useState("");
   const [signature, setSignature] = useState("");
@@ -123,7 +121,7 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
     if (inFlight.current) return;
     inFlight.current = true; setError(null); setBusy(true); onBusyChange(true);
     try { await task(); }
-    catch (error) { setError(error instanceof Error ? error.message : "Запрос не выполнен."); setMessage(error instanceof Error ? error.message : "Операция выпуска не выполнена."); }
+    catch (error) { setError(error instanceof Error ? error.message : t("registry.instrument.requestFailed")); setMessage(error instanceof Error ? error.message : t("registry.instrument.deploymentFailed")); }
     finally { inFlight.current = false; setBusy(false); onBusyChange(false); }
   }
 
@@ -140,10 +138,10 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
       method: "POST", body: JSON.stringify({ phase: "MINT_SETUP" })
     });
     if (acceptPreparedPlan(response, instrument)) {
-      setMessage("Восстановлена подписанная попытка. Повторите только проверку finalized; новая подпись не нужна.");
+      setMessage(t("registry.instrument.resumed"));
       return;
     }
-    setMessage("Фаза MINT_SETUP подготовлена. Проверьте сеть и адреса перед подписью Phantom.");
+    setMessage(t("registry.instrument.mintPrepared"));
   }
 
   async function prepareLifecycle(instrument: Instrument, phase: "INITIALIZE" | "ACTIVATE") {
@@ -151,17 +149,17 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
       method: "POST", body: JSON.stringify({ phase })
     });
     if (acceptPreparedPlan(response, instrument)) {
-      setMessage("Восстановлена подписанная попытка. Повторите только проверку finalized; новая подпись не нужна.");
+      setMessage(t("registry.instrument.resumed"));
       return;
     }
     setMessage(phase === "INITIALIZE"
-      ? "Фаза INITIALIZE подготовлена. Проверьте Instrument PDA и параметры перед подписью."
-      : "Фаза ACTIVATE подготовлена после повторной проверки investor eligibility и балансов 10/20/5.");
+      ? t("registry.instrument.initializePrepared")
+      : t("registry.instrument.activatePrepared"));
   }
 
   async function startDistribution(instrument: Instrument) {
     const response = await request("/api/v1/investors?limit=100");
-    if (!Array.isArray(response["items"])) throw new Error("Реестр инвесторов вернул некорректный ответ.");
+    if (!Array.isArray(response["items"])) throw new Error(t("registry.instrument.invalidInvestorResponse"));
     const candidates: DistributionCandidate[] = [];
     for (const value of response["items"] as Record<string, unknown>[]) {
       if (value["status"] !== "ACTIVE" || value["eligibilityStatus"] !== "ELIGIBLE" ||
@@ -174,20 +172,20 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
       }
     }
     const firstByInvestor = [...new Map(candidates.map(candidate => [candidate.investorId, candidate])).values()];
-    if (firstByInvestor.length < 3) throw new Error("Для DISTRIBUTION нужны три разных eligible-инвестора с активными проверенными кошельками.");
+    if (firstByInvestor.length < 3) throw new Error(t("registry.instrument.threeInvestorsRequired"));
     setDistributionDraft({ instrument, candidates, selections: {
       "10": firstByInvestor[0]!.walletAddress, "20": firstByInvestor[1]!.walletAddress, "5": firstByInvestor[2]!.walletAddress
     } });
-    setMessage("Выберите трёх разных инвесторов для фиксированных долей 10/20/5.");
+    setMessage(t("registry.instrument.selectAllocations"));
   }
 
   async function prepareDistribution() {
-    if (!distributionDraft) throw new Error("Сначала выберите инструмент и инвесторов.");
+    if (!distributionDraft) throw new Error(t("registry.instrument.selectInstrumentFirst"));
     const selected = Object.values(distributionDraft.selections);
-    if (new Set(selected).size !== 3) throw new Error("Каждую долю должен получить отдельный инвестор.");
+    if (new Set(selected).size !== 3) throw new Error(t("registry.instrument.separateInvestor"));
     const selectedInvestors = selected.map(address => distributionDraft.candidates.find(candidate => candidate.walletAddress === address)?.investorId);
     if (selectedInvestors.some(value => value === undefined) || new Set(selectedInvestors).size !== 3) {
-      throw new Error("Доли 10/20/5 должны принадлежать трём разным инвесторам.");
+      throw new Error(t("registry.instrument.distinctInvestors"));
     }
     const response = await request(`/api/v1/instruments/${distributionDraft.instrument.id}/deploy/prepare`, {
       method: "POST", body: JSON.stringify({ phase: "DISTRIBUTION", allocations: ["10", "20", "5"].map(amount => ({
@@ -197,28 +195,28 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
     const resumed = acceptPreparedPlan(response, distributionDraft.instrument);
     setDistributionDraft(null);
     if (resumed) {
-      setMessage("Восстановлена подписанная DISTRIBUTION. Повторите только проверку finalized; новая подпись не нужна.");
+      setMessage(t("registry.instrument.distributionResumed"));
       return;
     }
-    setMessage("Фаза DISTRIBUTION подготовлена. Проверьте три адреса и доли 10/20/5 перед подписью.");
+    setMessage(t("registry.instrument.distributionPrepared"));
   }
 
   async function sendDeployment() {
-    if (!plan || !reviewed || sendAttempted || !transactionWallet(wallet, plan.cluster)) throw new Error("Нужен проверенный план и совместимый кошелёк транзакций v0.");
+    if (!plan || !reviewed || sendAttempted || !transactionWallet(wallet, plan.cluster)) throw new Error(t("registry.instrument.reviewedPlanRequired"));
     const chain = walletChainForCluster(plan.cluster);
     const connected = await (wallet as WalletWithFeatures<StandardConnectFeature>).features[StandardConnect].connect();
     const requiredFeature = plan.cluster === "localnet" ? SolanaSignTransaction : SolanaSignAndSendTransaction;
     const account = connected.accounts.find(candidate => candidate.address === walletAddress &&
       candidate.chains.includes(chain) && candidate.features.includes(requiredFeature));
-    if (!account) throw new Error("Выбранный аккаунт Phantom не совпадает с issuer кошельком сессии.");
-    setMessage(`Проверьте транзакцию ${plan.phase} в Phantom. При неясном результате не отправляйте её повторно вслепую.`);
+    if (!account) throw new Error(t("registry.instrument.phantomIssuerMismatch"));
+    setMessage(t("registry.instrument.phantomReview", { phase: plan.phase }));
     const unsignedTransaction = unsignedTransactionForSigner(plan.serializedTransactionBase64, walletAddress);
     if (plan.cluster === "localnet") {
       const signingWallet = wallet as SigningWallet;
       const [output] = await signingWallet.features[SolanaSignTransaction].signTransaction({
         account, chain, transaction: unsignedTransaction, options: { preflightCommitment: "confirmed" }
       });
-      if (!output) throw new Error("Кошелёк не вернул подписанную транзакцию.");
+      if (!output) throw new Error(t("registry.instrument.missingSignedTransaction"));
       const signed = signedPreparedTransaction(output.signedTransaction, plan.serializedTransactionBase64, walletAddress);
       setSignature(signed.signature); setSendAttempted(true);
       const response = await request(`/api/v1/instruments/${deployInstrumentId}/deploy/submit`, {
@@ -227,9 +225,9 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
       });
       if (response["operationId"] !== plan.operationId || response["signature"] !== signed.signature ||
           !["SUBMITTED", "FINALIZED"].includes(String(response["status"]))) {
-        throw new Error("API не подтвердил отправку точной подписанной транзакции.");
+        throw new Error(t("registry.instrument.exactSubmissionMissing"));
       }
-      setMessage("Phantom подписал точный план, API отправил его в Localnet. Теперь подтвердите finalized и on-chain состояние.");
+      setMessage(t("registry.instrument.localnetSubmitted"));
       return;
     }
     const sendingWallet = wallet as SendingWallet;
@@ -237,27 +235,27 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
       account, chain, transaction: unsignedTransaction,
       options: { preflightCommitment: "confirmed", skipPreflight: false }
     });
-    if (!output) throw new Error("Кошелёк не вернул подпись. Проверьте историю Phantom.");
+    if (!output) throw new Error(t("registry.instrument.missingSignature"));
     setSignature(transactionSignature(output.signature)); setSendAttempted(true);
-    setMessage("Транзакция отправлена кошельком. Теперь отдельно подтвердите finalized через API.");
+    setMessage(t("registry.instrument.walletSubmitted"));
   }
 
   async function confirmDeployment() {
-    if (!plan || !signature) throw new Error("Нет подготовленной попытки и подписи транзакции.");
+    if (!plan || !signature) throw new Error(t("registry.instrument.missingAttempt"));
     const response = await request(`/api/v1/instruments/${deployInstrumentId}/deploy/confirm`, {
       method: "POST", body: JSON.stringify({ phase: plan.phase, operationId: plan.operationId, signature })
     });
     if (response["status"] !== "FINALIZED" || response["operationId"] !== plan.operationId || response["signature"] !== signature) {
-      throw new Error("API не подтвердил точную finalized-транзакцию.");
+      throw new Error(t("registry.instrument.exactFinalizedMissing"));
     }
     const completedPhase = plan.phase;
     setPlan(null); setDeployInstrumentId(""); setSignature(""); setReviewed(false); setSendAttempted(false);
     await load();
     const messages: Record<DeploymentPhase, string> = {
-      MINT_SETUP: "MINT_SETUP FINALIZED: два mint проверены, bond supply 35, mint authority отозвана. Следующая фаза — распределение 10/20/5.",
-      DISTRIBUTION: "DISTRIBUTION FINALIZED: treasury равен 0, а балансы трёх инвесторов равны 10/20/5. Следующая фаза — INITIALIZE.",
-      INITIALIZE: "INITIALIZE FINALIZED: Instrument PDA проверен, статус DEPLOYING. Следующая фаза — ACTIVATE.",
-      ACTIVATE: "ACTIVATE FINALIZED: eligibility, балансы и Instrument PDA проверены. Инструмент ACTIVE."
+      MINT_SETUP: t("registry.instrument.mintFinalized"),
+      DISTRIBUTION: t("registry.instrument.distributionFinalized"),
+      INITIALIZE: t("registry.instrument.initializeFinalized"),
+      ACTIVATE: t("registry.instrument.activateFinalized")
     };
     setMessage(messages[completedPhase]);
   }
@@ -266,7 +264,7 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
     const result = await request(`/api/v1/instruments?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
       signal ? { signal } : undefined);
     if (signal?.aborted) return;
-    if (!Array.isArray(result["items"])) throw new Error("Некорректный ответ реестра инструментов.");
+    if (!Array.isArray(result["items"])) throw new Error(t("registry.instrument.invalidRegistryResponse"));
     const rows = result["items"] as Instrument[];
     setItems(previous => cursor ? [...previous, ...rows] : rows);
     setNextCursor(typeof result["nextCursor"] === "string" ? result["nextCursor"] : null);
@@ -277,7 +275,7 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
     const abort = new AbortController();
     setError(null); setBusy(true);
     void load(undefined, abort.signal).catch((error: unknown) => {
-      if (!abort.signal.aborted) setError(error instanceof Error ? error.message : "Реестр недоступен.");
+      if (!abort.signal.aborted) setError(error instanceof Error ? error.message : t("registry.instrument.registryUnavailable"));
     }).finally(() => { if (!abort.signal.aborted) setBusy(false); });
     return () => abort.abort();
   }, [request]);
@@ -285,7 +283,7 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
   async function refresh(cursor?: string) {
     setError(null); setBusy(true);
     try { await load(cursor); }
-    catch (error) { setError(error instanceof Error ? error.message : "Запрос не выполнен."); setMessage(error instanceof Error ? error.message : "Не удалось загрузить инструменты."); }
+    catch (error) { setError(error instanceof Error ? error.message : t("registry.instrument.requestFailed")); setMessage(error instanceof Error ? error.message : t("registry.instrument.loadFailed")); }
     finally { setBusy(false); }
   }
 
@@ -306,12 +304,12 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
       form.reset();
       try {
         await load();
-        setMessage("Draft создан и записан в аудит. Токены ещё не выпущены, on-chain адреса отсутствуют.");
+        setMessage(renderQaControls ? t("registry.instrument.qaDraftCreated") : t("registry.instrument.draftCreated"));
       } catch {
-        setMessage("Draft создан, но список не обновился. Нажмите «Обновить» и не создавайте его повторно.");
+        setMessage(t("registry.instrument.draftCreatedRefreshFailed"));
       }
-    } catch (error) { setCreateError(error instanceof Error ? error.message : "Запрос не выполнен."); setError(error instanceof Error ? error.message : "Запрос не выполнен.");
-      setMessage(`${error instanceof Error ? error.message : "Не удалось создать draft."} При потере ответа сначала обновите список.`);
+    } catch (error) { setCreateError(error instanceof Error ? error.message : t("registry.instrument.requestFailed")); setError(error instanceof Error ? error.message : t("registry.instrument.requestFailed"));
+      setMessage(t("registry.instrument.createRecovery"));
     } finally { setBusy(false); }
   }
 
@@ -321,47 +319,47 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
   return <section className="mt-6 border-t border-[#dbe5df] pt-6">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h3 className="mt-1 text-lg font-semibold">Реестр инструментов</h3>
-        <details className="term-help"><summary>Как проверить выпуск</summary><p>Черновик — учётная запись в базе. Выпуск токенов, распределение, регистрация и активация подтверждаются отдельными транзакциями в сети.</p></details>
+        <h3 className="mt-1 text-lg font-semibold">{t("registry.instrument.title")}</h3>
+        <details className="term-help"><summary>{t("registry.instrument.deploymentHelp")}</summary><p>{renderQaControls ? t("registry.instrument.qaDraftHelp") : t("registry.instrument.draftHelp")}</p></details>
       </div>
-      <button type="button" className={buttonClass} disabled={busy} onClick={() => void refresh()}>Обновить</button>
+      <button type="button" className={buttonClass} disabled={busy} onClick={() => void refresh()}>{t("registry.instrument.refresh")}</button>
     </div>
-    {role !== "ADMINISTRATOR" && <p className="access-note mt-3">Режим чтения: выпуск и изменение инструмента доступны администратору с нужным signer.</p>}
+    {role !== "ADMINISTRATOR" && <p className="access-note mt-3">{t("registry.instrument.readOnly")}</p>}
 
     {role === "ADMINISTRATOR" && <details className="advanced-details mt-5">
-      <summary>Создать новый инструмент</summary>
+      <summary>{t("registry.instrument.newInstrument")}</summary>
       <form className="mb-4 grid gap-3 lg:grid-cols-2" onSubmit={event => void create(event)}>
         <div className="lg:col-span-2">
-      <h4 className="mt-1 font-semibold">Создать черновик инструмента</h4>
-      <p className="mt-1 text-xs leading-5 text-[#61746a]">Кошелёк текущей сессии станет issuer authority. Supply фиксирован: 35 неделимых bond tokens; circulating supply до выпуска равен 0.</p>
+      <h4 className="mt-1 font-semibold">{t("registry.instrument.createDraftTitle")}</h4>
+      <p className="mt-1 text-xs leading-5 text-[#61746a]">{t("registry.instrument.supplyHelp")}</p>
       </div>
-        <label className="block text-sm">Эмитент *<input className={inputClass} name="issuerLegalName" required minLength={2} maxLength={250} placeholder="LifecycleKASE Demo Issuer" disabled={busy} /></label>
-        <label className="block text-sm">Название облигации *<input className={inputClass} name="name" required minLength={2} maxLength={250} placeholder="Облигация развития 2026" disabled={busy} /></label>
-        <label className="block text-sm">Тикер *<input className={`${inputClass} uppercase`} name="ticker" required minLength={2} maxLength={20} pattern="[A-Za-z0-9][A-Za-z0-9.-]+" placeholder="KDB26" disabled={busy} /></label>
-        <label className="block text-sm">Номинал, целых KZT-Test<input className={inputClass} name="faceValueKzt" type="number" required min="1" max="9223372036854" step="1" defaultValue="1000" disabled={busy} /></label>
-        <label className="block text-sm">Купон, базисных пунктов *<input className={inputClass} name="couponRateBps" type="number" required min="0" max="100000" step="1" defaultValue="1000" disabled={busy} />
+        <label className="block text-sm">{t("registry.instrument.issuerField")}<input className={inputClass} name="issuerLegalName" required minLength={2} maxLength={250} placeholder="LifecycleKASE Demo Issuer" disabled={busy} /></label>
+        <label className="block text-sm">{t("registry.instrument.bondNameField")}<input className={inputClass} name="name" required minLength={2} maxLength={250} placeholder={t("registry.instrument.bondNamePlaceholder")} disabled={busy} /></label>
+        <label className="block text-sm">{t("registry.instrument.tickerField")}<input className={`${inputClass} uppercase`} name="ticker" required minLength={2} maxLength={20} pattern="[A-Za-z0-9][A-Za-z0-9.-]+" placeholder="KDB26" disabled={busy} /></label>
+        <label className="block text-sm">{t("registry.instrument.faceValueField")}<input className={inputClass} name="faceValueKzt" type="number" required min="1" max="9223372036854" step="1" defaultValue="1000" disabled={busy} /></label>
+        <label className="block text-sm">{t("registry.instrument.couponField")}<input className={inputClass} name="couponRateBps" type="number" required min="0" max="100000" step="1" defaultValue="1000" disabled={busy} />
       <span className="mt-1 block text-xs text-[#61746a]">1000 bps = 10%</span>
       </label>
-        <label className="block text-sm">Выплат в год<select className={inputClass} name="paymentsPerYear" defaultValue="2" disabled={busy}><option value="1">1</option><option value="2">2</option><option value="4">4</option></select></label>
-        <label className="block text-sm">Дата выпуска *<input className={inputClass} name="issueDate" type="date" required disabled={busy} /></label>
-        <label className="block text-sm">Дата погашения *<input className={inputClass} name="maturityDate" type="date" required disabled={busy} /></label>
-        {createError && <p role="alert" className="form-error lg:col-span-2">{createError} Поля сохранены.</p>}
-        <div className="lg:col-span-2"><button className={`${buttonClass} border-[#163f2b] bg-[#163f2b] text-white`} disabled={busy}>Создать черновик</button><button type="button" disabled={busy} className="secondary-button ml-2" onClick={event => event.currentTarget.closest("details")?.removeAttribute("open")}>Отмена</button></div>
+        <label className="block text-sm">{t("registry.instrument.frequencyField")}<select className={inputClass} name="paymentsPerYear" defaultValue="2" disabled={busy}><option value="1">1</option><option value="2">2</option><option value="4">4</option></select></label>
+        <label className="block text-sm">{t("registry.instrument.issueDateField")}<input className={inputClass} name="issueDate" type="date" required disabled={busy} /></label>
+        <label className="block text-sm">{t("registry.instrument.maturityDateField")}<input className={inputClass} name="maturityDate" type="date" required disabled={busy} /></label>
+        {createError && <p role="alert" className="form-error lg:col-span-2">{displayMessage(createError)}{" "}{t("registry.instrument.fieldsPreserved")}</p>}
+        <div className="lg:col-span-2"><button className={`${buttonClass} border-[#163f2b] bg-[#163f2b] text-white`} disabled={busy}>{t("registry.instrument.createDraft")}</button><button type="button" disabled={busy} className="secondary-button ml-2" onClick={event => event.currentTarget.closest("details")?.removeAttribute("open")}>{t("registry.instrument.cancel")}</button></div>
       </form>
     </details>}
 
 
     <div ref={listView} hidden={Boolean(detailId)}>
-      <RegistryToolbar label="инструменты" filters={filters} onChange={setFilters} statuses={INSTRUMENT_STATUS_LABELS} loaded={items.length} shown={visible.length} sortLabel="Тикер" />
+      <RegistryToolbar label={t("registry.instrument.registryLabel")} filters={filters} onChange={setFilters} statuses={statusLabels} loaded={items.length} shown={visible.length} sortLabel={t("registry.instrument.ticker")} />
       {busy && items.length === 0 && <RegistrySkeleton />}
-      <div className="table-scroll" hidden={items.length === 0} tabIndex={0} role="region" aria-label="Таблица инструментов">
+      <div className="table-scroll" hidden={items.length === 0} tabIndex={0} role="region" aria-label={t("registry.instrument.tableLabel")}>
       <table className="registry-table">
       <thead>
       <tr>
-      <th>Инструмент</th>
-      <th>Статус</th>
-      <th className="numeric">В обращении / всего</th>
-      <th>Погашение</th>
+      <th>{t("registry.instrument.instrument")}</th>
+      <th>{t("registry.instrument.status")}</th>
+      <th className="numeric">{t("registry.instrument.circulatingTotal")}</th>
+      <th>{t("registry.instrument.maturity")}</th>
       </tr>
       </thead>
       <tbody>{visible.map(instrument=>
@@ -371,62 +369,63 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
       <span className="table-secondary">{instrument.ticker}</span>
       </td>
       <td>
-      <span className={"status-"+statusTone(instrument.status)}>{INSTRUMENT_STATUS_LABELS[instrument.status]??instrument.status}</span>
+      <span className={"status-"+statusTone(instrument.status)}>{statusLabels[instrument.status]??instrument.status}</span>
       </td>
       <td className="numeric">{instrument.circulatingSupply} / {instrument.totalSupply}</td>
-      <td>{formatWorkspaceDate(instrument.maturityAt, "UTC", true)}</td>
+      <td>{formatDate(instrument.maturityAt, "UTC", true)}</td>
       </tr>)}</tbody>
       </table>
       </div>
-      {!busy&&!error&&visible.length===0&&<p className="empty-state">{items.length===0?"Инструментов пока нет.":"По заданному поиску и статусу ничего не найдено."}</p>}
+      {!busy&&!error&&visible.length===0&&<p className="empty-state">{items.length===0?t("registry.instrument.noInstruments"):t("registry.instrument.noMatches")}</p>}
     </div>
-    {detailId&&<button type="button" className="secondary-button mt-4" disabled={busy} onClick={backToList}>← К списку инструментов</button>}
-    {detailId&&!items.some(row=>row.id===detailId)&&<p className="empty-state">Этот UUID не найден в загруженной странице. Вернитесь к списку и загрузите следующие записи. Отдельное чтение карточки по UUID пока недоступно в API.</p>}
+    {detailId&&<button type="button" className="secondary-button mt-4" disabled={busy} onClick={backToList}>{t("registry.instrument.back")}</button>}
+    {detailId&&!items.some(row=>row.id===detailId)&&<p className="empty-state">{t("registry.instrument.missingRecord")}</p>}
     <div className="mt-5 space-y-3">
-      {items.length === 0 && !busy && <div className="rounded-xl border border-dashed border-[#cbd8d0] p-5 text-sm text-[#61746a]">Пока нет ни одного инструмента.</div>}
+      {items.length === 0 && !busy && <div className="rounded-xl border border-dashed border-[#cbd8d0] p-5 text-sm text-[#61746a]">{t("registry.instrument.emptyRegistry")}</div>}
       {items.map(instrument => <article className="record-detail rounded-xl border border-[#dbe5df] bg-white p-4 text-sm" id={`instrument-${instrument.id}`} tabIndex={-1} key={instrument.id} hidden={detailId!==instrument.id}>
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <div><p className="font-semibold">{instrument.ticker} · {instrument.name}</p><p className="mt-1 text-xs text-[#61746a]">Эмитент: {instrument.issuer.legalName}</p></div>
-          <span className={`status-${statusTone(instrument.status)}`}>{instrument.status === "DRAFT" ? "Черновик · ещё не в сети" : INSTRUMENT_STATUS_LABELS[instrument.status] ?? instrument.status}</span>
+          <div><p className="font-semibold">{instrument.ticker} · {instrument.name}</p><p className="mt-1 text-xs text-[#61746a]">{t("registry.instrument.issuerLabel")}{" "}{instrument.issuer.legalName}</p></div>
+          <span className={`status-${statusTone(instrument.status)}`}>{instrument.status === "DRAFT" ? t("registry.instrument.draftOffline") : statusLabels[instrument.status] ?? instrument.status}</span>
         </div>
         <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
-          <div><dt className="text-[#61746a]">Сеть</dt><dd>{instrument.network}</dd></div>
-          <div><dt className="text-[#61746a]">Кошелёк эмитента</dt><dd><CopyValue value={instrument.issuerAuthority} label="Кошелёк эмитента" /></dd></div>
-          <div><dt className="text-[#61746a]">Номинал</dt><dd>{formatMinor(instrument.faceValueMinor)} KZT-Test</dd></div>
-          <div><dt className="text-[#61746a]">Купон</dt><dd>{instrument.couponRateBps} bps · {instrument.paymentsPerYear} выплат/год</dd></div>
-          <div><dt className="text-[#61746a]">В обращении / объём выпуска</dt><dd>{instrument.circulatingSupply} / {instrument.totalSupply}</dd></div>
-          <div><dt className="text-[#61746a]">Срок</dt><dd>{formatWorkspaceDate(instrument.issueAt, "UTC", true)} → {formatWorkspaceDate(instrument.maturityAt, "UTC", true)}</dd></div>
+          <div><dt className="text-[#61746a]">{t("registry.instrument.network")}</dt><dd>{instrument.network}</dd></div>
+          <div><dt className="text-[#61746a]">{t("registry.instrument.issuerWallet")}</dt><dd><CopyValue value={instrument.issuerAuthority} label={t("registry.instrument.issuerWallet")} /></dd></div>
+          <div><dt className="text-[#61746a]">{t("registry.instrument.faceValue")}</dt><dd>{formatAmount(instrument.faceValueMinor)}</dd></div>
+          <div><dt className="text-[#61746a]">{t("registry.instrument.coupon")}</dt><dd>{instrument.couponRateBps} bps · {instrument.paymentsPerYear}{" "}{t("registry.instrument.paymentsPerYear")}</dd></div>
+          <div><dt className="text-[#61746a]">{t("registry.instrument.circulatingSupply")}</dt><dd>{instrument.circulatingSupply} / {instrument.totalSupply}</dd></div>
+          <div><dt className="text-[#61746a]">{t("registry.instrument.term")}</dt><dd>{formatDate(instrument.issueAt, "UTC", true)} → {formatDate(instrument.maturityAt, "UTC", true)}</dd></div>
         </dl>
-        <p className="mt-3 text-xs leading-5 text-[#8a5b18]">{instrument.programId && instrument.mintAddress
+        <p className="mt-3 text-xs leading-5 text-[#8a5b18]">{renderQaControls ? t("registry.instrument.qaState") : instrument.programId && instrument.mintAddress
           ? `Program: ${shortAddress(instrument.programId)} · Mint: ${shortAddress(instrument.mintAddress)}`
-          : "Следующий этап: подготовить mint/distribution/authority revocation и подписать deploy-транзакции кошельком."}</p>
-        {role === "ADMINISTRATOR" && instrument.status === "DRAFT" && !instrument.mintAddress && (
+          : t("registry.instrument.nextDeployment")}</p>
+        {renderQaControls?.(instrument, async () => { await load(); })}
+        {!renderQaControls && role === "ADMINISTRATOR" && instrument.status === "DRAFT" && !instrument.mintAddress && (
           <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || plan !== null}
-            onClick={() => void runDeployment(() => prepareDeployment(instrument))}>Подготовить фазу MINT_SETUP</button>
+            onClick={() => void runDeployment(() => prepareDeployment(instrument))}>{t("registry.instrument.prepareMint")}</button>
         )}
-        {instrument.mintAddress && instrument.circulatingSupply === "0" && <>
-          <p className="mt-2 text-xs text-[#28744a]">Mint setup подтверждён: {shortAddress(instrument.mintAddress)}. 35 tokens ещё находятся в treasury.</p>
-          {role === "ADMINISTRATOR" && <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || plan !== null || distributionDraft !== null}
-            onClick={() => void runDeployment(() => startDistribution(instrument))}>Выбрать инвесторов для 10/20/5</button>}
+        {!renderQaControls && instrument.status === "DRAFT" && instrument.mintAddress && instrument.circulatingSupply === "0" && <>
+          <p className="mt-2 text-xs text-[#28744a]">{t("registry.instrument.mintConfirmed")}{" "}{shortAddress(instrument.mintAddress)}{t("registry.instrument.tokensInTreasury")}</p>
+          {!renderQaControls && role === "ADMINISTRATOR" && <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || plan !== null || distributionDraft !== null}
+            onClick={() => void runDeployment(() => startDistribution(instrument))}>{t("registry.instrument.chooseInvestors")}</button>}
         </>}
-        {instrument.status === "DRAFT" && instrument.mintAddress && instrument.circulatingSupply === instrument.totalSupply && <>
-          <p className="mt-2 text-xs text-[#28744a]">Распределение 10/20/5 подтверждено. Следующий шаг создаст Instrument PDA со статусом Deploying.</p>
-          {role === "ADMINISTRATOR" && <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || plan !== null}
-            onClick={() => void runDeployment(() => prepareLifecycle(instrument, "INITIALIZE"))}>Подготовить INITIALIZE</button>}
+        {!renderQaControls && instrument.status === "DRAFT" && instrument.mintAddress && instrument.circulatingSupply === instrument.totalSupply && <>
+          <p className="mt-2 text-xs text-[#28744a]">{t("registry.instrument.distributionConfirmed")}</p>
+          {!renderQaControls && role === "ADMINISTRATOR" && <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || plan !== null}
+            onClick={() => void runDeployment(() => prepareLifecycle(instrument, "INITIALIZE"))}>{t("registry.instrument.prepareInitialize")}</button>}
         </>}
-        {instrument.status === "DEPLOYING" && <>
-          <p className="mt-2 text-xs text-[#28744a]">Instrument PDA инициализирован. Перед активацией API повторно проверит eligibility и балансы держателей.</p>
-          {role === "ADMINISTRATOR" && <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || plan !== null}
-            onClick={() => void runDeployment(() => prepareLifecycle(instrument, "ACTIVATE"))}>Подготовить ACTIVATE</button>}
+        {!renderQaControls && instrument.status === "DEPLOYING" && <>
+          <p className="mt-2 text-xs text-[#28744a]">{t("registry.instrument.initialized")}</p>
+          {!renderQaControls && role === "ADMINISTRATOR" && <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || plan !== null}
+            onClick={() => void runDeployment(() => prepareLifecycle(instrument, "ACTIVATE"))}>{t("registry.instrument.prepareActivate")}</button>}
         </>}
-        {instrument.status === "ACTIVE" &&
-          <p className="mt-2 text-xs font-semibold text-[#28744a]">Инструмент ACTIVE: финальная транзакция и on-chain Instrument PDA подтверждены.</p>}
+        {!renderQaControls && instrument.status === "ACTIVE" &&
+          <p className="mt-2 text-xs font-semibold text-[#28744a]">{t("registry.instrument.activeConfirmed")}</p>}
       </article>)}
     </div>
     {distributionDraft && <div className="mt-4 rounded-xl border border-[#d3b779] bg-[#fffaf0] p-4 text-sm">
-      <p className="font-semibold">Фаза DISTRIBUTION · {distributionDraft.instrument.ticker}</p>
-      <p className="mt-2 text-xs leading-5">Каждая доля привязывается к отдельному active + verified + eligible investor-wallet. Подпись выполнит три Token-2022 transfer из issuer treasury.</p>
-      <div className="mt-3 grid gap-3 sm:grid-cols-3">{["10", "20", "5"].map(amount => <label className="text-xs" key={amount}>Доля: {amount} bond
+      <p className="font-semibold">{t("registry.instrument.distributionPhase")}{" "}{distributionDraft.instrument.ticker}</p>
+      <p className="mt-2 text-xs leading-5">{t("registry.instrument.allocationHelp")}</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-3">{["10", "20", "5"].map(amount => <label className="text-xs" key={amount}>{t("registry.instrument.allocation")}{" "}{amount} bond
         <select className={inputClass} value={distributionDraft.selections[amount]} disabled={busy}
           onChange={event => setDistributionDraft(current => current ? { ...current,
             selections: { ...current.selections, [amount]: event.target.value } } : null)}>
@@ -436,28 +435,28 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
         </select>
       </label>)}</div>
       <div className="mt-3 flex gap-2"><button type="button" className={buttonClass} disabled={busy}
-        onClick={() => void runDeployment(prepareDistribution)}>Подготовить DISTRIBUTION</button>
-      <button type="button" className={buttonClass} disabled={busy} onClick={() => setDistributionDraft(null)}>Отмена</button></div>
+        onClick={() => void runDeployment(prepareDistribution)}>{t("registry.instrument.prepareDistribution")}</button>
+      <button type="button" className={buttonClass} disabled={busy} onClick={() => setDistributionDraft(null)}>{t("registry.instrument.cancel")}</button></div>
     </div>}
     {plan && <div className="mt-4 rounded-xl border border-[#d3b779] bg-[#fffaf0] p-4 text-sm">
-      <p className="font-semibold">{items.find(row => row.id === deployInstrumentId)?.ticker ?? deployInstrumentId} · проверка фазы {plan.phase}</p>
-      <p className="mt-2 text-xs leading-5">Сеть: <strong>{plan.cluster}</strong>. {phaseSummary(plan.phase)}</p>
-      <dl className="mt-3 space-y-1 text-xs"><div><dt className="text-[#61746a]">Подписант</dt><dd><CopyValue value={plan.requiredSigner} label="Подписант выпуска" /></dd></div>
+      <p className="font-semibold">{items.find(row => row.id === deployInstrumentId)?.ticker ?? deployInstrumentId}{" "}{t("registry.instrument.phaseReviewLabel")}{" "}{plan.phase}</p>
+      <p className="mt-2 text-xs leading-5">{t("registry.instrument.networkLabel")}{" "}<strong>{plan.cluster}</strong>. {displayMessage(phaseSummary(plan.phase))}</p>
+      <dl className="mt-3 space-y-1 text-xs"><div><dt className="text-[#61746a]">{t("registry.instrument.signer")}</dt><dd><CopyValue value={plan.requiredSigner} label={t("registry.instrument.deploymentSigner")} /></dd></div>
         {plan.bondMint && <div><dt className="text-[#61746a]">Bond mint</dt><dd className="break-all font-mono">{plan.bondMint}</dd></div>}
         {plan.settlementMint && <div><dt className="text-[#61746a]">KZT-Test mint</dt><dd className="break-all font-mono">{plan.settlementMint}</dd></div>}
         {plan.instrumentAddress && <div><dt className="text-[#61746a]">Instrument PDA</dt><dd className="break-all font-mono">{plan.instrumentAddress}</dd></div>}
         {plan.allocations?.map(allocation => <div key={allocation.tokenAccount}><dt className="text-[#61746a]">{allocation.amount} bond · investor {allocation.investorId.slice(0, 8)}</dt>
           <dd className="break-all font-mono">{allocation.walletAddress}</dd></div>)}</dl>
       <label className="mt-3 flex gap-2 text-xs"><input type="checkbox" checked={reviewed} disabled={busy || sendAttempted} onChange={event => setReviewed(event.target.checked)} />
-        {phaseReview(plan.phase)}</label>
+        {displayMessage(phaseReview(plan.phase))}</label>
       <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || !reviewed || sendAttempted || !transactionWallet(wallet, plan.cluster)}
-        onClick={() => void runDeployment(sendDeployment)}>Подписать и отправить {plan.phase}</button>
-      {sendAttempted && <div className="mt-3"><p className="text-xs">UUID попытки: <span className="font-mono">{plan.operationId}</span></p>
-        <label className="mt-2 block text-xs">Подпись из Phantom<input className={inputClass} value={signature} maxLength={88} disabled={busy} onChange={event => setSignature(event.target.value.trim())} /></label>
+        onClick={() => void runDeployment(sendDeployment)}>{t("registry.instrument.signAndSend")}{" "}{plan.phase}</button>
+      {sendAttempted && <div className="mt-3"><p className="text-xs">{t("registry.instrument.attemptUuid")}{" "}<span className="font-mono">{plan.operationId}</span></p>
+        <label className="mt-2 block text-xs">{t("registry.instrument.phantomSignature")}<input className={inputClass} value={signature} maxLength={88} disabled={busy} onChange={event => setSignature(event.target.value.trim())} /></label>
         <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || signature.length < 64}
-          onClick={() => void runDeployment(confirmDeployment)}>Проверить finalized и on-chain состояние</button></div>}
+          onClick={() => void runDeployment(confirmDeployment)}>{t("registry.instrument.checkFinalized")}</button></div>}
     </div>}
-    {!detailId && nextCursor && <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy} onClick={() => void refresh(nextCursor)}>Загрузить ещё</button>}
-    <RequestNotice busy={busy} message={message} error={error} onRetry={() => void refresh()} />
+    {!detailId && nextCursor && <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy} onClick={() => void refresh(nextCursor)}>{t("registry.instrument.loadMore")}</button>}
+    <RequestNotice busy={busy} message={message} error={error === null ? null : displayMessage(error)} onRetry={() => void refresh()} />
   </section>;
 }

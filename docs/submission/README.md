@@ -2,6 +2,10 @@
 
 This directory is the current judge-facing package for the KASE corporate-actions side track.
 
+Candidate update — **2026-10-11**: [English reviewer guide](JUDGE_README.md), [fresh three-action evidence](../testing/evidence/kase-three-actions-2026-10-11.json), [founder profile](FOUNDER_PROFILE_EN.md) and [implementation acceptance](../testing/submission-readiness-2026-10-11.md). The two initial audit defects are fixed in this candidate and RU/EN UI is implemented. Historical source/media pins below remain evidence of the earlier run. New narrated videos, public deployment and final submission are separate outstanding steps.
+
+Main Colosseum preparation — **2026-10-11**: use the [English demo/pitch plan and complete narration](ENGLISH_DEMO_AND_PITCH_PLAN.md) for Crypto World's Fair. It verifies the current English-content rule, a 2–3-minute pitch, separate demo at most 3 minutes and deadline **2026-10-13 11:59 Asia/Qyzylorda**. These are plans, not completed new videos. The existing captioned RU-interface clip below is preserved evidence; English-screen acceptance is not inferred from it. The [initial full audit](../PROJECT_AUDIT_2026-10-11.md) recorded two code defects and public `/qa` 404; [candidate acceptance](../testing/submission-readiness-2026-10-11.md) records the fixes and local RU/EN checks. Public deployment remains open. No project submission occurred.
+
 Start with:
 
 1. [Current KASE requirements matrix](KASE_REQUIREMENTS_MATRIX.md) — implemented, simulated and limited behavior mapped to the official brief.

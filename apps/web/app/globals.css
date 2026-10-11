@@ -50,7 +50,7 @@
 
 body {
   margin: 0;
-  min-width: 320px;
+  min-width: 0;
   background: var(--canvas);
   color: var(--ink);
   font-family: var(--font-interface), "Segoe UI", sans-serif;

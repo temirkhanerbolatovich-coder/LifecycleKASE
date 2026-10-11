@@ -1,3 +1,5 @@
+import { getDisplayLocale, translateStoredMessage } from "./locale";
+
 async function responseJson(response: Response): Promise<Record<string, unknown>> {
   try {
     const value: unknown = await response.json();
@@ -137,7 +139,7 @@ export async function apiRequest(path: string, init?: RequestInit, fetchRequest:
 
 export class OperatorApiError extends Error {
   constructor(public readonly code: string | undefined, public readonly status: number, message: string) {
-    super(message); this.name = "OperatorApiError";
+    super(translateStoredMessage(message, getDisplayLocale())); this.name = "OperatorApiError";
   }
 }
 

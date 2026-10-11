@@ -12,7 +12,9 @@ test("actions require authentication, keep auditors read-only and enforce Origin
   const previous = { AUTH_ENABLED: process.env.AUTH_ENABLED, AUTH_ALLOWED_ORIGINS: process.env.AUTH_ALLOWED_ORIGINS };
   process.env.AUTH_ENABLED = "true"; process.env.AUTH_ALLOWED_ORIGINS = "http://localhost:3000";
   let role = "AUDITOR"; let limited = false;
-  const database = { session: { findUnique: async () => ({ walletAddress: "11111111111111111111111111111111", revokedAt: null,
+  const database = { wallet: { findUnique: async () => ({ userId: id, status: "ACTIVE",
+    verifiedAt: new Date("2026-09-29"), revokedAt: null }) },
+    session: { findUnique: async () => ({ walletAddress: "11111111111111111111111111111111", revokedAt: null,
     expiresAt: new Date("2099-01-01"), user: { id, role } }) }, corporateAction: { findMany: async () => [] } };
   const headers = new Map<string, string>(); const response = { setHeader: (key: string, value: string) => headers.set(key, value) };
   const controller = new CorporateActionController(database as never, { consumeMutation() { if (limited) throw new AuthRateLimitError(9); } } as never);

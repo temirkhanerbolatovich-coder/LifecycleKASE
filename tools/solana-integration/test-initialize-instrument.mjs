@@ -10,6 +10,7 @@ import { buildSnapshotRegistrationInstruction, buildInstrumentMintSetup, buildIn
   buildEntitlementRegistration, buildCalculationFinalization, buildCalculationReset } from "../../packages/solana-client/dist/index.js";
 import anchor from "@anchor-lang/core";
 import { testActionApproval } from "./test-action-approval.mjs";
+import { testZeroRoundedCoupon } from "./test-zero-rounded-coupon.mjs";
 import {
   Connection,
   Keypair,
@@ -428,6 +429,8 @@ if (process.env.APPROVAL_ACCEPTANCE_ONLY === "true") {
 }
 
 await waitForDisposableUpgrade();
+
+if (kaseDemo) await testZeroRoundedCoupon({ connection, program, issuer: administrator, send, sendPreparedInstructions });
 
 if (process.env.ACTION_TEST_DATABASE_URL) {
   // Keep production RPC's loopback-only HTTP policy intact when WSL uses a private IP.

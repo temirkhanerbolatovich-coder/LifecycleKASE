@@ -1,3 +1,4 @@
+import { getDisplayLocale, translateStoredMessage, type Locale } from "./locale";
 export const WORKSPACE_SECTIONS = [
   { id: "overview", label: "Обзор", shortLabel: "Обзор", description: "Текущий этап и быстрый переход к работе" },
   { id: "actions", label: "Корпоративные действия", shortLabel: "Действия", description: "Фиксация держателей, начисления и выплаты" },
@@ -25,4 +26,8 @@ export function workspaceSelectionFromHash(hash: string, section: WorkspaceSecti
 
 export function workspaceSectionHash(section: WorkspaceSection, selected?: string | null): string {
   return `#${section}${selected && workspaceSelectionFromHash(`#${section}?selected=${selected}`, section) ? `?selected=${selected}` : ""}`;
+}
+
+export function getWorkspaceSections(locale: Locale = getDisplayLocale()) {
+  return WORKSPACE_SECTIONS.map(section => ({ ...section, label: translateStoredMessage(section.label, locale), shortLabel: translateStoredMessage(section.shortLabel, locale), description: translateStoredMessage(section.description, locale) }));
 }

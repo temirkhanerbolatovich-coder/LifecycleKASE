@@ -24,3 +24,6 @@
 - [ADR-022: Durable Localnet upgrade maintenance](ADR-022-durable-program-upgrade-maintenance.md)
 - [ADR-023: Separate action approver and custody reserve](ADR-023-action-approval-and-custody-reserve.md)
 - [ADR-024: Atomic coupon receipts and finalized database projection](ADR-024-atomic-coupon-receipts.md)
+- [ADR-025: Atomic redemption with immutable source accounts](ADR-025-atomic-redemption.md)
+- [ADR-026: Walletless UI QA with page-local synthetic state](ADR-026-walletless-qa-sandbox.md)
+- [ADR-027: Locale preference without changing operator routes or transaction state](ADR-027-display-locales.md)

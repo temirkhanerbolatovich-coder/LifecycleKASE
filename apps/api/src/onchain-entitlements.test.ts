@@ -5,6 +5,8 @@ import { createSnapshotV2Commitment } from "@lifecycle-kase/domain";
 import { decodePublicKey, deriveCorporateActionAddresses, deriveEntitlementAddress, encodePublicKey } from "@lifecycle-kase/solana-client";
 import { onchainCalculationEnabled, prepareOnchainCalculation } from "./onchain-entitlements.js";
 import { TransactionWorkflowError } from "./transaction-workflow.js";
+import { entitlementAmounts, getEntitlements, requireCouponFundingCalculation, requireCouponExecutionCalculation, reviewEntitlements } from "./entitlements.js";
+import { couponReceiptDraft } from "./coupon-receipt.js";
 
 const PROGRAM = "6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo";
 const KEY = "5Nn5WtR1dzVamAJYAheUBucFu6wUuJLbCUr2VwTTJzMM";
@@ -14,22 +16,22 @@ const options = { enabled: true, cluster: "localnet" as const, expectedGenesisHa
   programId: PROGRAM, rpcEndpoint: "http://127.0.0.1:8899", rpcTimeoutMs: 1000 };
 
 function actionAccount(input: { actionId: string; instrumentAddress: string; hash: string; status?: number;
-  registered?: number; amount?: bigint }) {
+  registered?: number; amount?: bigint; balance?: bigint; count?: number }) {
   const data = Buffer.alloc(200); let offset = 0;
   createHash("sha256").update("account:CorporateAction").digest().copy(data, offset, 0, 8); offset += 8;
   data[offset++] = 1; Buffer.from(input.actionId.replaceAll("-", ""), "hex").copy(data, offset); offset += 16;
   Buffer.from(decodePublicKey(input.instrumentAddress)).copy(data, offset); offset += 32; data[offset++] = 0;
   data.writeBigInt64LE(1_790_000_000n, offset); offset += 8; data.writeBigInt64LE(1_790_000_060n, offset); offset += 8;
   data[offset++] = 0; data[offset++] = 0; Buffer.from(input.hash, "hex").copy(data, offset); offset += 32;
-  data.writeBigUInt64LE(10n, offset); offset += 8; data.writeUInt32LE(1, offset); offset += 4;
-  data.writeUInt32LE(1, offset); offset += 4; data.writeBigUInt64LE(10n, offset); offset += 8;
+  data.writeBigUInt64LE(10n, offset); offset += 8; data.writeUInt32LE(input.count ?? 1, offset); offset += 4;
+  data.writeUInt32LE(input.count ?? 1, offset); offset += 4; data.writeBigUInt64LE(input.balance ?? 10n, offset); offset += 8;
   data.writeBigUInt64LE(input.amount ?? 0n, offset); offset += 8; data.writeUInt32LE(input.registered ?? 0, offset); offset += 4;
   data.writeUInt32LE(0, offset); offset += 4; data[offset++] = input.status ?? 2;
   data.writeBigInt64LE(1_789_999_900n, offset); offset += 8; data[offset++] = 0; data[offset++] = 1;
   return data.toString("base64");
 }
 
-async function fixture() {
+async function fixture(balances = [10n], terms = { faceValueMinor: 1_000_000n, couponRateBps: 1000, paymentsPerYear: 2 }) {
   const actionId = randomUUID(); const instrumentId = randomUUID(); const investorId = randomUUID();
   const entitlementId = randomUUID(); const snapshotInvestorId = randomUUID(); const walletId = randomUUID();
   const at = new Date("2026-10-02T12:00:00.000Z");
@@ -64,7 +66,42 @@ async function fixture() {
           walletStatus: "ACTIVE", balance: 10n, tokenAccounts: [{ address: KEY, balance: 10n }] }] }] } };
   const addresses = await deriveCorporateActionAddresses(PROGRAM,
     Buffer.from(instrumentId.replaceAll("-", ""), "hex"), Buffer.from(actionId.replaceAll("-", ""), "hex"));
-  return { action, entitlement, addresses, chain: actionAccount({ actionId, instrumentAddress: addresses.instrumentAddress, hash: commitment.sha256 }) };
+  Object.assign(action.instrument, terms, { issuerAuthority: KEY });
+  const investors = balances.map((balance, index) => {
+    const row = structuredClone(action.snapshot.investors[0]!);
+    row.id = index === 0 ? snapshotInvestorId : randomUUID();
+    row.investorId = index === 0 ? investorId : randomUUID(); row.balance = balance;
+    row.investor.id = row.investorId; row.investor.displayName = String(index);
+    const address = index === 0 ? KEY : encodePublicKey(new Uint8Array(32).fill(index + 8));
+    row.investor.wallets[0]!.id = index === 0 ? walletId : randomUUID();
+    row.investor.wallets[0]!.investorId = row.investorId; row.investor.wallets[0]!.address = address;
+    row.wallets[0]!.walletId = row.investor.wallets[0]!.id;
+    row.wallets[0]!.walletAddress = address; row.wallets[0]!.balance = balance;
+    row.wallets[0]!.tokenAccounts[0] = { address, balance };
+    return row;
+  });
+  const totalBalance = balances.reduce((sum, balance) => sum + balance, 0n);
+  const revised = createSnapshotV2Commitment({ actionId, instrumentId, cluster: "localnet", networkGenesisHash: GENESIS,
+    mintAddress: KEY, recordAt: at.toISOString(), blockTime: at.toISOString(), createdAt: at.toISOString(), solanaSlot: 10n,
+    mintSupply: totalBalance, investors: investors.map(row => ({ investorId: row.investorId,
+      eligibilityStatus: "ELIGIBLE", wallets: row.wallets.map(wallet => ({ walletId: wallet.walletId,
+        walletAddress: wallet.walletAddress, walletStatus: "ACTIVE", tokenAccounts: wallet.tokenAccounts })) })) });
+  Object.assign(action.snapshot, { investors, totalBalance, mintSupply: totalBalance, investorCount: investors.length,
+    walletCount: investors.length, snapshotHash: Buffer.from(revised.sha256, "hex"), canonicalJson: revised.snapshot });
+  action.entitlements = investors.map((row, index) => {
+    const result = entitlementAmounts("COUPON_PAYMENT", row.balance, terms, null, null);
+    return { ...structuredClone(entitlement), id: index === 0 ? entitlementId : randomUUID(), snapshotInvestorId: row.id,
+      investorId: row.investorId, settlementWalletAddress: row.wallets[0]!.walletAddress, balanceAtRecordDate: row.balance,
+      amountMinor: result.amountMinor, status: result.amountMinor === 0n ? "NOT_ELIGIBLE_ZERO_ROUNDING" : "CALCULATED",
+      eligibilityReason: result.amountMinor === 0n ? "ZERO_ROUNDING" : "LOCAL_DEMO_ELIGIBLE",
+      calculationInputs: { ...calculationInputs, snapshotHash: revised.sha256, balance: row.balance.toString(),
+        faceValueMinor: terms.faceValueMinor.toString(), couponRateBps: terms.couponRateBps, paymentsPerYear: terms.paymentsPerYear,
+        roundingRemainder: result.roundingRemainder, denominator: result.denominator } };
+  });
+  action.totalEntitlementMinor = action.entitlements.reduce((sum, row) => sum + row.amountMinor, 0n);
+  action.eligibleHolders = action.entitlements.filter(row => row.amountMinor > 0n).length;
+  return { action, entitlement: action.entitlements[0]!, addresses, chain: actionAccount({ actionId,
+    instrumentAddress: addresses.instrumentAddress, hash: revised.sha256, balance: totalBalance, count: investors.length }) };
 }
 
 function harness(value: Awaited<ReturnType<typeof fixture>>) {
@@ -154,4 +191,85 @@ test("registration cannot race pending finalization or reset", async () => {
   await assert.rejects(prepareOnchainCalculation(setup.database as never, setup.rpc as never, value.action.id,
     { phase: "REGISTER", version: 3, entitlementId: value.entitlement.id }, actor, options),
   (error: unknown) => error instanceof TransactionWorkflowError && error.code === "CALCULATION_OPERATION_PENDING");
+});
+
+const smallCoupon = { faceValueMinor: 1n, couponRateBps: 1, paymentsPerYear: 1 };
+
+function reviewDatabase(value: Awaited<ReturnType<typeof fixture>>) {
+  const updates: Record<string, unknown>[] = []; const audits: Record<string, unknown>[] = [];
+  const database = { corporateAction: { findUnique: async () => value.action,
+    updateMany: async ({ data }: { data: Record<string, unknown> }) => {
+      updates.push(data); Object.assign(value.action, data, { version: value.action.version + 1 }); return { count: 1 };
+    } }, blockchainTransaction: { findFirst: async () => null },
+    auditLog: { create: async ({ data }: { data: Record<string, unknown> }) => { audits.push(data); return data; } },
+    $transaction: async (task: (tx: unknown) => Promise<unknown>) => task(database) };
+  return { database, updates, audits };
+}
+
+test("mixed 0/1 coupon submits complete rows and prepares zero registration without adding a payable holder", async () => {
+  const value = await fixture([1n, 10_000n], smallCoupon); value.action.status = "CALCULATED";
+  const review = reviewDatabase(value);
+  const result = await reviewEntitlements(review.database as never, value.action.id,
+    { version: 3, decision: "SUBMIT", note: "Reviewed mixed zero and positive coupon" }, actor);
+  assert.equal(result.status, "UNDER_REVIEW"); assert.equal(result.totalEntitlementMinor, "1");
+  assert.equal(result.eligibleHolders, 1); assert.equal(result.items.length, 2);
+  assert.equal(result.items[0]!.status, "NOT_ELIGIBLE_ZERO_ROUNDING");
+  assert.equal(review.audits.length, 1);
+  const setup = harness(value);
+  await prepareOnchainCalculation(setup.database as never, setup.rpc as never, value.action.id,
+    { phase: "REGISTER", version: 4, entitlementId: value.entitlement.id }, actor, options);
+  const payload = setup.created[0]?.["preparedPayload"] as Record<string, unknown>;
+  assert.equal(payload["paymentAmountMinor"], "0"); assert.equal(payload["balanceAtSnapshot"], "1");
+  assert.equal(payload["entitlementStatus"], "NOT_ELIGIBLE_ZERO_ROUNDING");
+  const funding = await requireCouponFundingCalculation(setup.database as never, value.action.id);
+  assert.equal(funding.totalEntitlementMinor, 1n); assert.equal(funding.eligibleHolders, 1);
+});
+
+test("all-zero coupon stays calculated and readable; review, funding and chain preparation cannot advance it", async () => {
+  const value = await fixture([1n, 2n], smallCoupon); value.action.status = "CALCULATED";
+  const setup = reviewDatabase(value);
+  await assert.rejects(reviewEntitlements(setup.database as never, value.action.id,
+    { version: 3, decision: "SUBMIT", note: "No positive coupon" }, actor), { code: "CALCULATION_INCOMPLETE" });
+  assert.equal(value.action.status, "CALCULATED"); assert.equal(value.action.version, 3);
+  assert.equal(setup.updates.length, 0); assert.equal(setup.audits.length, 0);
+  const readable = await getEntitlements(setup.database as never, value.action.id);
+  assert.equal(readable.items.length, 2); assert.equal(readable.totalEntitlementMinor, "0"); assert.equal(readable.eligibleHolders, 0);
+  assert.ok(readable.items.every(row => row.status === "NOT_ELIGIBLE_ZERO_ROUNDING"));
+  await assert.rejects(requireCouponFundingCalculation(setup.database as never, value.action.id), { code: "COUPON_CALCULATION_REQUIRED" });
+  value.action.status = "UNDER_REVIEW";
+  const onchain = harness(value);
+  await assert.rejects(prepareOnchainCalculation(onchain.database as never, onchain.rpc as never, value.action.id,
+    { phase: "REGISTER", version: 3, entitlementId: value.entitlement.id }, actor, options), { code: "CALCULATION_INCOMPLETE" });
+  assert.equal(onchain.created.length, 0);
+});
+
+test("mixed coupon receipt preserves zero rows, excludes their settlement and counts only the paid positive row", async () => {
+  const value = await fixture([1n, 10_000n], smallCoupon); const positive = value.action.entitlements[1]!;
+  const signature = "2".repeat(64);
+  Object.assign(value.action, { status: "SETTLED", processedEntitlements: 1, approvedById: actor.id,
+    approvedAt: new Date("2026-10-02T12:01:00Z"), sourceType: "ISSUER_NOTICE", sourceReference: "regression", sourceDocument: null });
+  Object.assign(positive, { status: "PAID", settlementSignature: signature });
+  const settlementsRead: string[] = [];
+  const database = { corporateAction: { findUnique: async () => value.action },
+    blockchainTransaction: { findFirst: async () => ({ signature }) },
+    settlement: { findUnique: async ({ where }: { where: { entitlementId: string } }) => {
+      settlementsRead.push(where.entitlementId);
+      return { status: "FINALIZED", reconciliationStatus: "MATCHED", amountMinor: 1n, actualAmountMinor: 1n,
+        legs: [{ type: "CASH", required: true, status: "CONFIRMED", expectedAmountMinor: 1n, actualAmountMinor: 1n,
+          blockchainTransaction: { signature, status: "FINALIZED", operationType: "COUPON_PAYMENT", entitlementId: positive.id,
+            corporateActionId: value.action.id, networkGenesisHash: GENESIS,
+            preparedPayload: { entitlementReceiptAddress: KEY, executedAt: "1790942460", finalizedSlot: 11 } } },
+          { type: "ASSET", required: false, status: "NOT_APPLICABLE", expectedAmountMinor: 0n, actualAmountMinor: null }] };
+    } } };
+  const draft = await couponReceiptDraft(database as never, value.action.id);
+  const payload = JSON.parse(draft.json) as { totalAmountMinor: string; entitlements: { amountMinor: string; status: string; settlement: unknown }[] };
+  assert.equal(payload.totalAmountMinor, "1"); assert.equal(payload.entitlements.length, 2);
+  assert.deepEqual(payload.entitlements[0], { investorId: value.entitlement.investorId, entitlementId: value.entitlement.id,
+    amountMinor: "0", status: "NOT_ELIGIBLE_ZERO_ROUNDING", settlement: null });
+  assert.equal(payload.entitlements[1]!.status, "PAID"); assert.deepEqual(settlementsRead, [positive.id]);
+  assert.equal(createHash("sha256").update(draft.json).digest("hex"), draft.hash);
+  await assert.rejects(requireCouponExecutionCalculation(database as never, value.action.id, value.entitlement.id),
+    { code: "ENTITLEMENT_ALREADY_EXECUTED" });
+  Object.assign(value.action, { processedEntitlements: 2 });
+  await assert.rejects(couponReceiptDraft(database as never, value.action.id), { code: "RECONCILIATION_REQUIRED" });
 });

@@ -4,6 +4,8 @@ Fresh scan: root deployed npm graph has zero advisories; the isolated legacy int
 
 Reviewed: 2026-10-10. This is the current implementation boundary, not an external security audit or production authorization. Use only synthetic data and Localnet/Devnet test assets. Mainnet, real cash, legal issuance and real KYC are outside the accepted pilot scope.
 
+Update — 2026-10-11: the shared operator-session gate now revalidates the current wallet on every protected read or mutation. An unexpired cookie does not retain access after that wallet becomes blocked, pending, revoked, unverified, deleted or assigned to another user. The earlier stale-wallet finding remains dated in the [technical audit](../testing/technical-audit-2026-10-11.md).
+
 ## Assets and trust boundaries
 
 | Boundary | Protection currently implemented | Remaining limit |
@@ -18,6 +20,8 @@ Reviewed: 2026-10-10. This is the current implementation boundary, not an extern
 ## Authentication and authorization
 
 Operator login signs a purpose-specific message containing domain, Origin, public wallet, challenge ID, random nonce and expiry. The challenge is consumed once after Ed25519 verification. PostgreSQL retains hashes rather than raw nonce/session secrets. Sessions have expiry/revocation; cookies are HttpOnly, SameSite=Strict and Secure in production. Login and protected mutation requests use bounded per-client limits. Configure trusted proxy hops explicitly so forwarded addresses do not bypass those limits.
+
+`readOperatorSession` also requires the session address to belong to the same current User, with an ACTIVE, verified wallet and no revocation timestamp. This check performs a fresh wallet lookup instead of caching authorization until cookie expiry. Failure uses the existing `401 SESSION_INVALID` contract, so the browser enters its ordinary authentication-recovery flow without automatically replaying a signed submission. Session expiry, explicit session revocation and role checks still apply. Regressions cover active access, wallet lifecycle/ownership changes, expired and revoked sessions, and the HTTP recovery contract. This is request-time validation; it does not add operator lifecycle administration or freeze already-authorized on-chain transactions.
 
 Administrator mutations and Auditor reads are separate. Financial workflows additionally bind the session wallet to the instrument issuer and saved attempt. Investor ownership proof does not grant operator authority or eligibility. Provisioning is a controlled local operation using a public address; see [operator provisioning](../operations/operator-provisioning.md). Authentication is disabled unless explicitly enabled and configured; disabled protected routes fail closed.
 

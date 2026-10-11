@@ -1,6 +1,6 @@
 # Corporate action scheduling and snapshot
 
-Status: implemented locally on 2026-10-02. Persistent owner Phantom coupon scheduling/snapshot is accepted in the [live runbook](../testing/localnet-action-acceptance.md); remaining manual variants are separate gates. This slice schedules/cancels actions and registers a snapshot. The following [entitlement/review slice](entitlements-and-review.md) is also locally implemented; funding and on-chain payment/redemption remain pending.
+Status: implemented locally on 2026-10-02. Persistent owner Phantom coupon scheduling/snapshot is accepted in the [live runbook](../testing/localnet-action-acceptance.md); remaining manual variants are separate gates. This slice schedules/cancels actions and registers a snapshot. Separate slices implement [entitlements/review](entitlements-and-review.md), [funding](coupon-funding.md), [coupon execution](coupon-execution-and-receipts.md) and [atomic redemptions](redemption-execution-and-receipts.md). The isolated candidate's [three-action acceptance](../testing/kase-three-actions-2026-10-10.md) is separate from retained-owner funding/payment/redemption acceptance, which remains pending.
 
 ## Operator flow
 
@@ -81,3 +81,11 @@ Actual HTTP/PostgreSQL/Localnet acceptance passed for all three action types: sc
 | Investors / total balance | `3` / `35` |
 
 The first capture requests at 17:20:42 and 17:20:52 UTC saw finalized block times 17:20:27 and 17:20:38, both before record time. Bounded polling succeeded once the finalized slot reached 17:20:41. The application rejected the premature captures without creating/backdating a snapshot.
+
+## Zero-total calculation policy — 2026-10-11
+
+Zero-rounded coupon rows now use the same NOT_ELIGIBLE_ZERO_ROUNDING status in the API and program. All captured holders remain represented, but only positive obligations contribute to eligible recipient counts and payments. Mixed zero/positive calculations proceed through separate approval, reserve, execution and final receipt; skipped rows have no settlement signature or burn.
+
+An entirely zero calculation cannot pass application SUBMIT or on-chain FINALIZE. Application evidence remains CALCULATED and readable without changing version or review audit on a rejected submission. The UI explains why review is unavailable. Existing calculation rules still forbid recalculating a CALCULATED action; a separately reviewed terminal no-payment policy remains future work. Partial on-chain registrations may be reset only through the existing complete-set guarded reset before FINALIZE.
+
+No account layout or instruction signature changed. A freshly built isolated candidate passed live mixed 1/2/0 and all-zero regressions, plus the three financial actions. See [candidate acceptance](../testing/submission-readiness-2026-10-11.md). Retained-owner installation is a separate gate.

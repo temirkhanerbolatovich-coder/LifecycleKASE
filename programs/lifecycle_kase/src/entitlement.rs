@@ -154,8 +154,9 @@ impl EntitlementTerms {
                 && self.tokens_to_redeem == expected.tokens_to_redeem,
             ErrorCode::InvalidEntitlement
         );
-        if action.action_type == CorporateActionType::EarlyRedemption
-            && expected.tokens_to_redeem == 0
+        if expected.amount_minor == 0
+            || (action.action_type == CorporateActionType::EarlyRedemption
+                && expected.tokens_to_redeem == 0)
         {
             return Ok(EntitlementStatus::NotEligibleZeroRounding);
         }
@@ -290,7 +291,7 @@ pub fn finalize(ctx: Context<FinalizeCalculation>) -> Result<()> {
             .ok_or(ErrorCode::CalculationOverflow)?;
     }
     require!(
-        balance == action.total_balance && amount == action.total_amount_minor,
+        balance == action.total_balance && amount == action.total_amount_minor && amount > 0,
         ErrorCode::IncompleteCalculation
     );
     action.status = CorporateActionStatus::UnderReview;
@@ -551,6 +552,34 @@ mod tests {
         action.redemption_percentage_bps = Some(1000);
         action.redemption_price_minor = Some(1_000_000_000);
         terms.balance_at_snapshot = 5;
+        terms.payment_amount_minor = 0;
+        assert_eq!(
+            terms.checked_status(&instrument, &action).unwrap(),
+            EntitlementStatus::NotEligibleZeroRounding
+        );
+    }
+
+    #[test]
+    fn coupon_zero_rounding_preserves_rows_and_only_positive_amounts_are_ready() {
+        let (mut instrument, mut action, mut terms) = fixture();
+        instrument.face_value_minor = 1;
+        instrument.coupon_rate_bps = 1;
+        instrument.payments_per_year = 1;
+        action.total_balance = 10_001;
+        terms.balance_at_snapshot = 1;
+        terms.payment_amount_minor = 0;
+        assert_eq!(
+            terms.checked_status(&instrument, &action).unwrap(),
+            EntitlementStatus::NotEligibleZeroRounding
+        );
+        terms.payment_amount_minor = 1;
+        assert!(terms.checked_status(&instrument, &action).is_err());
+        terms.balance_at_snapshot = 10_000;
+        assert_eq!(
+            terms.checked_status(&instrument, &action).unwrap(),
+            EntitlementStatus::Ready
+        );
+        instrument.coupon_rate_bps = 0;
         terms.payment_amount_minor = 0;
         assert_eq!(
             terms.checked_status(&instrument, &action).unwrap(),

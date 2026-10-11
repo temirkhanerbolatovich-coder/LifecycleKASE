@@ -1,5 +1,21 @@
 # Changelog
 
+## Submission candidate fixes and English UI — 2026-10-11
+
+- Revalidate the operator wallet mapping on every session read; blocked, revoked, unverified, deleted or reassigned wallets invalidate existing sessions through `SESSION_INVALID`.
+- Preserve zero-rounded coupon rows on-chain as `NotEligibleZeroRounding`; require positive calculation totals before review/finalization. Add mixed/all-zero API, program and disposable validator regressions.
+- Add typed RU/EN display catalogs, a persistent language selector, matching server metadata, exact BigInt amounts and state-preserving notice translation. Fix page overflow at a 320px viewport with a vertical scrollbar.
+- Add fresh three-action evidence, an English reviewer guide and the founder's verified-input profile. See [candidate acceptance](docs/testing/submission-readiness-2026-10-11.md). Owner deployment, narrated videos and final submission remain separate gates.
+
+## Audit and submission/localization plans — 2026-10-11
+
+- Record fresh source/test/GitHub/UI checks, two unresolved defects, public QA publication gap and prioritized implementation/acceptance backlog in the [full audit](docs/PROJECT_AUDIT_2026-10-11.md).
+- Correct four current documentation contradictions while preserving historical checkpoints. Add the [RU/KK/EN localization plan](docs/features/localization-plan.md) and [English demo/pitch narration](docs/submission/ENGLISH_DEMO_AND_PITCH_PLAN.md). No application-code fix, localization implementation, new video, deployment or submission is claimed.
+
+## Walletless UI QA — 2026-10-11
+
+- Add a page-local `/qa` sandbox with shared operator screens, synthetic records, issuer/approver/Auditor switching, explicit simulated three-action stages and marked state export/reset. Preserve protected wallet authentication and real signing validation. See the [QA checklist and limits](docs/features/qa-sandbox.md); implementation and deployment acceptance are tracked separately.
+
 ## Public application staging — 2026-10-11
 
 - Publish API and web from exact application revision `bc62abfd947db6bc854624dccdcac61ec13036a3` on the existing free Render services, with successful migration 19 and startup logs.

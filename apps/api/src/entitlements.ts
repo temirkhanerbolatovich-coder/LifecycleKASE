@@ -227,6 +227,7 @@ export async function reviewEntitlements(database: PrismaClient, id: string, bod
     if (!action.entitlements.length || action.entitlements.length !== action.snapshot!.investorCount) {
       throw new TransactionWorkflowError("CALCULATION_INCOMPLETE", "All snapshot investors must have a stored calculation");
     }
+    if (decision === "SUBMIT") verifyStoredCalculations(action, "CALCULATED");
     if (decision === "APPROVE") {
       if (requireOnchainFinalization && !await tx.blockchainTransaction.findFirst({ where: {
         corporateActionId: id, operationType: "CALCULATION_FINALIZE", status: "FINALIZED"

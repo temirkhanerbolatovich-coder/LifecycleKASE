@@ -10,7 +10,9 @@ test("upgrade routes require a session, Administrator mutations, exact Origin an
     LOCALNET_PROGRAM_UPGRADE_ENABLED: process.env.LOCALNET_PROGRAM_UPGRADE_ENABLED };
   process.env.AUTH_ENABLED = "true"; process.env.AUTH_ALLOWED_ORIGINS = "http://localhost:3000"; process.env.LOCALNET_PROGRAM_UPGRADE_ENABLED = "false";
   let role = "AUDITOR"; let limited = false;
-  const database = { session: { findUnique: async () => ({ walletAddress: "11111111111111111111111111111111", revokedAt: null,
+  const database = { wallet: { findUnique: async () => ({ userId: "00000000-0000-4000-8000-000000000001",
+    status: "ACTIVE", verifiedAt: new Date("2026-09-29"), revokedAt: null }) },
+    session: { findUnique: async () => ({ walletAddress: "11111111111111111111111111111111", revokedAt: null,
     expiresAt: new Date("2099-01-01"), user: { id: "00000000-0000-4000-8000-000000000001", role } }) } };
   const headers = new Map<string, string>(); const response = { setHeader: (key: string, value: string) => headers.set(key, value) };
   const controller = new ProgramUpgradeController(database as never, { consumeMutation() { if (limited) throw new AuthRateLimitError(7); } } as never);

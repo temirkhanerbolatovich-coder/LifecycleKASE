@@ -79,7 +79,10 @@ export async function testActionApprovalFlow({ database, instrument, administrat
     if (["ASSIGN_APPROVER", "APPROVE"].includes(phase)) {
       await database.wallet.update({ where: { address: approver.walletAddress }, data: { revokedAt: new Date() } });
       const before = broadcasts;
-      assert.equal((await submit()).payload.code, "APPROVER_NOT_AUTHORIZED");
+      const revoked = await submit();
+      const revokedSession = signer.walletAddress === approver.walletAddress;
+      assert.equal(revoked.payload.code, revokedSession ? "SESSION_INVALID" : "APPROVER_NOT_AUTHORIZED");
+      if (revokedSession) assert.equal(revoked.status, 401);
       assert.equal(broadcasts, before);
       assert.equal((await database.blockchainTransaction.findUniqueOrThrow({ where: { id: plan.operationId } })).signature, null);
       await database.wallet.update({ where: { address: approver.walletAddress }, data: { revokedAt: null } });

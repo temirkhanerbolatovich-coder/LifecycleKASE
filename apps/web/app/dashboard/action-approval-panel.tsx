@@ -1,8 +1,8 @@
 "use client";
+import { useLocale, useLocalizedTextState } from "./locale-context";
 import { useEffect, useRef, useState } from "react";
 import type { Wallet } from "@wallet-standard/base";
 import { approvalView, preparedActionApproval, type ApprovalPhase, type ApprovalPlan, type ApprovalView } from "./action-approval-workflow";
-import { formatMinorKzt } from "./entitlement-workflow";
 import { signAndSubmitPrepared, supportsPreparedTransaction } from "./wallet-transaction";
 import { waitForFinalizedCheck } from "./finalized-check";
 import { resumedDeploymentSignature } from "./snapshot-workflow";
@@ -15,10 +15,11 @@ export function ActionApprovalPanel({ actionId, administrator, walletAddress, wa
   request: (path: string, init?: RequestInit) => Promise<Record<string, unknown>>;
   onBusyChange: (value: boolean) => void; onChanged: () => Promise<void>;
 }) {
+  const { locale, displayMessage: financialCopy, formatAmount, formatDate } = useLocale();
   const [view, setView] = useState<ApprovalView | null>(null); const [plan, setPlan] = useState<ApprovalPlan | null>(null);
   const [approver, setApprover] = useState(""); const [note, setNote] = useState(""); const [signature, setSignature] = useState("");
   const [sendInvoked, setSendInvoked] = useState(false);
-  const [reviewed, setReviewed] = useState(false); const [busy, setBusy] = useState(false); const [message, setMessage] = useState("Загрузка резерва…");
+  const [reviewed, setReviewed] = useState(false); const [busy, setBusy] = useState(false); const [message, setMessage] = useLocalizedTextState("Загрузка резерва…");
   const [error, setError] = useState<string | null>(null);
   const inFlight = useRef(false);
   const path = `/api/v1/corporate-actions/${actionId}/approval`;
@@ -64,35 +65,35 @@ export function ActionApprovalPanel({ actionId, administrator, walletAddress, wa
   }
   const issuer = administrator && view?.issuer === walletAddress;
   const canApprove = administrator && view?.approver === walletAddress;
-  return <section className="mt-4 rounded-xl border border-[#b9dec8] bg-[#f7fbf8] p-4" aria-label="Согласование и резерв действия">
-    <h5 className="font-semibold">Согласование и резерв действия</h5>
-    <p className="mt-2 text-sm">Резерв закрепляет бюджет за действием. Отдельный кошелёк подтверждает согласование; выплаты выполняются следующим этапом.</p>
+  return <section className="mt-4 rounded-xl border border-[#b9dec8] bg-[#f7fbf8] p-4" aria-label={financialCopy("Согласование и резерв действия")}>
+    <h5 className="font-semibold">{financialCopy("Согласование и резерв действия")}</h5>
+    <p className="mt-2 text-sm">{financialCopy("Резерв закрепляет бюджет за действием. Отдельный кошелёк подтверждает согласование; выплаты выполняются следующим этапом.")}</p>
     {view && <>
-      <p className="mt-3 text-sm">Бюджет: {formatMinorKzt(view.amountMinor)} · В резерве: {formatMinorKzt(view.reservedMinor)} · Treasury: {formatMinorKzt(view.treasuryBalanceMinor)}</p>
-      <div className="mt-2"><p>Согласующий</p>{view.approver ? <CopyValue value={view.approver} label="Кошелёк согласующего" /> : <p>Не назначен</p>}</div>
-      <details className="term-help"><summary>Реквизиты резерва</summary><CopyValue value={view.reserveAddress} label="Резерв" /><CopyValue value={view.vaultAddress} label="Хранилище" /></details>
-      {view.approved && <p className="mt-2 font-semibold">Согласовано в Solana. Бюджет закреплён за действием.</p>}
+      <p className="mt-3 text-sm">{financialCopy("Бюджет:")} {formatAmount(view.amountMinor)} {financialCopy("· В резерве:")} {formatAmount(view.reservedMinor)} · Treasury: {formatAmount(view.treasuryBalanceMinor)}</p>
+      <div className="mt-2"><p>{financialCopy("Согласующий")}</p>{view.approver ? <CopyValue value={view.approver} label={financialCopy("Кошелёк согласующего")} /> : <p>{financialCopy("Не назначен")}</p>}</div>
+      <details className="term-help"><summary>{financialCopy("Реквизиты резерва")}</summary><CopyValue value={view.reserveAddress} label={financialCopy("Резерв")} /><CopyValue value={view.vaultAddress} label={financialCopy("Хранилище")} /></details>
+      {view.approved && <p className="mt-2 font-semibold">{financialCopy("Согласовано в Solana. Бюджет закреплён за действием.")}</p>}
       {!plan && !view.approved && <div className="mt-3 space-y-3">
-        {issuer && !view.approver && <label className="block text-sm">Кошелёк отдельного согласующего<input className={input} value={approver} maxLength={44} onChange={event => setApprover(event.target.value)} /></label>}
-        {canApprove && <label className="block text-sm">Основание согласования<textarea className={input} value={note} maxLength={1000} onChange={event => setNote(event.target.value)} /></label>}
+        {issuer && !view.approver && <label className="block text-sm">{financialCopy("Кошелёк отдельного согласующего")}<input className={input} value={approver} maxLength={44} onChange={event => setApprover(event.target.value)} /></label>}
+        {canApprove && <label className="block text-sm">{financialCopy("Основание согласования")}<textarea className={input} value={note} maxLength={1000} onChange={event => setNote(event.target.value)} /></label>}
         <div className="flex flex-wrap gap-2">
-          {issuer && !view.approver && <button className={button} disabled={busy || Boolean(view.pending) || approver.length < 32} onClick={() => void run(() => prepare("ASSIGN_APPROVER"))}>{labels.ASSIGN_APPROVER}</button>}
-          {issuer && view.approver && <button className={button} disabled={busy || Boolean(view.pending)} onClick={() => void run(() => prepare(view.reserveExists ? "RELEASE" : "RESERVE"))}>{labels[view.reserveExists ? "RELEASE" : "RESERVE"]}</button>}
-          {canApprove && <button className={button} disabled={busy || Boolean(view.pending) || !view.reserveExists || BigInt(view.reservedMinor) < BigInt(view.amountMinor) || note.trim().length < 3} onClick={() => void run(() => prepare("APPROVE"))}>{labels.APPROVE}</button>}
-          <button className={button} disabled={busy} onClick={() => void run(refresh)}>Обновить резерв</button>
+          {issuer && !view.approver && <button className={button} disabled={busy || Boolean(view.pending) || approver.length < 32} onClick={() => void run(() => prepare("ASSIGN_APPROVER"))}>{financialCopy(labels.ASSIGN_APPROVER)}</button>}
+          {issuer && view.approver && <button className={button} disabled={busy || Boolean(view.pending)} onClick={() => void run(() => prepare(view.reserveExists ? "RELEASE" : "RESERVE"))}>{financialCopy(labels[view.reserveExists ? "RELEASE" : "RESERVE"])}</button>}
+          {canApprove && <button className={button} disabled={busy || Boolean(view.pending) || !view.reserveExists || BigInt(view.reservedMinor) < BigInt(view.amountMinor) || note.trim().length < 3} onClick={() => void run(() => prepare("APPROVE"))}>{financialCopy(labels.APPROVE)}</button>}
+          <button className={button} disabled={busy} onClick={() => void run(refresh)}>{financialCopy("Обновить резерв")}</button>
         </div>
-        {view.pending && <p className="text-xs">Сохранённая попытка: {String(view.pending["operationId"])} · {String(view.pending["status"])}. Требуется её исходный signer.</p>}
+        {view.pending && <p className="text-xs">{financialCopy("Сохранённая попытка:")} {String(view.pending["operationId"])} · {String(view.pending["status"])}{financialCopy(". Требуется её исходный signer.")}</p>}
       </div>}
     </>}
     {plan && <div className="mt-4 rounded-lg border border-[#e2d7b8] bg-[#fffaf0] p-3 text-xs">
-      <p className="mb-2">Localnet · KZT-Test, тестовый актив</p>
-      <strong>{labels[plan.phase]}</strong><p className="mt-2 break-all">Signer: {plan.requiredSigner}<br />Genesis: {plan.networkGenesisHash}<br />Snapshot: {plan.snapshotHash}<br />Сумма: {formatMinorKzt(plan.amountMinor)}<br />Резерв: {plan.reserveAddress}<br />Хранилище: {plan.vaultAddress}<br />Попытка: {plan.operationId}</p>
-      <p className="mt-2">Комиссия: {plan.feeLamports} lamports · Rent: {plan.creationRentLamports} · Будущий rent получателей: {plan.recipientRentLamports} · Оценка комиссий исполнения: {plan.estimatedExecutionFeeLamports} · Буфер SOL: {plan.networkReserveLamports}</p>
-      {plan.note && <p className="mt-2">Основание: {plan.note}</p>}
-      <label className="mt-3 flex gap-2"><input type="checkbox" disabled={busy || Boolean(signature)} checked={reviewed} onChange={event => setReviewed(event.target.checked)} />Проверил полномочия, сеть, snapshot, сумму, резерв и расходы</label>
-      <button className={button + " mt-3"} disabled={busy || sendInvoked || Boolean(signature) || !reviewed || !supportsPreparedTransaction(wallet, "localnet")} onClick={() => void run(sign)}>Подписать {plan.phase} в Phantom</button>
-      <label className="mt-3 block">Подпись транзакции<input className={input} disabled={busy} value={signature} onChange={event => setSignature(event.target.value)} /></label>
-      <button className={button + " mt-3"} disabled={busy || signature.length < 64} onClick={() => void run(confirm)}>Подтвердить finalized и резерв</button>
+      <p className="mb-2">{financialCopy("Localnet · KZT-Test, тестовый актив")}</p>
+      <strong>{financialCopy(labels[plan.phase])}</strong><p className="mt-2 break-all">Signer: {plan.requiredSigner}<br />Genesis: {plan.networkGenesisHash}<br />Snapshot: {plan.snapshotHash}<br />{financialCopy("Сумма:")} {formatAmount(plan.amountMinor)}<br />{financialCopy("Резерв:")} {plan.reserveAddress}<br />{financialCopy("Хранилище:")} {plan.vaultAddress}<br />{financialCopy("Попытка:")} {plan.operationId}</p>
+      <p className="mt-2">{financialCopy("Комиссия:")} {plan.feeLamports} lamports · Rent: {plan.creationRentLamports} {financialCopy("· Будущий rent получателей:")} {plan.recipientRentLamports} {financialCopy("· Оценка комиссий исполнения:")} {plan.estimatedExecutionFeeLamports} {financialCopy("· Буфер SOL:")} {plan.networkReserveLamports}</p>
+      {plan.note && <p className="mt-2">{financialCopy("Основание:")} {plan.note}</p>}
+      <label className="mt-3 flex gap-2"><input type="checkbox" disabled={busy || Boolean(signature)} checked={reviewed} onChange={event => setReviewed(event.target.checked)} />{financialCopy("Проверил полномочия, сеть, snapshot, сумму, резерв и расходы")}</label>
+      <button className={button + " mt-3"} disabled={busy || sendInvoked || Boolean(signature) || !reviewed || !supportsPreparedTransaction(wallet, "localnet")} onClick={() => void run(sign)}>{financialCopy("Подписать")} {plan.phase} {financialCopy("в Phantom")}</button>
+      <label className="mt-3 block">{financialCopy("Подпись транзакции")}<input className={input} disabled={busy} value={signature} onChange={event => setSignature(event.target.value)} /></label>
+      <button className={button + " mt-3"} disabled={busy || signature.length < 64} onClick={() => void run(confirm)}>{financialCopy("Подтвердить finalized и резерв")}</button>
     </div>}
     <RequestNotice busy={busy} message={message} error={error} onRetry={() => void run(refresh)} />
   </section>;

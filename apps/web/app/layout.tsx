@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { cookies } from "next/headers";
+import { LocaleProvider } from "./dashboard/locale-context";
+import { createTranslator, LOCALE_COOKIE, parseLocale } from "./dashboard/locale";
 import "./globals.css";
 
 const golos = localFont({
@@ -9,11 +12,12 @@ const golos = localFont({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "LifecycleKASE — рабочее место оператора",
-  description: "Управление корпоративными действиями токенизированных инструментов",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = createTranslator(parseLocale((await cookies()).get(LOCALE_COOKIE)?.value));
+  return { title: t("common.operatorTitle"), description: t("common.description") };
+}
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="ru" className={golos.variable}><body>{children}</body></html>;
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const locale = parseLocale((await cookies()).get(LOCALE_COOKIE)?.value);
+  return <html lang={locale} className={golos.variable}><body><LocaleProvider initialLocale={locale}>{children}</LocaleProvider></body></html>;
 }

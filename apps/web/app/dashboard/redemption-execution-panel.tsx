@@ -1,4 +1,5 @@
 "use client";
+import { useLocale, useLocalizedTextState } from "./locale-context";
 import { useEffect, useRef, useState } from "react";
 import type { Wallet } from "@wallet-standard/base";
 import { finalizedRedemptionReceipt, preparedRedemptionExecution, redemptionExecutionSignature, redemptionExecutionView,
@@ -6,7 +7,6 @@ import { finalizedRedemptionReceipt, preparedRedemptionExecution, redemptionExec
 import { signAndSubmitPrepared, supportsPreparedTransaction } from "./wallet-transaction";
 import { waitForFinalizedCheck } from "./finalized-check";
 import { CopyValue, RequestNotice } from "./workspace-controls";
-import { formatMinorKzt } from "./entitlement-workflow";
 import { shortWalletAddress } from "./wallet-account-selection";
 type Request = (path: string, init?: RequestInit) => Promise<Record<string, unknown>>;
 
@@ -14,11 +14,12 @@ export function RedemptionExecutionPanel({ actionId, actionType, administrator, 
   actionId: string; actionType: string; administrator: boolean; wallet: Wallet | undefined; walletAddress: string; request: Request;
   onBusyChange: (busy: boolean) => void; onChanged: () => Promise<void>;
 }) {
+  const { locale, displayMessage: financialCopy, formatAmount, formatDate } = useLocale();
   const path = `/api/v1/corporate-actions/${actionId}/redemption-execution`;
   const [view, setView] = useState<RedemptionExecutionView | null>(null);
   const [plan, setPlan] = useState<RedemptionExecutionPlan | null>(null); const [signature, setSignature] = useState("");
   const [reviewed, setReviewed] = useState(false); const [sent, setSent] = useState(false); const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState(""); const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useLocalizedTextState(""); const [error, setError] = useState<string | null>(null);
   const inFlight = useRef(false);
   const canWrite = administrator && view?.requiredSigner === walletAddress;
   async function run(task: () => Promise<unknown>) {
@@ -76,36 +77,36 @@ export function RedemptionExecutionPanel({ actionId, actionType, administrator, 
     finally { URL.revokeObjectURL(url); }
     setMessage("Проверенный итоговый документ JSON скачан.");
   }
-  if (view && !view.enabled) return <p className="access-note mt-4">Исполнение погашений не включено в текущей среде. Расчёт доступен в карточке действия.</p>;
-  return <section className="workflow-section" aria-label="Выплаты и погашение токенов">
-    <div className="registry-heading"><div><h3>{actionType === "BOND_REDEMPTION" ? "Погашение по сроку" : "Частичное досрочное погашение"}</h3>
-      <p>{view ? `Подтверждено ${view.paid} из ${view.payable} · ${formatMinorKzt(view.totalAmountMinor)} · Supply: ${view.currentTokenSupply} токенов` : "Загрузка погашений…"}</p></div>
-      <button className="secondary-button" disabled={busy} onClick={() => void run(load)}>Обновить</button></div>
-    <p className="mt-3 text-sm">Одна транзакция переводит KZT-Test из резерва и сжигает указанное количество bond-токенов. При ошибке выплата и сжигание отменяются вместе.</p>
-    {view && !canWrite && <div className="access-note mt-3"><p>{administrator ? "Погашение подписывает назначенный кошелёк corporate action authority." : "Аудитор просматривает выплаты, погашение и доказательства. Подготовка и подпись недоступны."}</p><CopyValue label="Подписант погашения" value={view.requiredSigner} /></div>}
+  if (view && !view.enabled) return <p className="access-note mt-4">{financialCopy("Исполнение погашений не включено в текущей среде. Расчёт доступен в карточке действия.")}</p>;
+  return <section className="workflow-section" aria-label={financialCopy("Выплаты и погашение токенов")}>
+    <div className="registry-heading"><div><h3>{actionType === "BOND_REDEMPTION" ? financialCopy("Погашение по сроку") : financialCopy("Частичное досрочное погашение")}</h3>
+      <p>{view ? financialCopy(`Подтверждено ${view.paid} из ${view.payable} · ${formatAmount(view.totalAmountMinor)} · Supply: ${view.currentTokenSupply} токенов`) : financialCopy("Загрузка погашений…")}</p></div>
+      <button className="secondary-button" disabled={busy} onClick={() => void run(load)}>{financialCopy("Обновить")}</button></div>
+    <p className="mt-3 text-sm">{financialCopy("Одна транзакция переводит KZT-Test из резерва и сжигает указанное количество bond-токенов. При ошибке выплата и сжигание отменяются вместе.")}</p>
+    {view && !canWrite && <div className="access-note mt-3"><p>{administrator ? financialCopy("Погашение подписывает назначенный кошелёк corporate action authority.") : financialCopy("Аудитор просматривает выплаты, погашение и доказательства. Подготовка и подпись недоступны.")}</p><CopyValue label={financialCopy("Подписант погашения")} value={view.requiredSigner} /></div>}
     {view && <div className="payment-list">{view.items.filter(row => row.tokensToRedeem !== "0").map((row, index) => <div className="payment-row" key={row.id}>
-      <div><strong>{row.displayName ?? `Инвестор ${index + 1}`}</strong><span className="table-secondary" title={row.receiver}>{shortWalletAddress(row.receiver)}</span></div>
-      <div className="numeric"><strong>{formatMinorKzt(row.amountMinor)}</strong><span className="table-secondary">Сжечь {row.tokensToRedeem} токенов</span></div>
-      {row.status === "REDEEMED" ? <span className="status-ready">Погашено</span> : !row.burnAvailable ? <span className="status-wait">Проверьте остатки и исходную подпись</span> : <button className="secondary-button" disabled={busy || !canWrite || Boolean(plan) || Boolean(view.pending) || sent} onClick={() => void run(() => prepare("PAY", row.id))}>Подготовить погашение</button>}
+      <div><strong>{row.displayName ?? financialCopy(`Инвестор ${index + 1}`)}</strong><span className="table-secondary" title={row.receiver}>{shortWalletAddress(row.receiver)}</span></div>
+      <div className="numeric"><strong>{formatAmount(row.amountMinor)}</strong><span className="table-secondary">{financialCopy("Сжечь")} {row.tokensToRedeem} {financialCopy("токенов")}</span></div>
+      {row.status === "REDEEMED" ? <span className="status-ready">{financialCopy("Погашено")}</span> : !row.burnAvailable ? <span className="status-wait">{financialCopy("Проверьте остатки и исходную подпись")}</span> : <button className="secondary-button" disabled={busy || !canWrite || Boolean(plan) || Boolean(view.pending) || sent} onClick={() => void run(() => prepare("PAY", row.id))}>{financialCopy("Подготовить погашение")}</button>}
     </div>)}</div>}
-    {view && view.paid === view.payable && view.status !== "FINALIZED" && <button className="primary-button mt-4" disabled={busy || !canWrite || Boolean(plan) || Boolean(view.pending) || sent} onClick={() => void run(() => prepare("FINALIZE"))}>Подготовить итоговое подтверждение</button>}
-    {view?.status === "FINALIZED" && <button className="primary-button mt-4" disabled={busy} onClick={() => void run(downloadReceipt)}>Скачать итоговый документ JSON</button>}
+    {view && view.paid === view.payable && view.status !== "FINALIZED" && <button className="primary-button mt-4" disabled={busy || !canWrite || Boolean(plan) || Boolean(view.pending) || sent} onClick={() => void run(() => prepare("FINALIZE"))}>{financialCopy("Подготовить итоговое подтверждение")}</button>}
+    {view?.status === "FINALIZED" && <button className="primary-button mt-4" disabled={busy} onClick={() => void run(downloadReceipt)}>{financialCopy("Скачать итоговый документ JSON")}</button>}
     {plan && <div className="transaction-review mt-4">
-      <h4>{plan.phase === "PAY" ? `Выплатить ${formatMinorKzt(plan.amountMinor)} и сжечь ${plan.tokensToRedeem} токенов` : "Закрепить итог погашения"}</h4>
-      <p>Localnet · KZT-Test — тестовый расчётный актив</p>
-      <div className="mt-3"><CopyValue label="Подписант" value={plan.requiredSigner} /><CopyValue label="Bond mint" value={plan.tokenMint} /><CopyValue label="Settlement mint" value={plan.settlementMint} /></div>
-      {plan.phase === "PAY" ? <><CopyValue label="Получатель выплаты" value={plan.settlementWallet!} />
-        <p className="mt-3 font-semibold">Supply: {plan.supplyBefore} → {plan.supplyAfter} · Сжигание: {plan.tokensToRedeem}</p>
+      <h4>{plan.phase === "PAY" ? financialCopy(`Выплатить ${formatAmount(plan.amountMinor)} и сжечь ${plan.tokensToRedeem} токенов`) : financialCopy("Закрепить итог погашения")}</h4>
+      <p>{financialCopy("Localnet · KZT-Test — тестовый расчётный актив")}</p>
+      <div className="mt-3"><CopyValue label={financialCopy("Подписант")} value={plan.requiredSigner} /><CopyValue label="Bond mint" value={plan.tokenMint} /><CopyValue label="Settlement mint" value={plan.settlementMint} /></div>
+      {plan.phase === "PAY" ? <><CopyValue label={financialCopy("Получатель выплаты")} value={plan.settlementWallet!} />
+        <p className="mt-3 font-semibold">Supply: {plan.supplyBefore} → {plan.supplyAfter} {financialCopy("· Сжигание:")} {plan.tokensToRedeem}</p>
         <div className="mt-3 space-y-3">{plan.tokenAccounts?.map(source => <div className="evidence-row" key={source.address}>
-          <CopyValue label="Счёт bond-токенов" value={source.address} /><CopyValue label="Владелец счёта" value={source.walletAddress} />
-          <p>В snapshot: {source.balanceAtSnapshot} · До: {source.balanceBefore} → После: {source.expectedBalanceAfter} · Сжечь: {source.burnAmount}</p>
-        </div>)}</div></> : <p className="mt-3 font-semibold">Погашено: {plan.totalTokensRedeemed} токенов · Итоговый supply: {plan.finalSupply}. Все начисления входят в итоговый документ.</p>}
-      <details className="term-help"><summary>Реквизиты сохранённой попытки</summary><CopyValue label="Genesis" value={plan.networkGenesisHash} /><CopyValue label="Snapshot SHA-256" value={plan.snapshotHash} /><CopyValue label="UUID попытки" value={plan.operationId} />{plan.receiptHash && <CopyValue label="Receipt SHA-256" value={plan.receiptHash} />}</details>
-      {!sent && !signature && <><label className="mt-3 flex gap-2 text-sm"><input type="checkbox" checked={reviewed} disabled={busy || !canWrite} onChange={event => setReviewed(event.target.checked)} />Проверил сеть, подписанта, получателя, сумму, каждый счёт сжигания, остатки и supply</label>
-        <button className="primary-button mt-3" disabled={busy || !reviewed || !canWrite || !supportsPreparedTransaction(wallet, "localnet")} onClick={() => void run(send)}>Подписать в Phantom</button></>}
-      {(sent || signature) && <><p className="technical-id mt-3">Исходная подпись: {signature || "Проверьте историю кошелька и восстановите исходную подпись"}</p>
-        <button className="primary-button mt-3" disabled={busy || !canWrite || !/^[1-9A-HJ-NP-Za-km-z]{64,88}$/.test(signature)} onClick={() => void run(confirm)}>Проверить выплату и погашение</button></>}
-      {canWrite && <details className="term-help"><summary>Восстановить исходную подпись вручную</summary><label>Подпись исходной транзакции<input className="mt-2 w-full rounded border p-2" value={signature} maxLength={88} disabled={busy} onChange={event => { setSignature(event.target.value.trim()); setSent(true); setReviewed(false); }} /></label></details>}
+          <CopyValue label={financialCopy("Счёт bond-токенов")} value={source.address} /><CopyValue label={financialCopy("Владелец счёта")} value={source.walletAddress} />
+          <p>{financialCopy("В snapshot:")} {source.balanceAtSnapshot} {financialCopy("· До:")} {source.balanceBefore} {financialCopy("→ После:")} {source.expectedBalanceAfter} {financialCopy("· Сжечь:")} {source.burnAmount}</p>
+        </div>)}</div></> : <p className="mt-3 font-semibold">{financialCopy("Погашено:")} {plan.totalTokensRedeemed} {financialCopy("токенов · Итоговый supply:")} {plan.finalSupply}{financialCopy(". Все начисления входят в итоговый документ.")}</p>}
+      <details className="term-help"><summary>{financialCopy("Реквизиты сохранённой попытки")}</summary><CopyValue label="Genesis" value={plan.networkGenesisHash} /><CopyValue label="Snapshot SHA-256" value={plan.snapshotHash} /><CopyValue label={financialCopy("UUID попытки")} value={plan.operationId} />{plan.receiptHash && <CopyValue label="Receipt SHA-256" value={plan.receiptHash} />}</details>
+      {!sent && !signature && <><label className="mt-3 flex gap-2 text-sm"><input type="checkbox" checked={reviewed} disabled={busy || !canWrite} onChange={event => setReviewed(event.target.checked)} />{financialCopy("Проверил сеть, подписанта, получателя, сумму, каждый счёт сжигания, остатки и supply")}</label>
+        <button className="primary-button mt-3" disabled={busy || !reviewed || !canWrite || !supportsPreparedTransaction(wallet, "localnet")} onClick={() => void run(send)}>{financialCopy("Подписать в Phantom")}</button></>}
+      {(sent || signature) && <><p className="technical-id mt-3">{financialCopy("Исходная подпись:")} {signature || financialCopy("Проверьте историю кошелька и восстановите исходную подпись")}</p>
+        <button className="primary-button mt-3" disabled={busy || !canWrite || !/^[1-9A-HJ-NP-Za-km-z]{64,88}$/.test(signature)} onClick={() => void run(confirm)}>{financialCopy("Проверить выплату и погашение")}</button></>}
+      {canWrite && <details className="term-help"><summary>{financialCopy("Восстановить исходную подпись вручную")}</summary><label>{financialCopy("Подпись исходной транзакции")}<input className="mt-2 w-full rounded border p-2" value={signature} maxLength={88} disabled={busy} onChange={event => { setSignature(event.target.value.trim()); setSent(true); setReviewed(false); }} /></label></details>}
     </div>}
     <RequestNotice busy={busy} error={error} message={message} onRetry={() => void run(load)} />
   </section>;

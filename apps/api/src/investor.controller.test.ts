@@ -16,6 +16,8 @@ test("registry requires a session, keeps auditors read-only and checks mutation 
   let role = "AUDITOR";
   let reads = 0;
   const database = {
+    wallet: { findUnique: async () => ({ userId: "00000000-0000-4000-8000-000000000001",
+      status: "ACTIVE", verifiedAt: new Date("2026-09-29"), revokedAt: null }) },
     session: { findUnique: async () => ({ walletAddress: "11111111111111111111111111111111", revokedAt: null,
       expiresAt: new Date("2099-01-01"), user: { id: "00000000-0000-4000-8000-000000000001", role } }) },
     investor: { findMany: async () => { reads++; return []; } }
