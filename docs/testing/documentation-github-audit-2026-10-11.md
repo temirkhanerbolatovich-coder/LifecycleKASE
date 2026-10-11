@@ -89,4 +89,10 @@ Architecture/data-flow, security/testing и redemption feature docs различ
 
 Fresh public GitHub REST and git ls-remote checks still show the public draft PR #1 at eb7a6025cadb45229949a7107f7e0a72c07e1058 and default master at 27af655bc3b0354ad067778fed8ebd0e68c61a64. The PR is open, draft and mergeable. That published state does not include the new local RU/EN, QA, auth and coupon corrections or their new evidence. No source publication or new remote CI is claimed by local checks.
 
-The [candidate acceptance](submission-readiness-2026-10-11.md) now supersedes the initial open defect/test status. Documentation has dated addenda, a current English reviewer guide, supplied founder profile and fresh canonical receipts; the initial audit and old source/video pins remain historical. Source publication, Render deployment and signed-out public QA acceptance remain separate steps.
+The [candidate acceptance](submission-readiness-2026-10-11.md) supersedes the initial open defect/test status. Documentation has dated addenda, an English reviewer guide, supplied founder profile and fresh canonical receipts; the initial audit and old source/video pins remain historical. The paragraph above records the pre-publication checkpoint.
+
+## Publication follow-up — 2026-10-11, 17:08 Asia/Qyzylorda
+
+Application commit `1e6c96dd119f32cbf01cecef028723b9134ebe4b` is published on the existing candidate branch and deployed to both existing free Render services. Local and remote SHA matched before rollout; all three [CI jobs in run 38137890172](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/actions/runs/38137890172) passed. Draft PR #1 remains open and the default branch is unchanged.
+
+[Deployment evidence](../deployment/render-staging.md) records the exact service deploy IDs, successful builds, 19 existing migrations with none pending, seven public HTTP checks and signed-out English QA/role acceptance. The public route now returns 200; initial 404 and pending-source statements above remain historical. Documentation changes following application publication update README, reviewer/recording guides, localization and acceptance gates without replacing original video or receipt bytes. No new narrated recording or final submission is claimed.

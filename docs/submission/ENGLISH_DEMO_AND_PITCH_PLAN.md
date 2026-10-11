@@ -1,6 +1,6 @@
 # English demo and pitch plan — Crypto World's Fair
 
-Prepared: **2026-10-11**, Asia/Qyzylorda. This is a recording plan and English script; no new narrated recording, upload or submission was performed. Repository observations cover the working tree based on HEAD `eb7a6025cadb45229949a7107f7e0a72c07e1058`, including uncommitted QA changes. Preserve the existing original recordings and canonical receipts.
+Prepared: **2026-10-11**, Asia/Qyzylorda. This is a recording plan and English script; no new narrated recording, upload or submission was performed. The initial plan inspected the working tree based on `eb7a6025cadb45229949a7107f7e0a72c07e1058`. The implemented RU/EN/QA candidate is now published as [application revision `1e6c96d`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/1e6c96dd119f32cbf01cecef028723b9134ebe4b) and [public QA](https://lifecyclekase-web.onrender.com/qa), with successful CI and [Render/browser acceptance](../deployment/render-staging.md). Preserve the existing original recordings and canonical receipts.
 
 ## Target and verified rules
 
@@ -23,12 +23,12 @@ The [Superteam Kazakhstan × KASE side track](https://superteam.fun/earn/listing
 | Existing [43.28 s captioned demo](kase-three-actions-captioned.webm) and [44.64 s original](kase-three-actions.webm) | Read-only review of a completed disposable Localnet run; coupon, partial redemption, maturity and receipts | Spoken pitch, founder/business story, live physical Phantom signing or all-English visible UI |
 | [Canonical receipts and run record](../testing/evidence/kase-three-actions-2026-10-10.json) | Recorded on-chain test payments/burns/final receipts; exact evidence can be checked | Public Devnet/Mainnet Explorer, retained-owner rollout or continuously queryable disposable ledger |
 | [Public dashboard](https://lifecyclekase-web.onrender.com/dashboard) | Hosted application staging; recorded availability details are in [deployment record](../deployment/render-staging.md) | Cloud access to owner's loopback validator, anonymous financial access or new settlement acceptance |
-| `/qa` [sandbox](../features/qa-sandbox.md) in working tree | Walletless page-local synthetic UX exercise | Solana execution, real wallet auth, database persistence or real money |
+| Published `/qa` [sandbox](../features/qa-sandbox.md) | Walletless page-local synthetic UX exercise in RU/EN | Solana execution, real wallet auth, database persistence or real money |
 | [Pinned submission package](README.md) | Source/media/evidence location | Latest working-tree publication, correct default branch or actual submission |
 
 The saved Localnet numbers are **1,750 KZT-Test coupon**, **7,000 KZT-Test partial redemption with 7 burned**, then **29,400 KZT-Test maturity including final coupon with 28 burned and supply 0**. After later maturity, a historical partial card can show current supply 0; use its action receipt to demonstrate the earlier 35 → 28 change. Never narrate current supply as if it were the historical partial result.
 
-Current audit update from the main audit context, **2026-10-11**: the public `/qa` route returned **404** after Render woke up; `/dashboard` displayed wallet login with an initial session/API connection warning. This is a point-in-time access observation, not a finalized service-health diagnosis or a financial test. A public judge-usable QA link needs publication/deployment and a fresh signed-out browser check. Until then show the local synthetic sandbox only with its QA disclosure, and use recorded Localnet evidence for the financial result.
+Initial audit observation, **2026-10-11, before publication**: the public `/qa` route returned **404** after Render woke up; `/dashboard` displayed wallet login with an initial session/API connection warning. The subsequent release closed the public QA gate: HTTP **200**, signed-out English selection, all three roles and a full synthetic coupon simulation passed. Use the QA disclosure for interface demonstrations and the separate recorded Localnet evidence for financial results.
 
 The present package has technical demonstration material and the founder-supplied introduction. A main-hackathon application still needs accurate team/prior-work entries, two finished English videos and reviewable links. The business story is explicitly a hypothesis awaiting operator validation. This plan does not declare the application eligible or ready to send.
 
@@ -44,7 +44,7 @@ Before recording, choose one explicitly labelled evidence mode:
 2. **Fresh disposable Localnet execution** — stronger operator demonstration if there is time. Rehearse with `npm run demo:verify` in its isolated environment. Actual manual wallet use additionally requires a disposable compatible wallet/session/roles and accepted program configuration; the automated wrapper does not prove physical Phantom signing. No owner ledger reset or owner transaction is needed for filming.
 3. **QA usability tour** — optional short insert only, labelled **QA simulation; no blockchain execution**. It can show navigation/accessibility but must not be the financial proof segment. Keep it visibly distinct from the Localnet segment.
 
-Implementation update, 2026-10-11: the candidate now has a tested RU/EN interface; choose English before recording. See [candidate acceptance](../testing/submission-readiness-2026-10-11.md) and the remaining KK work in the [localization plan](../features/localization-plan.md). Public deployment remains a separate checkpoint. Preserve raw receipts and old Russian recordings as dated evidence.
+Implementation and publication update, 2026-10-11: the released application has a tested RU/EN interface; choose English before recording. See [candidate acceptance](../testing/submission-readiness-2026-10-11.md), [public deployment](../deployment/render-staging.md) and remaining KK work in the [localization plan](../features/localization-plan.md). Preserve raw receipts and old Russian recordings as dated evidence.
 
 ## Demo: 2:50 storyboard and complete narration
 

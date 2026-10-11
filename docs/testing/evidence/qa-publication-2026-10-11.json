@@ -1,0 +1,89 @@
+{
+  "checkedAt": "2026-10-11T12:08:31.101Z",
+  "applicationCommit": "1e6c96dd119f32cbf01cecef028723b9134ebe4b",
+  "checks": [
+    {
+      "name": "qa",
+      "url": "https://lifecyclekase-web.onrender.com/qa",
+      "expectedStatus": 200,
+      "status": 200,
+      "elapsedMs": 940,
+      "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+      "title": "LifecycleKASE — QA-песочница",
+      "qaDisclosure": true,
+      "passed": true
+    },
+    {
+      "name": "dashboard",
+      "url": "https://lifecyclekase-web.onrender.com/dashboard",
+      "expectedStatus": 200,
+      "status": 200,
+      "elapsedMs": 1004,
+      "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+      "title": "LifecycleKASE — рабочее место оператора",
+      "passed": true
+    },
+    {
+      "name": "web-live",
+      "url": "https://lifecyclekase-web.onrender.com/health/live",
+      "expectedStatus": 200,
+      "status": 200,
+      "elapsedMs": 373,
+      "cacheControl": null,
+      "response": {
+        "status": "live"
+      },
+      "passed": true
+    },
+    {
+      "name": "api-live",
+      "url": "https://lifecyclekase-api.onrender.com/api/v1/health/live",
+      "expectedStatus": 200,
+      "status": 200,
+      "elapsedMs": 436,
+      "cacheControl": null,
+      "response": {
+        "status": "live"
+      },
+      "passed": true
+    },
+    {
+      "name": "api-ready",
+      "url": "https://lifecyclekase-api.onrender.com/api/v1/health/ready",
+      "expectedStatus": 200,
+      "status": 200,
+      "elapsedMs": 565,
+      "cacheControl": null,
+      "response": {
+        "status": "ready"
+      },
+      "passed": true
+    },
+    {
+      "name": "api-protected-transactions",
+      "url": "https://lifecyclekase-api.onrender.com/api/v1/transactions",
+      "expectedStatus": 401,
+      "status": 401,
+      "elapsedMs": 459,
+      "cacheControl": "no-store",
+      "response": {
+        "code": "SESSION_REQUIRED",
+        "message": "An active operator session is required"
+      },
+      "passed": true
+    },
+    {
+      "name": "web-protected-transactions",
+      "url": "https://lifecyclekase-web.onrender.com/api/v1/transactions",
+      "expectedStatus": 401,
+      "status": 401,
+      "elapsedMs": 993,
+      "cacheControl": "no-store",
+      "response": {
+        "code": "SESSION_REQUIRED",
+        "message": "An active operator session is required"
+      },
+      "passed": true
+    }
+  ]
+}

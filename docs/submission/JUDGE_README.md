@@ -20,7 +20,9 @@ Additional live regressions verify a mixed coupon with amounts **1 / 2 / 0 small
 
 The current candidate has RU/EN display languages. Select **English** in the login or QA header. Language changes preserve form values and prepared operation state. A preference cookie supplies the same language after reload. Stable identifiers, signed bytes, UTC payloads, investor names and canonical JSON are not translated.
 
-`/qa` is a walletless, page-local **simulation** for reviewing usability. Its synthetic roles, balances, approvals, receipts and burns do not establish blockchain execution. Reload/reset restores the fixture. The protected `/dashboard` remains a registered-wallet operator interface. Public staging is a separate deployment checkpoint; a local candidate is not automatically available there.
+Open [public walletless QA](https://lifecyclekase-web.onrender.com/qa) and select **English**. `/qa` is a page-local **simulation** for reviewing usability. Its synthetic roles, balances, approvals, receipts and burns do not establish blockchain execution. Reload/reset restores the fixture. The protected [operator dashboard](https://lifecyclekase-web.onrender.com/dashboard) remains a registered-wallet interface.
+
+Both existing Render services are Live at [application source `1e6c96d`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/1e6c96dd119f32cbf01cecef028723b9134ebe4b). All three [CI jobs](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/actions/runs/38137890172), public health/protected-route checks and a complete signed-out QA coupon simulation passed. See [deployment evidence](../deployment/render-staging.md). Documentation following this application revision records publication; original videos remain historical media.
 
 ## Reproduce locally
 

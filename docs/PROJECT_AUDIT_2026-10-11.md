@@ -2,6 +2,8 @@
 
 **После аудита, 2026-10-11:** исправлены оба подтверждённых дефекта, добавлен RU/EN интерфейс и выполнена новая изолированная financial acceptance. Ниже сохранён первоначальный снимок аудита; текущее закрытие пунктов и оставшиеся gates находятся в [приёмке кандидата](testing/submission-readiness-2026-10-11.md).
 
+**Публикация, 2026-10-11, 17:08 UTC+5:** source `1e6c96d` опубликован, все три CI jobs прошли; API/web в Render — Live. [Публичный `/qa`](https://lifecyclekase-web.onrender.com/qa) проверен без входа: EN, три роли и завершённый simulated coupon. Защищённые маршруты сохраняют 401. [Доказательства деплоя](deployment/render-staging.md) закрывают публикацию UI, но не owner/public-network financial acceptance, видео или отправку заявки.
+
 ## Вывод
 
 Три финансовых сценария — coupon, partial early redemption и maturity redemption — уже реализованы в текущем source и имеют изолированную Localnet-приёмку от 2026-10-10. Репозиторий содержит серьёзный технический MVP с явными границами доверия. Текущий проект нельзя объявлять production financial service или полностью готовой международной заявкой: обнаружены два подтверждённых дефекта, неопубликованная QA, отсутствие локализации и нового spoken pitch/demo, отдельные owner/public-network acceptance gates.

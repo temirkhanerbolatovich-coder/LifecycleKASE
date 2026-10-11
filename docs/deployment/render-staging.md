@@ -1,6 +1,19 @@
 # Disposable Render staging
 
-## Current application rollout — 2026-10-11
+## Current QA and English application rollout — 2026-10-11
+
+Both existing free services are **Live** at application commit [`1e6c96dd119f32cbf01cecef028723b9134ebe4b`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/commit/1e6c96dd119f32cbf01cecef028723b9134ebe4b). All three jobs in [GitHub CI run 38137890172](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/actions/runs/38137890172) passed before deployment. The user authorized publication of the QA sandbox on the existing website. The authenticated Render Dashboard deployed the exact commit without changing service plans, database, build/start commands, authentication settings or the default branch.
+
+- API `dep-db5nnkid0e5s7383en70`: started **17:06:43 Asia/Qyzylorda (UTC+5)**; **Deploy succeeded | Live**, duration **1m11s**.
+- Web `dep-db5nnm2d0e5s7383eu60`: started **17:06:48 Asia/Qyzylorda (UTC+5)**; **Deploy succeeded | Live**, duration **1m13s**.
+- API logs: **19 migrations found**, **No pending migrations to apply**. There is no new schema migration in this release.
+- Public checks at `2026-10-11T12:08:31.101Z`: QA, dashboard, web live, API live and API/PostgreSQL ready returned **200**; protected transactions returned **401 SESSION_REQUIRED**, `no-store`, through both API and web proxy. [Exact HTTP observations](../testing/evidence/qa-publication-2026-10-11.json) record individual timings, not a performance acceptance result.
+
+[Public walletless QA](https://lifecyclekase-web.onrender.com/qa) was checked in a signed-out browser. RU/EN selection, all three identities, the full synthetic coupon workflow through its receipt, and read-only Auditor presentation passed. The issuer could not approve its own simulated action; a separate approver approved after reserve. Reload retained English document language/title and reset the fixture to issuer/DRAFT. The normal dashboard displayed registered-wallet Phantom login and a QA link. No browser application errors were captured in these checks. Screenshots: [English start](../testing/screenshots/release-2026-10-11/public-qa-english-overview.jpg), [completed QA coupon](../testing/screenshots/release-2026-10-11/public-qa-english-coupon.jpg), [protected login](../testing/screenshots/release-2026-10-11/public-english-login.jpg).
+
+QA data belongs to one page instance and needs no API, database, wallet or blockchain. Its payouts, burns, signatures and receipts are simulations. This release does not deploy a Solana program, alter the retained owner ledger or establish a cloud chain connection. Registered-wallet signing and financial execution were not repeated in public staging; [isolated financial acceptance](../testing/submission-readiness-2026-10-11.md) is separate. Existing execution configuration was preserved, but individual live execution flags were not independently reread. Auto-deploy remains disabled after the specific-commit deployment. The PR remains draft; `master` remains `27af655bc3b0354ad067778fed8ebd0e68c61a64`. Following documentation commits describe this deployment and do not imply another application rollout.
+
+## Earlier application rollout — 2026-10-11, 11:18–11:21
 
 Both existing free services are **Live** at exact application commit `bc62abfd947db6bc854624dccdcac61ec13036a3`. The authenticated Render Dashboard was used to deploy the pushed candidate without changing database, build/start commands or authentication settings, or merging the source PR. Render's specific-commit deployment disables auto-deploy to prevent an unrelated push replacing the selected revision:
 

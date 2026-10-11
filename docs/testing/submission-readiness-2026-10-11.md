@@ -1,6 +1,6 @@
 # Submission candidate acceptance — 2026-10-11
 
-Scope: working-tree candidate following the [initial full audit](../PROJECT_AUDIT_2026-10-11.md), based on `eb7a6025cadb45229949a7107f7e0a72c07e1058`. Local validation is distinct from GitHub CI, public Render deployment, owner acceptance and hackathon submission. Historical audit counts and original recordings remain dated evidence.
+Scope: application release `1e6c96dd119f32cbf01cecef028723b9134ebe4b` following the [initial full audit](../PROJECT_AUDIT_2026-10-11.md), originally based on `eb7a6025cadb45229949a7107f7e0a72c07e1058`. Local validation, successful GitHub CI, public Render/browser acceptance, owner acceptance and hackathon submission are distinct checkpoints. Historical audit counts and original recordings remain dated evidence.
 
 ## Closed implementation gates
 
@@ -55,16 +55,16 @@ Proof screenshots: [overview](screenshots/release-2026-10-11/english-overview-de
 ## Remaining submission gates
 
 1. Record and inspect the **English pitch (target 2:40)** and **separate demo (target 2:50, maximum 3:00)** with actual narration. The scripts are ready; no new narrated media is claimed. Preserve existing originals, show the Localnet/QA distinction and use the fresh exact receipts for financial claims.
-2. Publish the reviewed source candidate and choose its actual source link. The old default branch and media pins are historical. A draft PR is a review vehicle; merging, Render deployment and public route acceptance are separate decisions.
-3. If offering interactive public QA, deploy this candidate and verify `/qa` and English selection in a signed-out browser. The initial public `/qa` observation was 404; local acceptance does not close this deployment gate.
-4. Check the authenticated Arena fields, accepted video hosts, actual team membership, personal eligibility, prior-work disclosure and accessible processed video links. The founder profile does not determine team size or eligibility. Submit and save the actual confirmation before the official deadline.
-5. After the English submission path: native financial review of Kazakh, observed tests with relevant operators, demand/pilot evidence, public-network financial acceptance and real integrations remain separate work.
+2. Check the authenticated Arena fields, accepted video hosts, actual team membership, personal eligibility, prior-work disclosure and accessible processed video links. The founder profile does not determine team size or eligibility. Submit and save the actual confirmation before the official deadline.
+3. After the English submission path: native financial review of Kazakh, observed tests with relevant operators, demand/pilot evidence, public-network financial acceptance and real integrations remain separate work.
+
+Source publication and public QA are **closed**: use [application revision `1e6c96d`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/1e6c96dd119f32cbf01cecef028723b9134ebe4b) and [public QA](https://lifecyclekase-web.onrender.com/qa). [Render acceptance](../deployment/render-staging.md) records both services Live, HTTP 200 health/QA, protected 401 responses and the English signed-out coupon simulation. The initial public 404 remains historical. Default-branch merge and final hackathon submission have not occurred.
 
 An all-zero action intentionally stays CALCULATED with its immutable evidence and cannot review, reserve or pay. The existing workflow does not revise or terminate that calculated action. A reasoned terminal “no payment required” policy is an outstanding operator improvement; it must not bypass financial guards or rewrite the snapshot. The walletless QA model follows the same zero-row and review policy while remaining explicitly synthetic.
 
 ## Current product backlog
 
-The initial audit's EN and two confirmed defect items are implemented locally. These remaining items are separate from recording a hackathon submission:
+The initial audit's EN and two confirmed defect items are implemented and the application release is published. These remaining items are separate from recording a hackathon submission:
 
 | Priority | Work | Acceptance |
 | --- | --- | --- |
@@ -84,6 +84,6 @@ The initial audit's EN and two confirmed defect items are implemented locally. T
 
 ## GitHub checkpoint
 
-The final read-only check still found draft [PR #1](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/pull/1) at `eb7a6025cadb45229949a7107f7e0a72c07e1058`, with default `master` at `27af655bc3b0354ad067778fed8ebd0e68c61a64`. The new candidate is local. Existing remote CI does not cover these changes. Choose and publish the reviewed source before sharing it as the current implementation; public Render deployment and final submission require their own acceptance.
+Publication check: local and remote application SHA matched `1e6c96dd119f32cbf01cecef028723b9134ebe4b`. All three jobs in [CI run 38137890172](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/actions/runs/38137890172) passed before deployment, including clean builds, repository tests, production proxy, dependency audit, migrations/HTTP database suites, Rust profiles and full-history secret scan. Draft [PR #1](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/pull/1) remains open; default `master` remains `27af655bc3b0354ad067778fed8ebd0e68c61a64`. Following documentation commits record this exact deployed application rather than another rollout.
 
-This candidate is a verified local prototype package. It does not establish real money settlement, customer adoption, KASE affiliation or retained-owner funding/execution acceptance.
+This release is a verified prototype package with public UI QA. It does not establish real money settlement, customer adoption, KASE affiliation or retained-owner funding/execution acceptance.

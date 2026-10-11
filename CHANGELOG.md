@@ -1,5 +1,11 @@
 # Changelog
 
+## Public walletless QA and English release — 2026-10-11
+
+- Publish API/web commit `1e6c96dd119f32cbf01cecef028723b9134ebe4b` on the existing free Render services after all three CI jobs passed.
+- Verify public `/qa`, RU/EN selection, issuer/approver/Auditor roles and a complete simulated coupon/receipt flow. Public health returns 200; protected routes still return 401. Record exact deployment and browser evidence in [Render staging](docs/deployment/render-staging.md).
+- Keep page-local QA data isolated; no retained-owner program upgrade, real financial execution, new narrated media or final submission is performed.
+
 ## Submission candidate fixes and English UI — 2026-10-11
 
 - Revalidate the operator wallet mapping on every session read; blocked, revoked, unverified, deleted or reassigned wallets invalidate existing sessions through `SESSION_INVALID`.

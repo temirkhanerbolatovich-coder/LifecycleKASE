@@ -1,14 +1,16 @@
 # Walletless QA sandbox
 
-Validation update — **2026-10-11**: the local `/qa` route passed the current [desktop/mobile UI checks](../testing/ui-ux-audit-2026-10-11.md) and is included in the 330-test repository run and production build. Browser checking of the public Render `/qa` returned **404** after cold start; these working-tree changes have not been published. Native 200% zoom, screen readers, disk receipt downloads and real wallet/API/chain flows remain outside this acceptance. See the [full audit and publication backlog](../PROJECT_AUDIT_2026-10-11.md).
+Current publication — **2026-10-11, 17:08 Asia/Qyzylorda**: [public `/qa`](https://lifecyclekase-web.onrender.com/qa) returns **200** at application commit `1e6c96dd119f32cbf01cecef028723b9134ebe4b`. All three CI jobs passed; the current repository check contains **350 Node tests**. Signed-out browser acceptance covers English selection, issuer/approver/Auditor switching, a complete simulated coupon workflow, read-only Auditor results and reset on reload with preserved language. [Deployment evidence and screenshots](../deployment/render-staging.md) distinguish QA from financial acceptance.
+
+Initial validation checkpoint — **2026-10-11, before implementation/publication**: local [desktop/mobile UI checks](../testing/ui-ux-audit-2026-10-11.md), 330 tests and the production build passed; the public route returned **404**. That observation is historical. Native 200% zoom, screen readers, disk receipt downloads and real wallet/API/chain flows remain outside this browser acceptance.
 
 The `/qa` page lets a tester exercise the operator interface without installing a wallet. It reuses the seven-section `OperatorWorkspace` and its existing forms with synthetic, browser-local data. This is an interactive UI sandbox: its payments, burns, signatures, snapshots and receipts are simulations.
 
-Local implementation/browser validation is recorded above. Deployment remains pending. The public `/dashboard` continues to require an authenticated operator wallet; Render's recorded `AUTH_ENABLED=true` configuration is unchanged by this QA implementation.
+Local and public implementation/browser validation are recorded above. The public `/dashboard` continues to require an authenticated operator wallet; Render's authentication configuration was preserved and public protected-route checks return `401 SESSION_REQUIRED`.
 
 ## Start and reset
 
-Run `npm run dev:web`, then open `http://localhost:3000/qa`. No API, database, RPC server or wallet extension is needed for the QA route. The deployed route, once verified, is `https://lifecyclekase-web.onrender.com/qa`.
+Open [the published QA page](https://lifecyclekase-web.onrender.com/qa), or run `npm run dev:web` and open `http://localhost:3000/qa` locally. No API, database, RPC server or wallet extension is needed for this route.
 
 The page starts with synthetic instruments, investors, holdings, actions, transaction history and audit events. It does not discover Wallet Standard wallets or create an API session. The request adapter answers the existing panels in memory instead of forwarding requests to `/api/v1` or Solana.
 
