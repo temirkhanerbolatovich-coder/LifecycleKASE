@@ -126,7 +126,7 @@ export async function apiRequest(path: string, init?: RequestInit, fetchRequest:
     credentials: "include",
     cache: "no-store",
     headers: { "content-type": "application/json", ...init?.headers },
-    signal: init?.signal ?? AbortSignal.timeout(15_000)
+    signal: init?.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000)
   }); } catch (error) {
     if (init?.signal?.aborted) throw error;
     throw new OperatorApiError("CONNECTION_UNAVAILABLE", 0, "Потеряна связь с API или истекло время ожидания. Сохраните исходную попытку и подпись; проверьте результат после восстановления связи.");

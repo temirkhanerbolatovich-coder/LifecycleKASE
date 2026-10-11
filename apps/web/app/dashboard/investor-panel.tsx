@@ -10,8 +10,10 @@ import { useLocale, useLocalizedTextState } from "./locale-context";
 import type { MessageKey } from "./locale";
 import {
   canChangeWalletStatus, canReviewEligibility, eligibilityReviewCommand, hasActiveVerifiedWallet,
+  canEditInvestorProfile, createRegistryRequestScope, investorProfileCommand, investorRegistryPath, investorWalletsPath, mergeRegistryRows,
+  readInvestorRegistryDetail,
   REGISTRY_REVIEW_REASONS, remainingRegistryRefreshLocks, saveRegistryChange, walletStatusCommand,
-  type RegistryRefreshLock, type RegistryReviewReason
+  type RegistryRefreshLock, type RegistryReviewReason, type RegistryProfileDraft
 } from "./investor-registry-workflow";
 
 type Investor = {
@@ -74,6 +76,7 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
   const [items, setItems] = useState<Investor[]>([]);
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [detailId, setDetailId] = useState("");
+  const detailIdRef = useRef(detailId); detailIdRef.current = detailId;
   const [formError, setFormError] = useState<{ form: "create" | "attach"; message: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const listView = useRef<HTMLDivElement>(null);
@@ -86,9 +89,23 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
   const listPosition = useRef(0);
   function chooseRecord(id: string) { listPosition.current = window.scrollY; setDetailId(id); window.history.replaceState(null,"",workspaceSectionHash("investors",id)); }
   function backToList() { setDetailId(""); window.history.replaceState(null,"",workspaceSectionHash("investors")); requestAnimationFrame(()=>window.scrollTo({top:listPosition.current,behavior:"instant"})); }
-  useEffect(()=>{ const sync=()=>{if(workspaceSectionFromHash(window.location.hash)==="investors") setDetailId(workspaceSelectionFromHash(window.location.hash,"investors")??"");}; sync();window.addEventListener("hashchange",sync);return()=>window.removeEventListener("hashchange",sync); },[]);
+  useEffect(()=>{ const sync=()=>{if(workspaceSectionFromHash(window.location.hash)==="investors") setDetailId(workspaceSelectionFromHash(window.location.hash,"investors")?.toLowerCase()??"");}; sync();window.addEventListener("hashchange",sync);return()=>window.removeEventListener("hashchange",sync); },[]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [writeBusy, setBusy] = useState(false);
+  const [listBusy, setListBusy] = useState(false);
+  const [detailBusy, setDetailBusy] = useState(false);
+  const [walletBusy, setWalletBusy] = useState(false);
+  const busy = writeBusy || listBusy || detailBusy || walletBusy;
+  const [detailRecords, setDetailRecords] = useState<Record<string, Investor>>({});
+  const detailRecordsRef = useRef<Record<string, Investor>>({});
+  const [walletCursors, setWalletCursors] = useState<Record<string, string | null>>({});
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [walletError, setWalletError] = useState<string | null>(null);
+  const listRequests = useRef(createRegistryRequestScope());
+  const detailRequests = useRef(createRegistryRequestScope());
+  const backgroundRequests = useRef(createRegistryRequestScope());
+  const walletRequests = useRef(createRegistryRequestScope());
+  const [profileDrafts, setProfileDrafts] = useState<Record<string, RegistryProfileDraft>>({});
   const [message, setMessage] = useLocalizedTextState();
   const [selected, setSelected] = useState("");
   const [eligibilityChoices, setEligibilityChoices] = useState<Record<string, string>>({});
@@ -96,7 +113,7 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
   const [reviewChoices, setReviewChoices] = useState<Record<string, { decision: string; reason: string }>>({});
   const [walletStatusReasons, setWalletStatusReasons] = useState<Record<string, string>>({});
   const [refreshLocks, setRefreshLocks] = useState<RegistryRefreshLock[]>([]);
-  const [registryChangeError, setRegistryChangeError] = useState<{ kind: "review" | "wallet"; id: string } | null>(null);
+  const [registryChangeError, setRegistryChangeError] = useState<{ kind: "review" | "wallet" | "profile"; id: string } | null>(null);
   const reviewReasonLabels: Record<RegistryReviewReason, string> = {
     REGISTRY_CORRECTION: t("registry.investor.registryCorrection"),
     PERIODIC_REVIEW: t("registry.investor.periodicReview"),
@@ -107,27 +124,75 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
     return refreshLocks.some(lock => lock.kind === "investor" ? lock.id === investor.id : investor.wallets.some(wallet => wallet.id === lock.id));
   }
 
-  async function load(cursor?: string, signal?: AbortSignal) {
-    const result = await request(`/api/v1/investors?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, signal ? { signal } : undefined);
-    if (signal?.aborted) return;
-    if (!Array.isArray(result["items"])) throw new Error(t("registry.investor.invalidRegistryResponse"));
-    const rows = result["items"] as Investor[];
-    setItems(previous => cursor ? [...previous, ...rows] : rows);
-    setNextCursor(typeof result["nextCursor"] === "string" ? result["nextCursor"] : null);
-    setRefreshLocks(previous => remainingRegistryRefreshLocks(previous, rows));
-    setRegistryChangeError(null);
-    setMessage("");
-    return rows;
+  async function load(cursor?: string) {
+    const read = listRequests.current.begin(); setListBusy(true);
+    try {
+      const result = await request(investorRegistryPath(filters.query, cursor), { signal: read.signal });
+      if (!read.current()) return;
+      if (!Array.isArray(result["items"])) throw new Error(t("registry.investor.invalidRegistryResponse"));
+      const rows = result["items"] as Investor[];
+      setItems(previous => cursor ? mergeRegistryRows(previous, rows) : rows);
+      setNextCursor(typeof result["nextCursor"] === "string" ? result["nextCursor"] : null);
+      return rows;
+    } catch (error) { if (read.current()) throw error; }
+    finally { if (read.current()) setListBusy(false); }
   }
   useEffect(() => {
-    const abort = new AbortController();
-    setError(null); setBusy(true);
-    void load(undefined, abort.signal).catch((error: unknown) => {
-      if (!abort.signal.aborted) setError(error instanceof Error ? error.message : t("registry.investor.registryUnavailable"));
-    }).finally(() => { if (!abort.signal.aborted) setBusy(false); });
-    return () => abort.abort();
-  }, [request]);
+    setError(null); setItems([]); setNextCursor(null);
+    void load().catch((error: unknown) => {
+      setError(error instanceof Error ? error.message : t("registry.investor.registryUnavailable"));
+    });
+    return () => listRequests.current.cancel();
+  }, [request, filters.query]);
 
+  function storeDetail(record: Investor, cursor: string | null) {
+    detailRecordsRef.current = { ...detailRecordsRef.current, [record.id]: record };
+    setDetailRecords(detailRecordsRef.current);
+    setWalletCursors(previous => ({ ...previous, [record.id]: cursor }));
+    setItems(previous => previous.map(row => row.id === record.id ? record : row));
+    setRefreshLocks(previous => remainingRegistryRefreshLocks(previous, [record]));
+  }
+  async function loadDetail(id: string, background = false) {
+    const read = (background ? backgroundRequests : detailRequests).current.begin();
+    if (!background) {
+      walletRequests.current.cancel();
+      setDetailBusy(true); setWalletBusy(false); setDetailError(null); setWalletError(null);
+    }
+    try {
+      const visibleWallets = detailRecordsRef.current[id]?.wallets.length ?? 0;
+      const { record, nextCursor } = await readInvestorRegistryDetail<Investor>(request, id, visibleWallets, read.signal);
+      if (!read.current()) return;
+      storeDetail(record, nextCursor);
+      return record;
+    } catch (error) {
+      if (read.current()) { if (!background) setDetailError(error instanceof Error ? error.message : t("registry.investor.loadFailed")); throw error; }
+    } finally { if (!background && read.current()) setDetailBusy(false); }
+  }
+  useEffect(() => () => backgroundRequests.current.cancel(), []);
+  useEffect(() => {
+    if (detailId) void loadDetail(detailId).catch(() => {});
+    else { setDetailBusy(false); setWalletBusy(false); setDetailError(null); setWalletError(null); }
+    return () => { detailRequests.current.cancel(); walletRequests.current.cancel(); };
+  }, [detailId, request]);
+  async function loadMoreWallets(investor: Investor) {
+    const cursor = walletCursors[investor.id]; if (!cursor || busy) return;
+    const read = walletRequests.current.begin(); setWalletBusy(true); setWalletError(null);
+    try {
+      const result = await request(investorWalletsPath(investor.id, cursor), { signal: read.signal });
+      if (!read.current()) return;
+      if (!Array.isArray(result["items"])) throw new Error(t("registry.investor.invalidRegistryResponse"));
+      const next = typeof result["nextCursor"] === "string" ? result["nextCursor"] : null;
+      if (next === cursor) throw new Error(t("registry.investor.invalidRegistryResponse"));
+      storeDetail({ ...investor, wallets: mergeRegistryRows(investor.wallets, result["items"] as Investor["wallets"]) }, next);
+    } catch (error) {
+      if (read.current()) setWalletError(error instanceof Error ? error.message : t("registry.investor.loadFailed"));
+    } finally { if (read.current()) setWalletBusy(false); }
+  }
+  async function refreshInvestor(id: string) {
+    const record = await loadDetail(id, detailIdRef.current !== id);
+    if (!record) throw new Error(t("registry.investor.loadFailed"));
+    return [record];
+  }
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -149,26 +214,26 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
   async function attach(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selected) return;
+    const attachedInvestorId = selected;
     const form = event.currentTarget;
     const address = new FormData(form).get("address");
     setFormError(null); setError(null); setBusy(true);
     try {
-      await request(`/api/v1/investors/${selected}/wallets`, { method: "POST", body: JSON.stringify({ address }) });
+      await request(`/api/v1/investors/${attachedInvestorId}/wallets`, { method: "POST", body: JSON.stringify({ address }) });
       form.reset();
       setSelected("");
-      try { await load(); }
+      try { await load(); if (detailRecordsRef.current[attachedInvestorId]) await refreshInvestor(attachedInvestorId); }
       catch { setMessage(t("registry.investor.walletAddedRefreshFailed")); }
     } catch (error) { setFormError({ form: "attach", message: error instanceof Error ? error.message : t("registry.investor.requestFailed") }); setError(error instanceof Error ? error.message : t("registry.investor.requestFailed")); setMessage(error instanceof Error ? error.message : t("registry.investor.attachFailed")); }
     finally { setBusy(false); }
   }
   async function refresh(cursor?: string) {
-    setError(null); setBusy(true);
-    try { await load(cursor); }
+    setError(null); setMessage("");
+    try { if (detailId && !cursor) await loadDetail(detailId); else await load(cursor); }
     catch (error) { setError(error instanceof Error ? error.message : t("registry.investor.requestFailed")); setMessage(error instanceof Error ? error.message : t("registry.investor.loadFailed")); }
-    finally { setBusy(false); }
   }
   async function decideEligibility(investorId: string) {
-    const investor = items.find(row => row.id === investorId);
+    const investor = detailRecords[investorId];
     if (busy || !investor || investorLocked(investor)) return;
     const decision = eligibilityChoices[investorId];
     if (decision !== "ELIGIBLE" && decision !== "NOT_ELIGIBLE") return;
@@ -180,7 +245,7 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
       }) });
       setEligibilityChoices(previous => ({ ...previous, [investorId]: "" }));
       try {
-        await load();
+        await refreshInvestor(investorId);
         setMessage(decision === "ELIGIBLE"
           ? t("registry.investor.eligibleDemo")
           : t("registry.investor.notEligibleDemo"));
@@ -192,7 +257,7 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
     } finally { setBusy(false); }
   }
   async function revokeWallet(investorId: string, wallet: Investor["wallets"][number]) {
-    const investor = items.find(row => row.id === investorId);
+    const investor = detailRecords[investorId];
     if (busy || !investor || investorLocked(investor)) return;
     const reasonCode = revocationChoices[wallet.id];
     if (!reasonCode) return;
@@ -204,7 +269,7 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
       });
       setRevocationChoices(previous => ({ ...previous, [wallet.id]: "" }));
       try {
-        await load();
+        await refreshInvestor(investorId);
         setMessage(t("registry.investor.walletRevoked"));
       } catch {
         setMessage(t("registry.investor.revokedRefreshFailed"));
@@ -214,7 +279,7 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
     } finally { setBusy(false); }
   }
   async function verifyWallet(investorId: string, wallet: Investor["wallets"][number]) {
-    const investor = items.find(row => row.id === investorId);
+    const investor = detailRecords[investorId];
     if (busy || !investor || investorLocked(investor)) return;
     if (!signWalletMessage) return;
     setError(null); setBusy(true);
@@ -234,7 +299,7 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
         method: "POST", body: JSON.stringify({ challengeId: challenge.challengeId, nonce: challenge.nonce, signature })
       });
       try {
-        await load();
+        await refreshInvestor(investorId);
         setMessage(qaMode ? t("registry.investor.qaVerified") : t("registry.investor.ownershipVerified"));
       } catch {
         setMessage(t("registry.investor.verifiedRefreshFailed"));
@@ -259,7 +324,7 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
         setRefreshLocks(previous => [...previous, lock]);
         setReviewChoices(previous => ({ ...previous, [investor.id]: { decision: "", reason: "" } }));
       }, async () => {
-        const rows = await load();
+        const rows = await refreshInvestor(investor.id);
         if (!rows || remainingRegistryRefreshLocks([lock], rows).length) throw new Error("Current record not loaded");
       });
       setMessage(t(result.refreshed ? "registry.investor.reviewSaved" : "registry.investor.reviewRefreshFailed"));
@@ -284,7 +349,7 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
         setRefreshLocks(previous => [...previous, lock]);
         setWalletStatusReasons(previous => ({ ...previous, [wallet.id]: "" }));
       }, async () => {
-        const rows = await load();
+        const rows = await refreshInvestor(investor.id);
         if (!rows || remainingRegistryRefreshLocks([lock], rows).length) throw new Error("Current record not loaded");
       });
       setMessage(t(!result.refreshed ? "registry.investor.walletStatusRefreshFailed"
@@ -295,7 +360,34 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
       setMessage(t("registry.investor.walletStatusFailed"));
     } finally { setBusy(false); }
   }
-  const visible = filterRegistry(items, filters, row=>[row.displayName,row.externalReference??"",row.id,...row.wallets.map(wallet=>wallet.address)].join(" "),row=>row.eligibilityStatus,row=>row.displayName);
+  async function saveProfile(investor: Investor, draft: RegistryProfileDraft) {
+    if (busy || investorLocked(investor) || !investor.type) return;
+    const command = investorProfileCommand({ ...investor, type: investor.type }, role, draft);
+    if (!command) return;
+    if (!window.confirm(t("registry.investor.profileConfirm", {
+      name: investor.displayName, displayName: command.body["displayName"] ?? "", type: command.body["type"] ?? "",
+      country: command.body["countryCode"] ?? "", reference: command.body["externalReference"] ?? t("registry.investor.referenceMissing"),
+      reason: reviewReasonLabels[draft.reason as RegistryReviewReason], version: investor.registryVersion
+    }))) return;
+    setRegistryChangeError(null); setError(null); setMessage(""); setBusy(true);
+    const lock: RegistryRefreshLock = { kind: "investor", id: investor.id, version: investor.registryVersion };
+    try {
+      const result = await saveRegistryChange(request, command, () => {
+        setRefreshLocks(previous => [...previous, lock]);
+        setProfileDrafts(previous => { const next = { ...previous }; delete next[investor.id]; return next; });
+      }, async () => {
+        const rows = await refreshInvestor(investor.id);
+        if (remainingRegistryRefreshLocks([lock], rows).length) throw new Error("Current record not loaded");
+      });
+      setMessage(t(result.refreshed ? "registry.investor.profileSaved" : "registry.investor.profileRefreshFailed"));
+    } catch (error) {
+      setRegistryChangeError({ kind: "profile", id: investor.id });
+      setError(error instanceof Error ? error.message : t("registry.investor.requestFailed"));
+      setMessage(t("registry.investor.profileFailed"));
+    } finally { setBusy(false); }
+  }
+  const visible = filterRegistry(items, { ...filters, query: "" }, row=>row.displayName,row=>row.eligibilityStatus,row=>row.displayName);
+  const attachmentItems = mergeRegistryRows(items, Object.values(detailRecords));
   const inputClass = "mt-1.5 w-full rounded-lg border border-[#cbd8d0] bg-white px-3 py-2.5 text-sm";
   const buttonClass = "rounded-lg border border-[#b9c9c0] px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50";
   return <section className="mt-6 border-t border-[#dbe5df] pt-6">
@@ -327,10 +419,10 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
       <form className="space-y-3 rounded-xl border border-[#dbe5df] p-4" onSubmit={event => void attach(event)}>
         <h4 className="mt-1 font-semibold">{t("registry.investor.attachWallet")}</h4>
         <p className="text-xs leading-5 text-[#61746a]">{qaMode ? t("registry.investor.qaAttachHelp") : t("registry.investor.attachHelp")}</p>
-        <label className="block text-sm">{t("registry.investor.investorField")}<select className={inputClass} required value={selected} disabled={busy || items.length === 0} onChange={event => setSelected(event.target.value)}>
-      <option value="">{items.length === 0 ? t("registry.investor.createFirst") : t("registry.investor.selectInvestor")}</option>{items.map(investor => <option key={investor.id} value={investor.id}>{investor.displayName}</option>)}</select>
+        <label className="block text-sm">{t("registry.investor.investorField")}<select className={inputClass} required value={selected} disabled={busy || attachmentItems.length === 0} onChange={event => setSelected(event.target.value)}>
+      <option value="">{attachmentItems.length === 0 ? t("registry.investor.createFirst") : t("registry.investor.selectInvestor")}</option>{attachmentItems.map(investor => <option key={investor.id} value={investor.id}>{investor.displayName}</option>)}</select>
       </label>
-        <label className="block text-sm">{t("registry.investor.addressField")}<input className={`${inputClass} font-mono`} name="address" required minLength={32} maxLength={44} pattern="[1-9A-HJ-NP-Za-km-z]+" placeholder={t("registry.investor.addressPlaceholder")} disabled={busy || items.length === 0} />
+        <label className="block text-sm">{t("registry.investor.addressField")}<input className={`${inputClass} font-mono`} name="address" required minLength={32} maxLength={44} pattern="[1-9A-HJ-NP-Za-km-z]+" placeholder={t("registry.investor.addressPlaceholder")} disabled={busy || attachmentItems.length === 0} />
       </label>
         {formError?.form === "attach" && <p role="alert" className="form-error">{displayMessage(formError.message)}{" "}{t("registry.investor.addressPreserved")}</p>}
         {qaMode && <button type="button" className="secondary-button" disabled={busy || !selected} onClick={event => {
@@ -345,8 +437,8 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
     </details>}
 
     <div ref={listView} hidden={Boolean(detailId)}>
-      <RegistryToolbar label={t("registry.investor.registryLabel")} filters={filters} onChange={setFilters} statuses={{ELIGIBLE:t("registry.investor.statusEligible"),PENDING_REVIEW:t("registry.investor.statusAwaitingDecision"),NOT_ELIGIBLE:t("registry.investor.statusNotEligible"),SUSPENDED:t("registry.investor.statusSuspended")}} loaded={items.length} shown={visible.length} />
-      {busy && items.length === 0 && <RegistrySkeleton />}
+      <RegistryToolbar label={t("registry.investor.registryLabel")} filters={filters} onChange={setFilters} serverSearch statuses={{ELIGIBLE:t("registry.investor.statusEligible"),PENDING_REVIEW:t("registry.investor.statusAwaitingDecision"),NOT_ELIGIBLE:t("registry.investor.statusNotEligible"),SUSPENDED:t("registry.investor.statusSuspended")}} loaded={items.length} shown={visible.length} />
+      {listBusy && items.length === 0 && <RegistrySkeleton />}
       <div className="table-scroll" hidden={items.length === 0} tabIndex={0} role="region" aria-label={t("registry.investor.tableLabel")}>
       <table className="registry-table">
       <thead>
@@ -371,24 +463,49 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
       </tr>)}</tbody>
       </table>
       </div>
-      {!busy&&!error&&visible.length===0&&<p className="empty-state">{items.length===0?t("registry.investor.emptyRegistry"):t("registry.investor.noMatches")}</p>}
+      {!listBusy&&!error&&visible.length===0&&<p className="empty-state">{items.length===0&&!filters.query&&!filters.status?t("registry.investor.emptyRegistry"):t("registry.investor.noMatches")}</p>}
     </div>
     {detailId&&<button type="button" className="secondary-button mt-4" disabled={busy} onClick={backToList}>{t("registry.investor.back")}</button>}
-    {detailId&&!items.some(row=>row.id===detailId)&&<p className="empty-state">{t("registry.investor.missingRecord")}</p>}
+    {detailId && detailBusy && !detailRecords[detailId] && <RegistrySkeleton />}
+    {detailId && detailError && <RequestNotice busy={detailBusy} message="" error={displayMessage(detailError)} onRetry={() => void refresh()} />}
     <div className="mt-6" hidden={!detailId}>
       <div className="flex items-center justify-between gap-3">
         <h4 className="font-semibold">{t("registry.investor.walletsEligibility")}</h4>
       </div>
-      {items.length === 0 && !busy && <div className="mt-3 rounded-xl border border-dashed border-[#cbd8d0] p-5 text-sm text-[#61746a]">{t("registry.investor.startAtStepOne")}</div>}
       <ul className="mt-3 space-y-3">
-        {items.map(investor => <li className="record-detail rounded-xl border border-[#dbe5df] bg-white p-4 text-sm" id={`investor-${investor.id}`} tabIndex={-1} key={investor.id} hidden={detailId !== investor.id}>
+        {Object.values(detailRecords).map(investor => <li className="record-detail rounded-xl border border-[#dbe5df] bg-white p-4 text-sm" id={`investor-${investor.id}`} tabIndex={-1} key={investor.id} hidden={detailId !== investor.id}>
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div><p className="font-semibold">{investor.displayName}</p><p className="mt-1 text-xs text-[#61746a]">{t("registry.investor.referenceLabel")}{" "}{investor.externalReference ?? t("registry.investor.referenceMissing")}{" "}{t("registry.investor.countryLabel")}{" "}{investor.countryCode}</p></div>
           </div>
           <dl className="object-facts mt-4"><div><dt>{t("registry.investor.investorType")}</dt><dd>{investor.type === "INDIVIDUAL" ? t("registry.investor.individual") : investor.type === "INSTITUTIONAL" ? t("registry.investor.institution") : t("registry.investor.typeMissing")}</dd></div><div><dt>{t("registry.investor.account")}</dt><dd>{investor.status === "ACTIVE" ? t("registry.investor.accountActive") : investor.status ?? t("registry.investor.missing")}</dd></div><div><dt>{t("registry.investor.eligibility")}</dt><dd>{statusLabel(investor.eligibilityStatus)}</dd></div><div><dt>KYC</dt><dd>{statusLabel(investor.kycStatus)}</dd></div></dl>
           {investorLocked(investor) && <p role="status" className="access-note mt-3">{t("registry.investor.refreshBeforeChange")}</p>}
           {role === "ADMINISTRATOR" && (!Number.isSafeInteger(investor.registryVersion) || investor.registryVersion < 1) && <p className="access-note mt-3">{t("registry.investor.missingRegistryVersion")}</p>}
-          <p className="mt-3 text-xs font-semibold text-[#52675b]">{t("registry.investor.walletsLabel")}{" "}{investor._count.wallets}{investor._count.wallets > 20 ? t("registry.investor.firstTwenty") : ""}</p>
+          {canEditInvestorProfile(investor, role) && (() => {
+            const draft = profileDrafts[investor.id] ?? { displayName: investor.displayName, type: investor.type ?? "",
+              countryCode: investor.countryCode, externalReference: investor.externalReference, reason: "", expectedVersion: investor.registryVersion };
+            const stale = draft.expectedVersion !== investor.registryVersion;
+            const locked = busy || investorLocked(investor) || stale;
+            const updateDraft = (field: keyof RegistryProfileDraft, value: string) => setProfileDrafts(previous => ({ ...previous, [investor.id]: { ...draft, [field]: value } }));
+            return <details className="mt-3 rounded-lg border border-[#d9e3dd] bg-[#f7faf8] p-3">
+              <summary className="cursor-pointer text-xs font-semibold text-[#28744a]">{t("registry.investor.profileTitle")}</summary>
+              <p className="mt-1 text-xs leading-5 text-[#61746a]">{t("registry.investor.profileHelp")}</p>
+              <p className="mt-1 text-xs text-[#61746a]">{t("registry.investor.registryVersion", { version: investor.registryVersion })}</p>
+              {stale && <p role="alert" className="access-note mt-2">{t("registry.investor.profileStaleDraft", { version: draft.expectedVersion })}</p>}
+              <form className="mt-3 space-y-3" onSubmit={event => { event.preventDefault(); void saveProfile(investor, draft); }}>
+                <label className="block text-sm">{t("registry.investor.nameField")}<input className={inputClass} required maxLength={200} value={draft.displayName} disabled={locked} onChange={event => updateDraft("displayName", event.target.value)} /></label>
+                <label className="block text-sm">{t("registry.investor.profileReference")}<input className={inputClass} maxLength={100} value={draft.externalReference ?? ""} disabled={locked} onChange={event => updateDraft("externalReference", event.target.value)} /></label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block text-sm">{t("registry.investor.typeField")}<select className={inputClass} value={draft.type} disabled={locked} onChange={event => updateDraft("type", event.target.value)}><option value="INDIVIDUAL">{t("registry.investor.individualTest")}</option><option value="INSTITUTIONAL">{t("registry.investor.institutionTest")}</option></select></label>
+                  <label className="block text-sm">{t("registry.investor.countryField")}<input className={inputClass} required minLength={2} maxLength={2} pattern="[A-Za-z]{2}" value={draft.countryCode} disabled={locked} onChange={event => updateDraft("countryCode", event.target.value)} /></label>
+                </div>
+                <label className="block text-sm">{t("registry.investor.reasonLabel")}<select className={inputClass} value={draft.reason} required disabled={locked} onChange={event => updateDraft("reason", event.target.value)}><option value="">{t("registry.investor.chooseReason")}</option>{REGISTRY_REVIEW_REASONS.map(reason => <option key={reason} value={reason}>{reviewReasonLabels[reason]}</option>)}</select></label>
+                <button className={`${buttonClass} border-[#163f2b] bg-[#163f2b] text-white`} disabled={locked || !investor.type || !investorProfileCommand({ ...investor, type: investor.type }, role, draft)}>{t("registry.investor.profileSave")}</button>
+                {stale && <button type="button" className="secondary-button ml-2" disabled={busy || investorLocked(investor)} onClick={() => setProfileDrafts(previous => { const next = { ...previous }; delete next[investor.id]; return next; })}>{t("registry.investor.profileResetDraft")}</button>}
+                {registryChangeError?.kind === "profile" && registryChangeError.id === investor.id && <p role="alert" className="form-error">{t("registry.investor.profileFailed")}</p>}
+              </form>
+            </details>;
+          })()}
+          <p className="mt-3 text-xs font-semibold text-[#52675b]">{t("registry.investor.walletsLoaded", { shown: investor.wallets.length, total: investor._count.wallets })}</p>
           {investor.wallets.map(wallet => {
             const readyToVerify = qaMode || activeWalletAddress === wallet.address;
             return <div className="mt-2 rounded-lg border border-[#e3eae6] bg-[#f8faf9] p-3" key={wallet.id}>
@@ -443,6 +560,8 @@ export function InvestorPanel({ role, request, signWalletMessage, activeWalletAd
               {wallet.status === "REVOKED" && wallet.revocationReasonCode && <p className="mt-2 text-xs text-[#7b3e28]">{t("registry.investor.reasonLabel")}{" "}{displayMessage(REVOCATION_REASON_LABELS[wallet.revocationReasonCode] ?? wallet.revocationReasonCode)}{wallet.revokedAt ? ` · ${formatDate(wallet.revokedAt)}` : ""}</p>}
             </div>;
           })}
+          {walletCursors[investor.id] && <button type="button" className={`${buttonClass} mt-3`} disabled={busy} onClick={() => void loadMoreWallets(investor)}>{t("registry.investor.loadMoreWallets")}</button>}
+          {detailId === investor.id && <RequestNotice busy={walletBusy} message="" error={walletError === null ? null : displayMessage(walletError)} onRetry={() => void loadMoreWallets(investor)} />}
           {role === "ADMINISTRATOR" && investor.eligibilityStatus === "PENDING_REVIEW" && (() => {
             const hasVerifiedWallet = hasActiveVerifiedWallet(investor);
             const choice = eligibilityChoices[investor.id] ?? "";

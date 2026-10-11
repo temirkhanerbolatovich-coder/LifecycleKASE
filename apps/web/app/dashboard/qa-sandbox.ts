@@ -3,6 +3,7 @@ import type { CorporateActionView } from "./action-workflow";
 import type { EntitlementsView } from "./entitlement-workflow";
 import { OperatorApiError } from "./operator-api";
 import { encodeBase58, isActionId } from "./snapshot-workflow";
+import { REGISTRY_REVIEW_REASONS } from "./investor-registry-workflow";
 
 export type QaActor = "ISSUER" | "APPROVER" | "AUDITOR";
 export type QaActionStep = "SCHEDULE" | "SNAPSHOT" | "CALCULATE" | "SUBMIT" | "APPROVE" | "RETURN" | "REJECT" |
@@ -52,6 +53,11 @@ function text(value: unknown, name: string, maximum: number, minimum = 1): strin
     fail("INVALID_REQUEST", `${name}: укажите от ${minimum} до ${maximum} символов.`, 400);
   }
   return value.trim();
+}
+function countryCode(value: unknown): string {
+  const raw = text(value, "Страна", 2, 2);
+  if (!/^[A-Za-z]{2}$/.test(raw)) fail("INVALID_REQUEST", "Некорректная страна инвестора.", 400);
+  return raw.toUpperCase();
 }
 function input(body: unknown, allowed: readonly string[]): Record<string, unknown> {
   if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).some(key => !allowed.includes(key))) {
@@ -119,6 +125,9 @@ function investor(state: State, investorId: string) {
   const row = state.investors.find(value => value.id === investorId);
   if (!row) fail("INVESTOR_NOT_FOUND", "Инвестор не найден.", 404);
   return row;
+}
+function investorView(row: QaInvestor): QaInvestor {
+  return { ...row, wallets: [...row.wallets].sort((a, b) => a.id.localeCompare(b.id)).slice(0, 20) };
 }
 function audit(state: State, event: string, entityType: string, entityId: string, metadataJson: Record<string, unknown> = {}, actionId: string | null = null) {
   const row = actionId ? action(state, actionId) : null;
@@ -322,12 +331,18 @@ export function createQaSandbox() {
     try { const draft = copy(state); const result = task(draft); state = draft; return Promise.resolve(copy(result)); }
     catch (error) { return Promise.reject(error); }
   }
-  function page(rows: { id: string }[], query: URLSearchParams) {
+  function page(rows: { id: string }[], query: URLSearchParams, cursorRegistry?: { id: string }[]) {
     if ([...query.keys()].some(key => !["limit", "cursor", "instrumentId"].includes(key)) || [...query.keys()].some(key => query.getAll(key).length > 1)) fail("INVALID_REQUEST", "Неизвестные параметры запроса.", 400);
     const limit = query.get("limit") ?? "20"; const cursor = query.get("cursor");
     if (!/^[1-9][0-9]{0,2}$/.test(limit) || Number(limit) > 100 || cursor !== null && !isActionId(cursor)) fail("INVALID_REQUEST", "Некорректная пагинация.", 400);
-    const start = cursor ? rows.findIndex(row => row.id === cursor) + 1 : 0;
-    if (cursor && start === 0) fail("INVALID_REQUEST", "Курсор не найден.", 400);
+    if (cursor && cursorRegistry) {
+      const anchor = cursorRegistry.findIndex(row => row.id.toLowerCase() === cursor.toLowerCase());
+      if (anchor < 0) fail("INVALID_REQUEST", "Курсор не найден.", 400);
+      const followingIds = new Set(cursorRegistry.slice(anchor + 1).map(row => row.id));
+      rows = rows.filter(row => followingIds.has(row.id));
+    }
+    const start = cursor && !cursorRegistry ? rows.findIndex(row => row.id === cursor) + 1 : 0;
+    if (cursor && !cursorRegistry && start === 0) fail("INVALID_REQUEST", "Курсор не найден.", 400);
     const items = rows.slice(start, start + Number(limit));
     return { items, nextCursor: start + Number(limit) < rows.length ? items.at(-1)!.id : null };
   }
@@ -339,7 +354,23 @@ export function createQaSandbox() {
     }
     if (query.has("instrumentId")) fail("INVALID_REQUEST", "Фильтр instrumentId доступен только реестру действий.", 400);
     if (path === "/api/v1/instruments") return page(state.instruments, query);
-    if (path === "/api/v1/investors") return page(state.investors, query);
+    if (path === "/api/v1/investors") {
+      const search = query.get("search")?.trim() ?? "";
+      if (query.getAll("search").length > 1 || search.length > 200 || /[\u0000-\u001f\u007f]/.test(query.get("search") ?? "")) fail("INVALID_REQUEST", "Некорректный поиск инвесторов.", 400);
+      const pagination = new URLSearchParams(query); pagination.delete("search");
+      const needle = search.toLowerCase();
+      return page(state.investors.filter(row => !search || row.displayName.toLowerCase().includes(needle) ||
+        (row.externalReference ?? "").toLowerCase().includes(needle) || row.id.toLowerCase() === needle ||
+        row.wallets.some(wallet => wallet.address.includes(search))).map(investorView), pagination, state.investors);
+    }
+    const investorMatch = /^\/api\/v1\/investors\/([0-9a-f-]+)(\/wallets)?$/i.exec(path);
+    if (investorMatch) {
+      if (!isActionId(investorMatch[1]!)) fail("INVALID_REQUEST", "Некорректный UUID инвестора.", 400);
+      const holder = investor(state, investorMatch[1]!);
+      if (investorMatch[2]) return page([...holder.wallets].sort((a, b) => a.id.localeCompare(b.id)), query);
+      if (query.size) fail("INVALID_REQUEST", "Этот запрос не принимает параметры.", 400);
+      return asRecord(investorView(holder));
+    }
     if (path === "/api/v1/audit") return page([...state.audit].reverse(), query);
     if (path === "/api/v1/transactions") return page([...state.transactions].reverse(), query);
     if (query.size !== 0) fail("INVALID_REQUEST", "Этот запрос не принимает параметры.", 400);
@@ -367,11 +398,11 @@ export function createQaSandbox() {
     }
     if (path === "/api/v1/investors") {
       const value = input(body, ["displayName", "type", "countryCode", "externalReference"]);
-      const countryCode = text(value["countryCode"], "Страна", 2, 2).toUpperCase();
-      if (!/^[A-Z]{2}$/.test(countryCode) || !["INDIVIDUAL", "INSTITUTIONAL"].includes(String(value["type"]))) fail("INVALID_REQUEST", "Некорректная страна или тип инвестора.", 400);
+      const country = countryCode(value["countryCode"]);
+      if (typeof value["type"] !== "string" || !["INDIVIDUAL", "INSTITUTIONAL"].includes(value["type"])) fail("INVALID_REQUEST", "Некорректная страна или тип инвестора.", 400);
       const externalReference = text(value["externalReference"], "Код", 100);
       if (draft.investors.some(row => row.externalReference === externalReference)) fail("REGISTRY_CONFLICT", "Код инвестора уже существует.");
-      const row: QaInvestor = { id: id(), displayName: text(value["displayName"], "Имя", 200), externalReference, countryCode, type: String(value["type"]), status: "ACTIVE", registryVersion: 1,
+      const row: QaInvestor = { id: id(), displayName: text(value["displayName"], "Имя", 200), externalReference, countryCode: country, type: String(value["type"]), status: "ACTIVE", registryVersion: 1,
         kycStatus: "NOT_STARTED", eligibilityStatus: "PENDING_REVIEW", eligibilityReasonCode: null, eligibilityReviewedAt: null, _count: { wallets: 0 }, wallets: [] };
       draft.investors.push(row); audit(draft, "INVESTOR_CREATED", "Investor", row.id); return asRecord(row);
     }
@@ -400,6 +431,30 @@ export function createQaSandbox() {
         row.redemptionPercentageBps = Number(percentage); row.redemptionPriceMinor = minor(value["redemptionPriceKzt"]); }
       else if (value["redemptionPercentageBps"] != null || value["redemptionPriceKzt"] != null) fail("INVALID_REQUEST", "Досрочные параметры разрешены только для EARLY_REDEMPTION.", 400);
       row.draftInput = copy(value); draft.actions.push(row); audit(draft, "CORPORATE_ACTION_DRAFT_CREATED", "CorporateAction", row.id, {}, row.id); return view(draft, row);
+    }
+    const profileMatch = /^\/api\/v1\/investors\/([0-9a-f-]+)\/profile$/i.exec(path);
+    if (profileMatch) {
+      if (!isActionId(profileMatch[1]!)) fail("INVALID_REQUEST", "Некорректный UUID инвестора.", 400);
+      const fields = ["displayName", "type", "countryCode", "externalReference", "expectedVersion", "reasonCode"];
+      const value = input(body, fields);
+      if (fields.some(field => !(field in value)) || typeof value["expectedVersion"] !== "number" ||
+          !Number.isSafeInteger(value["expectedVersion"]) || Number(value["expectedVersion"]) < 1 || Number(value["expectedVersion"]) >= 2_147_483_647 ||
+          !(REGISTRY_REVIEW_REASONS as readonly unknown[]).includes(value["reasonCode"])) fail("INVALID_REQUEST", "Укажите все поля, текущую версию и причину изменения.", 400);
+      if (typeof value["type"] !== "string") fail("INVALID_REQUEST", "Некорректный тип инвестора.", 400);
+      const profile = { displayName: text(value["displayName"], "Имя", 200), type: value["type"],
+        countryCode: countryCode(value["countryCode"]),
+        externalReference: value["externalReference"] === null ? null : text(value["externalReference"], "Код", 100) };
+      if (!["INDIVIDUAL", "INSTITUTIONAL"].includes(profile.type) || !/^[A-Z]{2}$/.test(profile.countryCode)) fail("INVALID_REQUEST", "Некорректная страна или тип инвестора.", 400);
+      const holder = investor(draft, profileMatch[1]!);
+      if (!["ACTIVE", "SUSPENDED"].includes(holder.status)) fail("INVESTOR_INACTIVE", "Профиль закрытого инвестора недоступен.");
+      if (holder.registryVersion !== value["expectedVersion"]) fail("REGISTRY_CONFLICT", "Concurrent change; refresh before retrying.");
+      if (Object.entries(profile).every(([key, result]) => holder[key as keyof typeof profile] === result)) fail("REGISTRY_TRANSITION_INVALID", "Profile is already current.");
+      if (profile.externalReference !== null && draft.investors.some(row => row.id !== holder.id && row.externalReference === profile.externalReference)) fail("REGISTRY_CONFLICT", "Код инвестора уже существует.");
+      const changedFields = Object.entries(profile).filter(([key, result]) => holder[key as keyof typeof profile] !== result).map(([key]) => key);
+      Object.assign(holder, profile); holder.registryVersion++;
+      audit(draft, "INVESTOR_PROFILE_UPDATED", "Investor", holder.id, { changedFields,
+        previousVersion: value["expectedVersion"], registryVersion: holder.registryVersion, reasonCode: value["reasonCode"], source: "qa-simulation" });
+      return asRecord(investorView(holder));
     }
     const reviewMatch = /^\/api\/v1\/investors\/([0-9a-f-]+)\/eligibility\/review$/i.exec(path);
     if (reviewMatch) {

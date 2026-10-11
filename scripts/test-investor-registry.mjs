@@ -7,6 +7,7 @@ import { Prisma, PrismaClient } from "@prisma/client";
 import { NestFactory } from "@nestjs/core";
 import { encodePublicKey } from "@lifecycle-kase/solana-client";
 import { testRegistryGovernance } from "./test-registry-governance.mjs";
+import { testRegistryProfiles } from "./test-registry-profiles.mjs";
 
 // No .env loading: never silently test against a staging/production database.
 const localUrl = new URL(process.env.REGISTRY_TEST_DATABASE_URL ?? process.env.DATABASE_URL ??
@@ -41,7 +42,7 @@ try {
   process.env.AUTH_CHALLENGE_RATE_LIMIT = "5";
   process.env.AUTH_VERIFY_RATE_LIMIT = "10";
   // The expanded negative matrix needs its own test budget; final assertions still prove 429/Retry-After.
-  const mutationLimit = 120;
+  const mutationLimit = 200;
   process.env.MUTATION_RATE_LIMIT = String(mutationLimit);
   process.env.AUTH_RATE_LIMIT_WINDOW_SECONDS = "60";
   process.env.SOLANA_CLUSTER = "localnet";
@@ -343,6 +344,8 @@ try {
 
   const governance = await testRegistryGovernance({ database, request, administrator, auditor, publicAddress,
     revokedInvestorId: investorId, revokedWalletId: attached.payload.id });
+  const profiles = await testRegistryProfiles({ database, request, administrator, auditor, issuer, publicAddress, governance });
+  governance.investorVersion += 1;
 
   const lockInvestorInput = { ...investorInput, displayName: "Synthetic Locked Investor", externalReference: "CAPTURE-LOCK" };
   const lockInvestor = await request("/investors", {
@@ -400,14 +403,16 @@ try {
     [`/investors/${governance.investorId}/eligibility/review`, {
       decision: "SUSPENDED", expectedVersion: governance.investorVersion, reasonCode: "PERIODIC_REVIEW" }],
     [`/investors/${governance.investorId}/wallets/${governance.walletId}/status`, {
-      status: "BLOCKED", expectedVersion: governance.walletVersion, reasonCode: "SECURITY_CONCERN" }]
+      status: "BLOCKED", expectedVersion: governance.walletVersion, reasonCode: "SECURITY_CONCERN" }],
+    [`/investors/${profiles.investorId}/profile`, profiles.body]
   ]) {
     const blocked = await request(path, { cookie: administrator.cookie, method: "POST", body });
     assert.equal(blocked.status, 409); assert.equal(blocked.payload.code, "REGISTRY_CAPTURE_LOCKED");
   }
   assert.equal((await database.investor.findUniqueOrThrow({ where: { id: governance.investorId } })).registryVersion, governance.investorVersion);
   assert.equal((await database.wallet.findUniqueOrThrow({ where: { id: governance.walletId } })).registryVersion, governance.walletVersion);
-  console.log("PASS snapshot capture window blocks initial/repeated eligibility, attachment, revocation and temporary wallet status with unchanged versions");
+  assert.equal((await database.investor.findUniqueOrThrow({ where: { id: profiles.investorId } })).registryVersion, profiles.body.expectedVersion);
+  console.log("PASS snapshot capture window blocks profile, initial/repeated eligibility, attachment, revocation and temporary wallet status with unchanged versions");
 
   let limited;
   for (let attempt = 0; attempt <= mutationLimit; attempt++) {

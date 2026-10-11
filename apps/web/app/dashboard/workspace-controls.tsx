@@ -4,19 +4,19 @@ import { createTranslator, getDisplayLocale, translateStoredMessage } from "./lo
 import { useState } from "react";
 import type { RegistryFilters } from "./workspace-presentation";
 
-export function RegistryToolbar({ label, filters, onChange, statuses, loaded, shown, sortLabel = "Название" }: {
+export function RegistryToolbar({ label, filters, onChange, statuses, loaded, shown, sortLabel = "Название", serverSearch = false }: {
   label: string; filters: RegistryFilters; onChange: (value: RegistryFilters) => void; statuses: Record<string, string>;
-  loaded: number; shown: number; sortLabel?: string;
+  loaded: number; shown: number; sortLabel?: string; serverSearch?: boolean;
 }) {
   const { t, locale, displayMessage } = useLocale();
   const displayedSortLabel = displayMessage(sortLabel);
   return <div className={`registry-toolbar${Object.keys(statuses).length ? "" : " registry-toolbar-no-status"}`}>
-    <label>{t("core.search")} {label}<input type="search" value={filters.query} placeholder={t("core.name.code.or.uuid")} onChange={event => onChange({ ...filters, query: event.target.value })} /></label>
+    <label>{t("core.search")} {label}<input type="search" value={filters.query} maxLength={serverSearch ? 200 : undefined} placeholder={t("core.name.code.or.uuid")} onChange={event => onChange({ ...filters, query: event.target.value })} /></label>
     {Object.keys(statuses).length > 0 && <label>{t("core.status")}<select value={filters.status} onChange={event => onChange({ ...filters, status: event.target.value })}>
       <option value="">{t("core.all.statuses")}</option>{Object.entries(statuses).map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select>
       </label>}
     <label>{t("core.sort")}<select value={filters.sort} onChange={event => onChange({ ...filters, sort: event.target.value })}><option value="asc">{displayedSortLabel === t("core.date") ? t("core.oldest.first") : `${displayedSortLabel} ↑`}</option><option value="desc">{displayedSortLabel === t("core.date") ? t("core.newest.first") : `${displayedSortLabel} ↓`}</option></select></label>
-    <div className="registry-scope"><p aria-live="polite">{t("core.showing")} {shown} {t("core.of")} {loaded} {t("core.loaded.records.search.and.filters.apply.to.this.selection")}</p>
+    <div className="registry-scope"><p aria-live="polite">{t("core.showing")} {shown} {t("core.of")} {loaded} {serverSearch ? t("registry.investor.serverSearchScope") : t("core.loaded.records.search.and.filters.apply.to.this.selection")}</p>
       {(filters.query || filters.status) && <button type="button" className="filter-reset" onClick={() => onChange({ ...filters, query: "", status: "" })}>{t("core.reset.filters")}</button>}
     </div>
   </div>;

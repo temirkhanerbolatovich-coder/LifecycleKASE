@@ -2,9 +2,88 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createQaSandbox, QA_ACTION_IDS, QA_FRESH_INSTRUMENT_ID, QA_APPROVER, type QaActionStep } from "./qa-sandbox";
 import { OperatorApiError } from "./operator-api";
+import { encodeBase58 } from "./snapshot-workflow";
 
 const post = (body: object): RequestInit => ({ method: "POST", body: JSON.stringify(body) });
 const rejected = (code: string) => (error: unknown) => error instanceof OperatorApiError && error.code === code;
+
+test("QA profile correction preserves snapshots, wallets and eligibility and rejects stale/no-op/duplicate/unauthorized writes atomically", async () => {
+  const model = createQaSandbox(); const original = model.exportState(); const holder = original.investors[0]!;
+  const path = `/api/v1/investors/${holder.id}/profile`;
+  const body = { displayName: "  Corrected holder  ", type: "INSTITUTIONAL", countryCode: "us", externalReference: null, expectedVersion: 1, reasonCode: "REGISTRY_CORRECTION" };
+  const updated = await model.request(path, post(body));
+  assert.equal(updated["displayName"], "Corrected holder"); assert.equal(updated["countryCode"], "US");
+  assert.equal(updated["externalReference"], null); assert.equal(updated["registryVersion"], 2);
+  const after = model.exportState(); const current = after.investors[0]!;
+  assert.deepEqual(current.wallets, holder.wallets); assert.equal(current.eligibilityStatus, holder.eligibilityStatus); assert.equal(current.kycStatus, holder.kycStatus);
+  assert.deepEqual(after.actions, original.actions); assert.deepEqual(after.instruments, original.instruments);
+  assert.equal(after.audit.at(-1)!.event, "INVESTOR_PROFILE_UPDATED");
+  assert.deepEqual(after.audit.at(-1)!.metadataJson["changedFields"], ["displayName", "type", "countryCode", "externalReference"]);
+  assert.equal(JSON.stringify(after.audit.at(-1)).includes("Corrected holder"), false);
+  assert.equal(JSON.stringify(after.audit.at(-1)).includes(holder.externalReference!), false);
+  await assert.rejects(model.request(path, post(body)), rejected("REGISTRY_CONFLICT"));
+  await assert.rejects(model.request(path, post({ ...body, expectedVersion: 2 })), rejected("REGISTRY_TRANSITION_INVALID"));
+  await assert.rejects(model.request(path, post({ ...body, expectedVersion: 2, externalReference: "QA-2" })), rejected("REGISTRY_CONFLICT"));
+  for (const invalid of [ { ...body, expectedVersion: "2" }, { ...body, countryCode: "ıı" }, { ...body, countryCode: "ß" },
+    { ...body, type: ["INDIVIDUAL"] }, { ...body, externalReference: "" }, { ...body, reasonCode: "OTHER" }, { ...body, eligibilityStatus: "ELIGIBLE" },
+    { displayName: "Missing mandatory profile fields", expectedVersion: 2, reasonCode: "OWNER_REQUEST" } ]) {
+    await assert.rejects(model.request(path, post(invalid)), rejected("INVALID_REQUEST"));
+  }
+  assert.deepEqual(model.exportState(), after);
+  await assert.rejects(model.request("/api/v1/investors/abc/profile", post(body)), rejected("INVALID_REQUEST"));
+  model.setActor("AUDITOR"); const readonly = model.exportState();
+  assert.equal((await model.request(`/api/v1/investors/${holder.id}`))["registryVersion"], 2);
+  await assert.rejects(model.request(path, post({ ...body, expectedVersion: 2, displayName: "Denied" })), rejected("QA_ROLE_REQUIRED"));
+  assert.deepEqual(model.exportState(), readonly);
+});
+
+test("QA server search finds records outside the first registry page and wallet pages stay scoped to their investor", async () => {
+  const model = createQaSandbox();
+  for (let index = 0; index < 23; index++) await model.request("/api/v1/investors", post({ displayName: `Paged holder ${index}`, externalReference: `PAGED-${index}`, type: "INDIVIDUAL", countryCode: "KZ" }));
+  const first = await model.request("/api/v1/investors?limit=20");
+  const firstIds = (first["items"] as { id: string }[]).map(row => row.id);
+  const outside = model.exportState().investors.find(row => !firstIds.includes(row.id))!;
+  assert.equal((await model.request(`/api/v1/investors/${outside.id}`))["id"], outside.id);
+  for (const search of [outside.id, outside.externalReference!, outside.displayName]) {
+    const found = await model.request(`/api/v1/investors?limit=20&search=${encodeURIComponent(search)}`);
+    assert.ok((found["items"] as { id: string }[]).some(row => row.id === outside.id));
+  }
+  for (let index = 0; index < 23; index++) {
+    const address = encodeBase58(Uint8Array.from({ length: 32 }, (_, byte) => (index + byte + 190) % 256));
+    await model.request(`/api/v1/investors/${outside.id}/wallets`, post({ address }));
+  }
+  const detail = await model.request(`/api/v1/investors/${outside.id}`);
+  assert.equal((detail["wallets"] as unknown[]).length, 20); assert.equal((detail["_count"] as { wallets: number }).wallets, outside.wallets.length + 23);
+  const firstWallets = await model.request(`/api/v1/investors/${outside.id}/wallets?limit=20`);
+  const secondWallets = await model.request(`/api/v1/investors/${outside.id}/wallets?limit=20&cursor=${firstWallets["nextCursor"]}`);
+  assert.equal((firstWallets["items"] as unknown[]).length, 20); assert.equal(secondWallets["nextCursor"], null);
+  const all = [...firstWallets["items"] as { id: string; address: string }[], ...secondWallets["items"] as { id: string; address: string }[]];
+  assert.equal(new Set(all.map(wallet => wallet.id)).size, outside.wallets.length + 23);
+  const byWallet = await model.request(`/api/v1/investors?limit=20&search=${all.at(-1)!.address}`);
+  assert.deepEqual((byWallet["items"] as { id: string }[]).map(row => row.id), [outside.id]);
+  const byPartialWallet = await model.request(`/api/v1/investors?limit=20&search=${all.at(-1)!.address.slice(9, 25)}`);
+  assert.deepEqual((byPartialWallet["items"] as { id: string }[]).map(row => row.id), [outside.id]);
+  const foreign = model.exportState().investors.find(row => row.id !== outside.id)!.id;
+  await assert.rejects(model.request(`/api/v1/investors/${foreign}/wallets?cursor=${all[0]!.id}`), rejected("INVALID_REQUEST"));
+  await assert.rejects(model.request("/api/v1/investors?search=" + "x".repeat(201)), rejected("INVALID_REQUEST"));
+  await assert.rejects(model.request("/api/v1/investors?search=a&search=b"), rejected("INVALID_REQUEST"));
+  const noMatch = await model.request("/api/v1/investors?search=not-in-this-registry");
+  assert.deepEqual(noMatch, { items: [], nextCursor: null });
+  for (const countryCode of ["ß", "ıı"]) await assert.rejects(model.request("/api/v1/investors", post({
+    displayName: "Invalid raw country", externalReference: "BAD-COUNTRY", type: "INDIVIDUAL", countryCode
+  })), rejected("INVALID_REQUEST"));
+});
+
+test("QA search continuation survives a cursor profile correction that removes the anchor from results", async () => {
+  const model = createQaSandbox();
+  const first = await model.request("/api/v1/investors?limit=1&search=QA%20Investor");
+  const anchor = (first["items"] as { id: string; type: string; countryCode: string; externalReference: string }[])[0]!;
+  await model.request(`/api/v1/investors/${anchor.id}/profile`, post({ displayName: "Corrected record", type: anchor.type,
+    countryCode: anchor.countryCode, externalReference: anchor.externalReference, expectedVersion: 1, reasonCode: "REGISTRY_CORRECTION" }));
+  const continued = await model.request(`/api/v1/investors?limit=20&search=QA%20Investor&cursor=${first["nextCursor"]}`);
+  assert.equal((continued["items"] as { id: string }[]).length, 2);
+  assert.equal((continued["items"] as { id: string }[]).some(row => row.id === anchor.id), false);
+});
 async function prepare(model: ReturnType<typeof createQaSandbox>, actionId: string) {
   model.setActor("ISSUER");
   for (const step of ["SCHEDULE", "SNAPSHOT", "CALCULATE", "SUBMIT", "FUND", "RESERVE"] as QaActionStep[]) await model.advanceAction(actionId, step);

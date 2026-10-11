@@ -69,7 +69,16 @@ try {
   await fetch(webOrigin + `/api/v1/corporate-actions/${actionId}/snapshot/prepare`, { method: "POST", headers: { Origin: webOrigin }, body: "{}" });
   assert.equal((await fetch(webOrigin + "/api/v1/investors")).status, 200);
   assert.equal(seen.at(-1).path, "/api/v1/investors");
-  for (const suffix of ["eligibility/review", `wallets/${actionId}/status`]) {
+  for (const suffix of ["", "/wallets?limit=20&cursor=" + actionId]) {
+    const route = `/api/v1/investors/${actionId}${suffix}`;
+    assert.equal((await fetch(webOrigin + route, { headers: { Cookie: "lifecyclekase_session=synthetic-smoke-only" } })).status, 200);
+    assert.equal(seen.at(-1).path, route);
+    assert.equal(seen.at(-1).cookie, "lifecyclekase_session=synthetic-smoke-only");
+  }
+  const searchRoute = "/api/v1/investors?limit=20&search=Investor%20A";
+  assert.equal((await fetch(webOrigin + searchRoute)).status, 200);
+  assert.equal(seen.at(-1).path, searchRoute);
+  for (const suffix of ["profile", "eligibility/review", `wallets/${actionId}/status`]) {
     const route = `/api/v1/investors/${actionId}/${suffix}`;
     const body = JSON.stringify({ expectedVersion: 1, reasonCode: "SECURITY_CONCERN", synthetic: true });
     assert.equal((await fetch(webOrigin + route, { method: "POST", headers: { Origin: webOrigin,

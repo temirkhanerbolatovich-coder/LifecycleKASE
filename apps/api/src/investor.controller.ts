@@ -3,8 +3,8 @@ import { randomUUID } from "node:crypto";
 import { AuthFlowError, authOptionsFromEnvironment, readOperatorSession, requireAuthenticationEnabled,
   requireRequestOrigin, sessionTokenFromCookieHeader } from "./auth.js";
 import { AuthRateLimitError, AuthRateLimitService, authenticationClientKey } from "./auth-rate-limit.js";
-import { attachPendingWallet, changeInvestorWalletStatus, createInvestor, decideInvestorEligibility, InvestorRegistryError, listInvestors,
-  reviewInvestorEligibility,
+import { attachPendingWallet, changeInvestorWalletStatus, createInvestor, decideInvestorEligibility, getInvestor,
+  InvestorRegistryError, listInvestors, listInvestorWallets, reviewInvestorEligibility, updateInvestorProfile,
   registryMutationOptionsFromEnvironment, revokeInvestorWallet } from "./investor-registry.js";
 import { PrismaService } from "./prisma.service.js";
 import { createWalletVerificationChallenge, verifyWalletOwnership } from "./wallet-verification.js";
@@ -41,10 +41,40 @@ export class InvestorController {
   @Get()
   @Header("Cache-Control", "no-store")
   async list(@Req() request: Request, @Res({ passthrough: true }) response: Response,
-    @Query("limit") limit?: string, @Query("cursor") cursor?: string) {
+    @Query("limit") limit?: string, @Query("cursor") cursor?: string, @Query("search") search?: string) {
     try {
       await this.actor(request, response, false);
-      return await listInvestors(this.prisma, limit, cursor);
+      return await listInvestors(this.prisma, limit, cursor, search);
+    } catch (error) { this.httpError(error, response); }
+  }
+
+  @Get(":id")
+  @Header("Cache-Control", "no-store")
+  async detail(@Param("id") investorId: string, @Req() request: Request,
+    @Res({ passthrough: true }) response: Response) {
+    try {
+      await this.actor(request, response, false);
+      return await getInvestor(this.prisma, investorId);
+    } catch (error) { this.httpError(error, response); }
+  }
+
+  @Get(":id/wallets")
+  @Header("Cache-Control", "no-store")
+  async wallets(@Param("id") investorId: string, @Req() request: Request,
+    @Res({ passthrough: true }) response: Response, @Query("limit") limit?: string, @Query("cursor") cursor?: string) {
+    try {
+      await this.actor(request, response, false);
+      return await listInvestorWallets(this.prisma, investorId, limit, cursor);
+    } catch (error) { this.httpError(error, response); }
+  }
+
+  @Post(":id/profile")
+  @Header("Cache-Control", "no-store")
+  async profile(@Param("id") investorId: string, @Body() body: unknown, @Req() request: Request,
+    @Res({ passthrough: true }) response: Response, @Headers("origin") origin?: string) {
+    try {
+      const actor = await this.actor(request, response, true, origin);
+      return await updateInvestorProfile(this.prisma, investorId, body, actor, registryMutationOptionsFromEnvironment());
     } catch (error) { this.httpError(error, response); }
   }
 

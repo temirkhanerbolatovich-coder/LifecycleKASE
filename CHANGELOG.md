@@ -1,5 +1,14 @@
 # Changelog
 
+## Investor profiles, server search and full wallet history — 2026-10-11
+
+- Add authenticated profile detail and bounded wallet pages, server-side investor search and selected-profile deep links beyond the list's 20-wallet preview.
+- Add Administrator full-profile correction with fixed reason, expected version, capture lock and atomic audit of changed field names; reject stale, unchanged, duplicate-reference and closed-profile writes.
+- Preserve stable IDs, lifecycle/KYC/eligibility, verified mapping and immutable financial obligations. Reuse migration 20 and ADR-028; no program change or lifecycle closure is added.
+- Set investor-ownership challenge creation/expiry from one API timestamp, matching the existing operator-login flow, to prevent small API/database clock differences from violating the temporal SQL guard; retain the guard and one-time consumption contract.
+- Validate country input as two raw ASCII letters before uppercasing, so Unicode case expansion cannot introduce an unintended country code.
+- Add RU/EN profile forms and corresponding page-local QA behavior, preserving failed-write/locale form state and requiring refresh after a saved mutation. See [phase evidence and remaining work](docs/testing/registry-profiles-2026-10-11.md). Source publication, CI and hosted rollout retain separate checkpoints.
+
 ## Governed investor eligibility and temporary wallet blocking — 2026-10-11
 
 - Add reasoned review of existing demo eligibility decisions and reversible blocking of verified investor wallets, with Administrator writes and Auditor reads.

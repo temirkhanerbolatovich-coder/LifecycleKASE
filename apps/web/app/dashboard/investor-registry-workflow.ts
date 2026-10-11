@@ -11,7 +11,11 @@ export type RegistryInvestorFacts = {
 export type RegistryWalletFacts = {
   id: string; status: string; registryVersion: number; verifiedAt: string | null; revokedAt: string | null;
 };
-type RegistryCommand = { path: string; body: Record<string, string | number> };
+type RegistryCommand = { path: string; body: Record<string, string | number | null> };
+export type RegistryProfile = {
+  displayName: string; type: string; countryCode: string; externalReference: string | null;
+};
+export type RegistryProfileDraft = RegistryProfile & { reason: string; expectedVersion: number };
 export type RegistryRefreshLock = { kind: "investor" | "wallet"; id: string; version: number };
 
 function validVersion(version: number): boolean {
@@ -19,6 +23,78 @@ function validVersion(version: number): boolean {
 }
 function validReason(reason: string): reason is RegistryReviewReason {
   return (REGISTRY_REVIEW_REASONS as readonly string[]).includes(reason);
+}
+export function canEditInvestorProfile(investor: RegistryInvestorFacts, role: string): boolean {
+  return role === "ADMINISTRATOR" && ["ACTIVE", "SUSPENDED"].includes(investor.status ?? "") && validVersion(investor.registryVersion);
+}
+/** Empty reference input deliberately clears the optional reference; no-op writes stay disabled. */
+export function investorProfileCommand(
+  investor: RegistryInvestorFacts & RegistryProfile, role: string, draft: RegistryProfileDraft
+): RegistryCommand | null {
+  if (!canEditInvestorProfile(investor, role) || !validReason(draft.reason) || draft.expectedVersion !== investor.registryVersion) return null;
+  if (!/^[A-Za-z]{2}$/.test(draft.countryCode.trim()) || /[\u0000-\u001f\u007f]/.test(draft.displayName) ||
+      draft.externalReference !== null && /[\u0000-\u001f\u007f]/.test(draft.externalReference)) return null;
+  const profile: RegistryProfile = {
+    displayName: draft.displayName.trim(), type: draft.type, countryCode: draft.countryCode.trim().toUpperCase(),
+    externalReference: draft.externalReference?.trim() || null
+  };
+  if (!profile.displayName || profile.displayName.length > 200 || /[\u0000-\u001f\u007f]/.test(profile.displayName) ||
+      !["INDIVIDUAL", "INSTITUTIONAL"].includes(profile.type) || !/^[A-Z]{2}$/.test(profile.countryCode) ||
+      profile.externalReference !== null && (profile.externalReference.length > 100 || /[\u0000-\u001f\u007f]/.test(profile.externalReference))) return null;
+  if (Object.entries(profile).every(([key, value]) => investor[key as keyof RegistryProfile] === value)) return null;
+  return { path: `/api/v1/investors/${encodeURIComponent(investor.id)}/profile`,
+    body: { ...profile, expectedVersion: draft.expectedVersion, reasonCode: draft.reason } };
+}
+export function investorRegistryPath(search = "", cursor?: string): string {
+  const query = new URLSearchParams({ limit: "20" });
+  if (search.trim()) query.set("search", search.trim());
+  if (cursor) query.set("cursor", cursor);
+  return `/api/v1/investors?${query}`;
+}
+export function investorWalletsPath(investorId: string, cursor?: string): string {
+  const query = new URLSearchParams({ limit: "20" });
+  if (cursor) query.set("cursor", cursor);
+  return `/api/v1/investors/${encodeURIComponent(investorId)}/wallets?${query}`;
+}
+export function mergeRegistryRows<T extends { id: string }>(previous: T[], rows: T[]): T[] {
+  const merged = new Map(previous.map(row => [row.id, row]));
+  for (const row of rows) merged.set(row.id, row);
+  return [...merged.values()];
+}
+/** A detail refresh reads the selected UUID and restores only wallet pages already opened by the operator. */
+export async function readInvestorRegistryDetail<T extends RegistryInvestorFacts & { _count: { wallets: number } }>(
+  request: (path: string, init?: RequestInit) => Promise<Record<string, unknown>>,
+  id: string, visibleWalletCount: number, signal: AbortSignal
+): Promise<{ record: T; nextCursor: string | null }> {
+  const canonicalId = id.toLowerCase();
+  const raw = await request(`/api/v1/investors/${encodeURIComponent(canonicalId)}`, { signal });
+  if (raw["id"] !== canonicalId || !Array.isArray(raw["wallets"]) || !raw["_count"] || typeof raw["_count"] !== "object") throw new Error("Invalid registry response.");
+  const record = raw as T;
+  let nextCursor = record._count.wallets > record.wallets.length ? record.wallets.at(-1)?.id ?? null : null;
+  const visited = new Set<string>();
+  while (nextCursor && record.wallets.length < visibleWalletCount && !signal.aborted) {
+    if (visited.has(nextCursor)) throw new Error("Invalid registry response.");
+    visited.add(nextCursor);
+    const page = await request(investorWalletsPath(id, nextCursor), { signal });
+    if (!Array.isArray(page["items"])) throw new Error("Invalid registry response.");
+    const before = record.wallets.length;
+    record.wallets = mergeRegistryRows(record.wallets, page["items"] as T["wallets"]);
+    nextCursor = typeof page["nextCursor"] === "string" ? page["nextCursor"] : null;
+    if (nextCursor && record.wallets.length <= before) throw new Error("Invalid registry response.");
+  }
+  return { record, nextCursor };
+}
+/** Superseded responses cannot change the current search, detail, cursor or loading state. */
+export function createRegistryRequestScope() {
+  let active: AbortController | null = null;
+  return {
+    begin() {
+      active?.abort();
+      const controller = new AbortController(); active = controller;
+      return { signal: controller.signal, current: () => active === controller && !controller.signal.aborted };
+    },
+    cancel() { active?.abort(); active = null; }
+  };
 }
 export function hasActiveVerifiedWallet(investor: RegistryInvestorFacts): boolean {
   return investor.wallets.some(wallet => wallet.status === "ACTIVE" && Boolean(wallet.verifiedAt) && wallet.revokedAt === null);

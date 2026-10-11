@@ -50,6 +50,7 @@ function fixture(overrides: { role?: UserRole; verified?: boolean } = {}) {
       updateMany: async ({ where, data }: any) => {
         const challenge = challenges.get(where.id);
         if (!challenge || challenge.usedAt !== null || challenge.expiresAt <= where.expiresAt.gt) return { count: 0 };
+        assert.ok(data.usedAt >= challenge.createdAt, "Stored challenge creation must not be later than consumption");
         challenge.usedAt = data.usedAt;
         return { count: 1 };
       }
@@ -65,7 +66,9 @@ function fixture(overrides: { role?: UserRole; verified?: boolean } = {}) {
   const database = {
     wallet: { findUnique: async () => currentWallet },
     authChallenge: {
-      create: async ({ data }: any) => { challenges.set(data.id, { ...data, usedAt: null }); },
+      create: async ({ data }: any) => {
+        challenges.set(data.id, { ...data, createdAt: data.createdAt ?? new Date(NOW.getTime() + 2), usedAt: null });
+      },
       findUnique: async ({ where }: any) => challenges.get(where.id) ?? null
     },
     session: {
@@ -138,6 +141,7 @@ test("creates a domain-bound challenge and one-time operator session", async () 
   assert.equal(challenge.message.includes(challenge.nonce), true);
   const storedChallenge = setup.challenges.get(challenge.challengeId);
   assert.equal(storedChallenge.createdAt.getTime(), NOW.getTime());
+  assert.equal(storedChallenge.expiresAt.getTime() - storedChallenge.createdAt.getTime(), options.challengeTtlSeconds * 1000);
   assert.notEqual(Buffer.from(storedChallenge.nonceHash).toString("hex"), challenge.nonce);
   assert.equal(
     Buffer.from(storedChallenge.nonceHash).toString("hex"),

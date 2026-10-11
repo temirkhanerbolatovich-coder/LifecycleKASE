@@ -1,5 +1,18 @@
 /** Application-owned registry copy; never applied to user names or signed payloads. */
 const ru = {
+  "registry.investor.serverSearchScope": "загруженных записей. Поиск охватывает весь реестр по имени, коду, UUID и адресу кошелька; статус и сортировка применяются к загруженным результатам.",
+  "registry.investor.profileTitle": "Редактировать профиль",
+  "registry.investor.profileHelp": "Измените имя, тип, страну или код с обязательной причиной и проверкой версии. Пустой код удаляет привязку. KYC, допуск, адреса кошельков и сохранённые снимки проверяются отдельно.",
+  "registry.investor.profileReference": "Код ссылки (пустое поле удаляет код)",
+  "registry.investor.profileSave": "Сохранить профиль",
+  "registry.investor.profileStaleDraft": "Черновик основан на версии {version}, а запись уже изменена. Ввод сохранён. Проверьте текущий профиль и явно загрузите его поля заново перед новой правкой.",
+  "registry.investor.profileResetDraft": "Заменить черновик текущим профилем",
+  "registry.investor.profileConfirm": "Изменить профиль {name}? Имя: {displayName}. Тип: {type}. Страна: {country}. Код: {reference}. Причина: {reason}. Версия: {version}.",
+  "registry.investor.profileSaved": "Профиль сохранён, изменение записано в аудит. Загружена новая версия записи.",
+  "registry.investor.profileRefreshFailed": "Профиль сохранён, но новая версия записи не загружена. Обновите карточку; не отправляйте изменение повторно.",
+  "registry.investor.profileFailed": "Профиль не сохранён. Введённые значения и причина сохранены. При конфликте обновите карточку перед повторной попыткой.",
+  "registry.investor.walletsLoaded": "Кошельки: загружено {shown} из {total}",
+  "registry.investor.loadMoreWallets": "Загрузить следующие кошельки",
   "registry.instrument.statusDraft": "Черновик",
   "registry.instrument.statusDeploying": "Выпуск",
   "registry.instrument.statusActive": "Активен",
@@ -270,6 +283,19 @@ const ru = {
   "registry.validation.finalization": "API не подтвердил финализацию этой операции."
 } as const;
 const en: Record<keyof typeof ru, string> = {
+  "registry.investor.serverSearchScope": "loaded records. Search covers the full registry by name, reference, UUID and wallet address; status and sorting apply to loaded results.",
+  "registry.investor.profileTitle": "Edit profile",
+  "registry.investor.profileHelp": "Change the name, type, country or reference with a required reason and version check. An empty reference clears it. KYC, eligibility, wallet addresses and saved snapshots are checked separately.",
+  "registry.investor.profileReference": "Reference code (empty clears the reference)",
+  "registry.investor.profileSave": "Save profile",
+  "registry.investor.profileStaleDraft": "This draft is based on version {version}, and the record has changed. Your entries are preserved. Review the current profile and explicitly reload its fields before editing again.",
+  "registry.investor.profileResetDraft": "Replace draft with current profile",
+  "registry.investor.profileConfirm": "Change the profile for {name}? Name: {displayName}. Type: {type}. Country: {country}. Reference: {reference}. Reason: {reason}. Version: {version}.",
+  "registry.investor.profileSaved": "The profile was saved and audited. The current record version was loaded.",
+  "registry.investor.profileRefreshFailed": "The profile was saved, but the current record version was not loaded. Refresh the record; do not submit the change again.",
+  "registry.investor.profileFailed": "The profile was not saved. Your entries and reason are preserved. If there is a conflict, refresh the record before retrying.",
+  "registry.investor.walletsLoaded": "Wallets: {shown} of {total} loaded",
+  "registry.investor.loadMoreWallets": "Load more wallets",
   "registry.instrument.statusDraft": "Draft",
   "registry.instrument.statusDeploying": "Deploying",
   "registry.instrument.statusActive": "Active",

@@ -118,7 +118,9 @@ export async function createWalletVerificationChallenge(
     nonceHash: digest(nonce),
     domain: options.domain,
     origin,
-    expiresAt
+    expiresAt,
+    // Consumption/expiry use the application clock; a faster DB default would reject immediate proof.
+    createdAt: now
   } });
   return { challengeId, walletId, walletAddress: wallet.address, message, nonce, expiresAt: expiresAt.toISOString() };
 }

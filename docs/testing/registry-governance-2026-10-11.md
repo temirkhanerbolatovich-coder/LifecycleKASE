@@ -1,5 +1,7 @@
 # Governed registry continuation — 2026-10-11
 
+This is the earlier eligibility/wallet governance acceptance checkpoint. Later governed profile correction, detail/deep links, server search and full wallet pagination are recorded in [profile continuation](registry-profiles-2026-10-11.md). Its checks/publication are separate from the results and source SHA below.
+
 This phase continues the approved product/technical requirements from application/documentation checkpoint `aae2ecf35c9a87fe01abf9098deecce0fdf5b0dd` on `codex/full-project-audit-20261010`. It closes existing eligibility correction/suspension/restoration and temporary verified-wallet blocking. It does not claim completion of the entire specification.
 
 ## Implemented behavior
@@ -37,7 +39,7 @@ Next Fast Refresh exposed an unintended QA fixture reset during source edits. Th
 ## Remaining specification work
 
 1. Issuer-scoped registry, canonical snapshot/receipt and evidence access; explicit membership and controlled operator lifecycle. The present registry/capture lock serves one demo workspace.
-2. Investor profile edit and lifecycle suspension/closure, governed by holdings, live actions and unresolved signed attempts; full wallet detail/search beyond bounded previews.
+2. Investor lifecycle suspension/closure, governed by holdings, live actions and unresolved signed attempts. Profile edit, independent detail/deep links, server search and full wallet pagination are implemented in the later [profile continuation](registry-profiles-2026-10-11.md); that does not close lifecycle governance or issuer isolation.
 3. Durable missed-window processing, restart/reindex and unknown-signature tooling; governed pause/resume, authority changes and reserve recovery.
 4. Reasoned terminal policy for all-zero calculations, without manufacturing settlement or rewriting snapshot evidence.
 5. Kazakh catalog and native financial terminology review; keyboard, zoom and screen-reader acceptance plus observed operator tasks. English UI exists; actual narrated demo/pitch videos and final Colosseum submission remain human deliverables.
