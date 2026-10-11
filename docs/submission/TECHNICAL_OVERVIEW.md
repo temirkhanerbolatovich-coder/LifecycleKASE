@@ -10,7 +10,7 @@ Operators authenticate by a one-time signed wallet message. Financial instructio
 
 ## Instrument and holder registry
 
-A fixed 35-bond test mint has zero decimals, revoked mint/freeze authority and an instrument PDA as PermanentDelegate. Initial holders own10/20/5. One investor may map to multiple verified wallets; holder scanning enumerates all positive Token-2022 accounts and requires complete supply coverage. Eligibility is synthetic demo data, not real KYC.
+A fixed 35-bond test mint has zero decimals, revoked mint/freeze authority and an instrument PDA as PermanentDelegate. Initial holders own 10/20/5. One investor may map to multiple verified wallets; holder scanning enumerates all positive Token-2022 accounts and requires complete supply coverage. Eligibility is synthetic demo data, not real KYC.
 
 ## Record date
 
@@ -34,6 +34,6 @@ A canonical versioned JSON ActionReceipt contains inputs, planned/effective cuto
 
 Implemented candidate: issuance, verified-wallet registry, snapshot, three calculations, separate approval/custody, coupon execution, atomic partial/maturity payment+burn, reconciliation, canonical receipts and operator views. KZT-Test funding, investor eligibility and accelerated test maturity are simulated domain inputs; Solana instructions themselves execute on a real isolated local validator.
 
-Current validation/evidence and environment limits: [three-action acceptance](../testing/kase-three-actions-2026-10-10.md), [recorded Auditor demo](kase-three-actions.webm) and [public signatures/canonical receipts](../testing/evidence/kase-three-actions-2026-10-10.json). Run `npm run demo:verify` with Docker and the documented non-root WSL toolchain; it creates and removes only its disposable ledger/database. This is reproducible Localnet evidence, not a public Explorer deployment or installation on the retained owner program.
+Current validation/evidence and environment limits: [three-action acceptance](../testing/kase-three-actions-2026-10-10.md), [captioned Auditor demo](kase-three-actions-captioned.webm), [original recording](kase-three-actions.webm) and [saved signatures/canonical receipts](../testing/evidence/kase-three-actions-2026-10-10.json). Run `npm run demo:verify` with Docker and the documented non-root WSL toolchain; it creates and removes only its disposable ledger/database. This is reproducible Localnet evidence, not a public Explorer deployment or installation on the retained owner program.
 
-The owner confirmed official main Colosseum registration on 2026-10-10; this is user-provided confirmation, not an independent organizer-site check. The source/video/overview package is assembled; organizer submission remains. Public-network rollout, owner wallet acceptance, production operations, legal ownership, real fiat/KYC and KASE/CSD integrations are separate.
+The owner confirmed main Colosseum registration on 2026-10-10 and on 2026-10-11 clarified that registration/stages are complete but project submission has not yet occurred. These are user-provided confirmations, not independent organizer-site checks. The source/video/overview package is assembled; main and side-track submissions remain. Public-network rollout, owner wallet acceptance, production operations, legal ownership, real fiat/KYC and KASE/CSD integrations are separate.

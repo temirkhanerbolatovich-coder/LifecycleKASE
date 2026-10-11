@@ -7,7 +7,7 @@ The isolated candidate implements coupon, partial 20% and maturity execution wit
 Next steps, in order:
 
 1. Review the tested candidate, synchronized documentation and new-head CI in [PR #1](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/pull/1). Source publication does not install the candidate on the retained owner ledger.
-2. Submit the assembled [prototype/video/technical overview](../submission/README.md), explicitly naming simulated integrations and effective-cutoff policy. Main Colosseum registration was confirmed by the owner on 2026-10-10; no independent organizer-site check was performed.
+2. Complete the main Colosseum project submission, then manually submit the assembled [prototype/video/technical overview](../submission/README.md) to the KASE side track using the [prepared form](../submission/COLLOSSEUM_SUBMISSION.md). Registration/stages are owner-confirmed, but on 2026-10-11 the owner confirmed that project submission has not occurred. Preserve simulated-input and effective-cutoff disclosures; no independent organizer-site check of registration was performed.
 3. Prepare retained-owner installation from a fresh read-only preflight: candidate capacity/hash, pending signed-attempt recovery and rollback. Actual upgrade/signing requires the owner-reviewed procedure; isolated tests do not close it.
 4. Perform retained-owner wallet acceptance, then the separately approved public-network stage under ADR-014.
 5. Address broader production needs: historical/regulated cutoff policy, holder-scale batching, reconciliation workers, operations, issuer isolation and external review.

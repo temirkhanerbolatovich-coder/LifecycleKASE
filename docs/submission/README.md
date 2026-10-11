@@ -1,14 +1,40 @@
-# KASE prototype submission package
+# LifecycleKASE submission package
 
-Read the [technical overview](TECHNICAL_OVERVIEW.md), [current compliance gates](../KASE_COMPLIANCE_CHECKLIST.md) and [three-action acceptance](../testing/kase-three-actions-2026-10-10.md).
+This directory is the current judge-facing package for the KASE corporate-actions side track.
+
+Start with:
+
+1. [Current KASE requirements matrix](KASE_REQUIREMENTS_MATRIX.md) — implemented, simulated and limited behavior mapped to the official brief.
+2. [Superteam submission draft](COLLOSSEUM_SUBMISSION.md) — the nine official form fields, ready-to-paste text and the remaining owner inputs.
+3. [Technical overview](TECHNICAL_OVERVIEW.md) — architecture, cutoff logic, calculations, settlement and Solana components.
+4. [Demo narration](DEMO_NARRATION.md) — the timed English captions and presentation boundary.
+
+The source submitted to judges should be pinned to commit [`5bbf71733a509e29f8dcd135c757ba74a41c88a6`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/5bbf71733a509e29f8dcd135c757ba74a41c88a6). The repository default branch does not yet contain this implementation, so do not submit an unpinned repository-root URL until the owner merges or otherwise publishes the candidate.
 
 ## Recorded demonstration
 
-The [44.64-second demo video](kase-three-actions.webm) tours the actual completed coupon, partial redemption and maturity action screens, downloads each verified receipt, shows planned/effective cutoff evidence and the redeemed instrument, then checks the mobile screen. It has no audio. Execution uses disposable automated test signers; the video shows the real read-only Auditor UI after those transactions, rather than a physical Phantom signing flow.
+Use the [43.28-second captioned presentation](kase-three-actions-captioned.webm) for judging: it reviews actual completed coupon, partial-redemption and maturity screens, then ends on the redeemed instrument. English captions and the permanent Localnet/test-signer disclosure sit outside the UI. It is silent and shows read-only Auditor results after execution by disposable automated test signers; it does not show physical Phantom signing.
 
-The [public run evidence](../testing/evidence/kase-three-actions-2026-10-10.json) includes all signatures and exact canonical receipts. Screenshots: [desktop maturity](bond_redemption.png), [mobile maturity](maturity-mobile.png). Video SHA-256: `b6652cf20dee44de9f48e875cb666e194e0a107e6465508582eece04e16e3d6d`.
+The unchanged [44.64-second original recording](kase-three-actions.webm) also retains the mobile check and receipt downloads. The captioned copy replays its first 42 seconds with a short recording startup/closing interval; no financial action was rerun. Historical partial-redemption supply was 35 → 28; the UI's current instrument supply is already 0 after the later maturity action.
 
-## Reproduce the working prototype
+The [run evidence](../testing/evidence/kase-three-actions-2026-10-10.json) preserves the Localnet genesis, transaction signatures and exact canonical receipts. The independently downloaded [coupon](../testing/evidence/coupon_payment-2026-10-10.json), [partial-redemption](../testing/evidence/early_redemption-2026-10-10.json) and [maturity](../testing/evidence/bond_redemption-2026-10-10.json) receipts match their on-chain committed SHA-256 hashes. Screenshots: [desktop maturity](bond_redemption.png) and [mobile maturity](maturity-mobile.png).
+
+| Video | Format | Bytes | SHA-256 |
+| --- | --- | ---: | --- |
+| Captioned presentation | VP8 WebM, 1440 × 1080, 25 fps, 43.28 s, no audio | 4255264 | `63bf4e3506ba4e981464aa4f7cfbcbc3a9bc38ebf1498c88a73d45354d3e4d4d` |
+| Original recording | VP8 WebM, 1440 × 900, 44.64 s, no audio | 4430037 | `b6652cf20dee44de9f48e875cb666e194e0a107e6465508582eece04e16e3d6d` |
+
+## Verified scenario results
+
+| Action | Captured holdings | Settlement in KZT-Test | Token result |
+| --- | --- | --- | --- |
+| Coupon | 9 / 21 / 5 | 450 / 1050 / 250 = **1750** | Supply remains 35 |
+| Early redemption, 20% | 10 / 20 / 5 | 2000 / 4000 / 1000 = **7000** | Burn 2 / 4 / 1; supply 35 → 28 |
+| Maturity | 8 / 16 / 4 | 8400 / 16800 / 4200 = **29400** | Burn all 28; supply 28 → 0; instrument `REDEEMED` |
+
+Maturity includes 28000 principal plus the 1400 final semiannual coupon. Detailed assertions, negative cases and validation are in the [three-action acceptance record](../testing/kase-three-actions-2026-10-10.md).
+
+## Reproduce the prototype
 
 On Windows with Docker Desktop, Node dependencies and the documented [non-root WSL Solana toolchain](../development/toolchain.md):
 
@@ -17,29 +43,32 @@ npm ci
 npm run demo:verify
 ```
 
-The wrapper builds a new isolated candidate, starts its own loopback PostgreSQL, creates a fresh instrument/holders on a disposable validator and exercises authenticated HTTP workflows. It does not load the owner's `.env`, signer or ledger. It removes only its test container/database/ledger at completion and leaves public receipt evidence in ignored `generated/`.
+The wrapper builds a unique isolated candidate, starts a loopback PostgreSQL database, creates a fresh instrument and holders on a disposable validator, and exercises authenticated HTTP workflows. It does not load the owner's `.env`, signer or ledger. It removes only its invocation-owned container, database and ledger after the run.
 
-Optional live UI recording uses an already installed Playwright module and Chromium:
+Optional browser recording uses an already installed Playwright module and Chromium:
 
 ```powershell
 npm run demo:verify -- -Video -PlaywrightModule 'C:\path\to\playwright\index.mjs'
 ```
 
-Use `-Profile localnet-candidate-your-reviewed-profile` to reuse an isolated artifact. The default run builds a new uniquely named artifact; it never replaces a retained deployment.
+Add `-ChromiumExecutable 'C:\path\to\chrome.exe'` when Playwright's default browser revision is unavailable. Browser capture retries read the completed results and never execute a financial action again.
 
-If the installed browser revision differs from Playwright's default, add `-ChromiumExecutable 'C:\path\to\chrome.exe'`. The wrapper checks browser launch and video encoding before the financial run. Capture retries affect only Auditor reads/downloads; they never execute the financial actions again.
+To recreate only the presentation from the original recording, with no API, database or validator access:
 
-## What the demonstration proves
+```powershell
+$env:KASE_PLAYWRIGHT_MODULE = 'C:\path\to\playwright\index.mjs'
+$env:KASE_CHROMIUM_EXECUTABLE = 'C:\path\to\chrome.exe' # optional
+node scripts/caption-kase-demo.mjs
+```
 
-1. Coupon: a pre-capture transfer produces immutable 9/21/5 entitlements. Returning it after capture cannot alter payments 450/1050/250 KZT-Test.
-2. Partial 20% redemption: payments 2000/4000/1000 and burns 2/4/1; supply 35 → 28. Snapshot-source shortage rejects both API submission and direct program execution without payment/burn/receipt.
-3. Maturity: remaining 8/16/4 bonds pay 8400/16800/4200, including final coupon; burns 28, supply 0, Instrument REDEEMED.
-4. Each action has finalized individual payments, matching cash/asset facts and a canonical JSON hash committed to an ActionReceipt PDA. Replays cannot pay again; missing history/audit failure recovers using the original signature.
+The script requires this original 1440 × 900, 44.64-second source timeline. Browser encoding may change the output duration/bytes/hash on another run; compare the published file to the exact hash above. Playwright is used from an existing installation, with no new project dependency.
 
-The optional recording tours the real Auditor UI after these actual transactions, downloads all three receipts and verifies their hashes, shows planned/effective cutoff evidence and checks a mobile viewport. Generated test keys sign the automated execution; the recording does not claim physical Phantom wallet acceptance.
+## Evidence boundary
 
-## Boundaries and final submission gates
+Implemented on an isolated Solana Localnet: Token-2022 instrument, verified-wallet registry, finalized holder capture, integer entitlement calculation, separate approval and full reserve, coupon transfers, atomic redemption payment plus burn, reconciliation, canonical receipts and ActionReceipt PDA hash commitments.
 
-KZT-Test funding, eligibility and accelerated test timing are simulated inputs. Solana transfers, burns and receipts execute on an actual local validator. The cutoff is the effective finalized capture slot/time; earlier historical reconstruction is unsupported. See [implemented versus simulated](../IMPLEMENTED_VS_SIMULATED.md).
+Simulated inputs: KZT-Test funding, registry eligibility, generated test signers, accelerated maturity and validator timing. The effective ownership cutoff is the finalized capture slot/time; the prototype does not reconstruct ownership at an earlier planned date. Localnet signatures are not public Explorer links because the disposable ledger was removed. Public-network deployment, retained-owner acceptance, real KYC/fiat and KASE/CSD integration remain outside the submitted proof.
 
-The owner confirmed official team registration in the main Colosseum hackathon on 2026-10-10; no independent organizer-site check was performed. Source, recorded video, technical overview and evidence are assembled here. Upload the selected package and submit through the organizer's process; submission itself has not been performed here. Public-network deployment and retained-owner installation are separate stages.
+The owner confirmed team registration on 2026-10-10 and clarified on 2026-10-11 that registration/stages are complete but the project has not yet been submitted to the main hackathon. The current answer to the side-track's project-submission question is therefore `No`. After submitting on Colosseum, update it to `Yes` and add the actual public project/profile URLs.
+
+The [official side-track listing](https://superteam.fun/earn/listing/superteam-kazakhstan-x-kase-side-track-corporate-actions-on-blockchain/) marks final submission as `HUMAN_ONLY`. The prepared form therefore stops before login or submission. Historical engineering checkpoints remain available in the [full compliance checklist](../KASE_COMPLIANCE_CHECKLIST.md), but the current matrix above is the submission status source.

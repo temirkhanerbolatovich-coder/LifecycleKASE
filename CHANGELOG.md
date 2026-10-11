@@ -1,5 +1,11 @@
 # Changelog
 
+## Submission preparation — 2026-10-11
+
+- Add a current-only KASE requirements matrix and the nine-field official submission draft with the UTC deadline and owner-confirmed pending Colosseum project submission.
+- Add an English-captioned presentation copy and a repeatable local captioning script. Preserve the original Auditor recording and exact financial receipts.
+- Keep simulated inputs, effective capture cutoff, disposable Localnet and human-controlled final submission explicit in judge-facing materials.
+
 ## Unreleased — isolated Localnet candidate, 2026-10-10
 
 - Add atomic partial and maturity redemption: immutable source accounts, supply progress, Token-2022 payment/burn, per-entitlement receipts and final action receipts.

@@ -4,7 +4,7 @@ Current development: **2026-10-10** — 320 Node tests, production web build and
 
 Run `npm run demo:verify` with Docker and the documented non-root WSL toolchain to build a fresh candidate and verify coupon → partial 20% → maturity on a disposable validator/database. Use `npm run demo:verify -- -Profile localnet-candidate-redemption-20261010` to reuse an existing candidate. This never uses the retained owner signer/ledger. KZT-Test/eligibility are simulated; transfers, burns and Solana receipts are executed.
 
-The [submission package](docs/submission/README.md) includes a recorded Auditor UI demo, three exact canonical receipts and public run evidence. Main Colosseum registration is owner-confirmed; organizer submission remains. Planned record date opens the capture window; the ownership cutoff is actual finalized capture slot/time.
+Submission preparation — **2026-10-11**: the [submission package](docs/submission/README.md) includes an English-captioned Auditor demo, a [current requirements matrix](docs/submission/KASE_REQUIREMENTS_MATRIX.md), a [ready-to-paste form draft](docs/submission/COLLOSSEUM_SUBMISSION.md), three exact canonical receipts and run evidence. Main Colosseum registration/stages are owner-confirmed; the owner confirms that project submission has not yet occurred. Main and side-track submissions remain. Planned record date opens the capture window; the ownership cutoff is actual finalized capture slot/time.
 
 ## Earlier owner and engineering checkpoints
 
