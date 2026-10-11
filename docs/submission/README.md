@@ -9,7 +9,7 @@ Start with:
 3. [Technical overview](TECHNICAL_OVERVIEW.md) — architecture, cutoff logic, calculations, settlement and Solana components.
 4. [Demo narration](DEMO_NARRATION.md) — the timed English captions and presentation boundary.
 
-The source submitted to judges should be pinned to commit [`5bbf71733a509e29f8dcd135c757ba74a41c88a6`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/5bbf71733a509e29f8dcd135c757ba74a41c88a6). The repository default branch does not yet contain this implementation, so do not submit an unpinned repository-root URL until the owner merges or otherwise publishes the candidate.
+The source and media submitted to judges are pinned to commit [`8c0f4f1d250c2e1acfb73c60f7e1143fba71e9b1`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/8c0f4f1d250c2e1acfb73c60f7e1143fba71e9b1). This includes the previously verified financial implementation and this submission package. A following documentation-only commit pins the links to that immutable revision. The repository default branch does not yet contain this implementation, so do not submit an unpinned repository-root URL until the owner merges or otherwise publishes the candidate.
 
 ## Recorded demonstration
 
