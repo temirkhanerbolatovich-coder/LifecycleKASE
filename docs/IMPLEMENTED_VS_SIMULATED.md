@@ -1,5 +1,9 @@
 # Implementation status
 
+## Current public application rollout — 2026-10-11
+
+The [public dashboard](https://lifecyclekase-web.onrender.com/dashboard) and API are Live on the existing free Render services at `bc62abfd947db6bc854624dccdcac61ec13036a3`. Build logs confirm migration 19; public liveness/readiness and dashboard checks returned 200, while the protected transaction route returned 401 `SESSION_REQUIRED` through API and same-origin web proxy. No authenticated wallet flow or financial transaction was rerun. Render cannot access the owner's loopback validator, and the UI Localnet badge does not prove such a connection. The database is disposable. This publishes the application; the isolated financial acceptance and retained-owner/public-network boundaries below remain separate. See the [deployment record](deployment/render-staging.md).
+
 ## Current redemption continuation — 2026-10-10
 
 The isolated candidate implements coupon, partial 20% and maturity execution with finalized Solana receipts. Current completed runtime evidence, signatures/hashes, checks and reproduction are in [three-action acceptance](testing/kase-three-actions-2026-10-10.md). The retained owner ledger/program was not upgraded. KZT-Test and eligibility are simulated; transfers/burns are actual Token-2022 operations. The sections under the historical heading preserve the earlier audit checkpoint.

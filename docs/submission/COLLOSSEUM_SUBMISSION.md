@@ -11,7 +11,7 @@ Deadline: `2026-10-13T06:59:00.000Z` — **2026-10-13 11:59 Asia/Qyzylorda (UTC+
 | 1 | Project Name | Yes | `LifecycleKASE` |
 | 2 | Project Description | Yes | Use the text below. |
 | 3 | Project Github Link | Yes | `https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/8c0f4f1d250c2e1acfb73c60f7e1143fba71e9b1` |
-| 4 | Project Website | No | Leave blank. The current public staging state is not accepted as evidence for this revision. |
+| 4 | Project Website | No | `https://lifecyclekase-web.onrender.com/dashboard` — application staging verified on 2026-10-11 at commit `bc62abfd947db6bc854624dccdcac61ec13036a3`; operator login requires a registered wallet. Financial proof remains the isolated Localnet recording and receipts. |
 | 5 | Project X Link | No | Leave blank unless the owner supplies the project's official X post/profile. |
 | 6 | Link to your pitch deck or Loom/video presentation | Yes | `https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/blob/8c0f4f1d250c2e1acfb73c60f7e1143fba71e9b1/docs/submission/kase-three-actions-captioned.webm` |
 | 7 | Did you submit this project to official Crypto World's Fair Hackathon on Colosseum? Yes/No | Yes | `No` — owner confirmed on 2026-10-11 that registration/stages are complete but project submission has not occurred. Change to `Yes` only after actual Colosseum submission. |
@@ -35,6 +35,7 @@ Implemented: Token-2022 instrument, verified-wallet registry, finalized capture,
 - Complete the main Colosseum project submission, then update field 7 from `No` to `Yes` and record its public URL. Until then retain the owner-confirmed `No`.
 - Add the public Colosseum project/profile URLs when they exist and open them in a signed-out browser.
 - Open the pinned GitHub commit and video links in a signed-out browser. Do not replace the commit URL with the older default branch.
+- Open the public website. Its login page and service availability are verified; it does not provide an anonymous financial sandbox or a connection to the owner's loopback validator. See the [deployment record](../deployment/render-staging.md).
 - The prepared video link uses the English-captioned presentation; retain the raw evidence video in the repository. If an external video host is used, replace field 6 with its verified public URL.
 - Check that no placeholder text remains, then submit manually through the official form before the UTC deadline.
 

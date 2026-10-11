@@ -11,6 +11,10 @@ Start with:
 
 The source and media submitted to judges are pinned to commit [`8c0f4f1d250c2e1acfb73c60f7e1143fba71e9b1`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/8c0f4f1d250c2e1acfb73c60f7e1143fba71e9b1). This includes the previously verified financial implementation and this submission package. A following documentation-only commit pins the links to that immutable revision. The repository default branch does not yet contain this implementation, so do not submit an unpinned repository-root URL until the owner merges or otherwise publishes the candidate.
 
+## Public application
+
+[LifecycleKASE on Render](https://lifecyclekase-web.onrender.com/dashboard) is available as optional website evidence. On **2026-10-11**, both services were Live at application revision `bc62abfd947db6bc854624dccdcac61ec13036a3`; the dashboard, API/PostgreSQL health and protected transaction route were verified. Login requires a registered operator wallet. The public service does not expose an anonymous financial sandbox and cannot reach the owner's loopback validator. No authenticated signing or financial execution was rerun. The hardcoded Localnet badge is not proof of cloud chain connectivity. See the [deployment record](../deployment/render-staging.md); the recorded isolated Localnet run below remains the financial evidence.
+
 ## Recorded demonstration
 
 Use the [43.28-second captioned presentation](kase-three-actions-captioned.webm) for judging: it reviews actual completed coupon, partial-redemption and maturity screens, then ends on the redeemed instrument. English captions and the permanent Localnet/test-signer disclosure sit outside the UI. It is silent and shows read-only Auditor results after execution by disposable automated test signers; it does not show physical Phantom signing.

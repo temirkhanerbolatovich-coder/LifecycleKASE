@@ -1,5 +1,11 @@
 # Changelog
 
+## Public application staging — 2026-10-11
+
+- Publish API and web from exact application revision `bc62abfd947db6bc854624dccdcac61ec13036a3` on the existing free Render services, with successful migration 19 and startup logs.
+- Verify API live/ready, web live/dashboard and protected journal routes through both API and web origins. Keep wallet access controls and retained-owner Solana acceptance separate.
+- Add the verified [public dashboard](https://lifecyclekase-web.onrender.com/dashboard) to the submission draft and synchronize the [deployment evidence](docs/deployment/render-staging.md).
+
 ## Submission preparation — 2026-10-11
 
 - Add a current-only KASE requirements matrix and the nine-field official submission draft with the UTC deadline and owner-confirmed pending Colosseum project submission.

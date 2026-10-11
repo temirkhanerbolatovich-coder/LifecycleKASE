@@ -1,5 +1,19 @@
 # Disposable Render staging
 
+## Current application rollout — 2026-10-11
+
+Both existing free services are **Live** at exact application commit `bc62abfd947db6bc854624dccdcac61ec13036a3`. The authenticated Render Dashboard was used to deploy the pushed candidate without changing database, build/start commands or authentication settings, or merging the source PR. Render's specific-commit deployment disables auto-deploy to prevent an unrelated push replacing the selected revision:
+
+- API `dep-db5ikitckfvc73abmnk0`: started **11:18:51 Asia/Qyzylorda (UTC+5)**, Live after **1m23s**;
+- web `dep-db5ikv7lk1mc73a52eh0`: started **11:19:40 Asia/Qyzylorda (UTC+5)**, Live after **1m16s**;
+- API build logs: **19 migrations found**, `20261009120000_program_upgrade_maintenance` applied, then **All migrations have been successfully applied**. No direct SQL migration-count read was performed.
+
+Public checks at `2026-10-11T06:21:00.097Z` returned HTTP 200 with the expected JSON for [API liveness](https://lifecyclekase-api.onrender.com/api/v1/health/live), [API/PostgreSQL readiness](https://lifecyclekase-api.onrender.com/api/v1/health/ready) and [web liveness](https://lifecyclekase-web.onrender.com/health/live). The [dashboard](https://lifecyclekase-web.onrender.com/dashboard) returned HTTP 200, displayed LifecycleKASE, the available-system state and wallet login, and was opened in a browser. The protected `/api/v1/transactions` route returned **401 `SESSION_REQUIRED`** with `Cache-Control: no-store` through both the direct API and same-origin web proxy; its earlier 404 is now historical. Observed checks took about 0.9–1.5 seconds for API and 9.1–11.1 seconds for web around rollout; these are individual observations, not a performance acceptance result.
+
+The public application requires a previously registered operator wallet. No login signature, authenticated operator workflow or financial transaction was rerun during this deployment. Existing environment settings were preserved; individual live execution-flag values were not independently rechecked. Render cannot access the owner's loopback Localnet validator, and this rollout does not deploy or upgrade a Solana program. The dashboard's hardcoded `Localnet · тестовая сеть` label describes the prototype context and is not evidence of a connected validator. The [isolated three-action acceptance](../testing/kase-three-actions-2026-10-10.md) remains the financial proof. The cloud database remains disposable and unsuitable for real investor or financial data.
+
+## Historical availability observation — 2026-10-10
+
 Current availability observation — **2026-10-10**: API live/ready, web live and dashboard returned HTTP 200. Current deployed SHA, logs and metrics are unverified because the connector had no confirmed selected workspace. The historical deploy IDs/revisions below retain their own dates. A GitHub source PR does not prove Render deployment or owner-chain acceptance. See the [current audit](../PROJECT_AUDIT_2026-10-10.md).
 
 Unauthenticated instruments/investors/corporate-actions reads returned 401 after cold-start retry; `/api/v1/transactions` returned 404. The new protected journal API is therefore not verified as available in staging. The audited source package is published in [PR #1](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/pull/1); its application rollout is separate from this health observation and any owner-program upgrade.

@@ -6,6 +6,8 @@ Run `npm run demo:verify` with Docker and the documented non-root WSL toolchain 
 
 Submission preparation — **2026-10-11**: the [submission package](docs/submission/README.md) includes an English-captioned Auditor demo, a [current requirements matrix](docs/submission/KASE_REQUIREMENTS_MATRIX.md), a [ready-to-paste form draft](docs/submission/COLLOSSEUM_SUBMISSION.md), three exact canonical receipts and run evidence. Main Colosseum registration/stages are owner-confirmed; the owner confirms that project submission has not yet occurred. Main and side-track submissions remain. Planned record date opens the capture window; the ownership cutoff is actual finalized capture slot/time.
 
+Public application staging — **2026-10-11**: [open LifecycleKASE](https://lifecyclekase-web.onrender.com/dashboard). Both existing Render services are Live at `bc62abfd947db6bc854624dccdcac61ec13036a3`; migration 19, public health/readiness, the dashboard and protected transaction routes were verified. Wallet login requires a registered operator. Render cannot reach the owner's loopback validator; authenticated signing and financial execution were not rerun. The Localnet badge does not prove a cloud chain connection. See the [deployment evidence and limits](docs/deployment/render-staging.md).
+
 ## Earlier owner and engineering checkpoints
 
 The dated observations below are retained history. Current candidate implementation/runtime evidence is linked above; they do not describe its newer redemption completion.
