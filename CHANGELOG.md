@@ -1,5 +1,12 @@
 # Changelog
 
+## Governed investor eligibility and temporary wallet blocking — 2026-10-11
+
+- Add reasoned review of existing demo eligibility decisions and reversible blocking of verified investor wallets, with Administrator writes and Auditor reads.
+- Require the loaded registry version, reject stale/concurrent changes and preserve terminal revocation and wallet ownership evidence. Database triggers version direct maintenance changes as well as API transitions.
+- Reject snapshot candidates whose captured registry facts changed, including block/unblock and suspend/restore round trips; keep canonical snapshot-v2 and signed recovery evidence unchanged.
+- Add RU/EN operator forms and equivalent page-local QA flows, explicit confirmation and refresh locks after a saved mutation. See [acceptance and remaining work](docs/testing/registry-governance-2026-10-11.md) and [ADR-028](docs/decisions/ADR-028-registry-review-versioning.md).
+
 ## Public walletless QA and English release — 2026-10-11
 
 - Publish API/web commit `1e6c96dd119f32cbf01cecef028723b9134ebe4b` on the existing free Render services after all three CI jobs passed.

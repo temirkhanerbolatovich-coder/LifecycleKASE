@@ -69,6 +69,14 @@ try {
   await fetch(webOrigin + `/api/v1/corporate-actions/${actionId}/snapshot/prepare`, { method: "POST", headers: { Origin: webOrigin }, body: "{}" });
   assert.equal((await fetch(webOrigin + "/api/v1/investors")).status, 200);
   assert.equal(seen.at(-1).path, "/api/v1/investors");
+  for (const suffix of ["eligibility/review", `wallets/${actionId}/status`]) {
+    const route = `/api/v1/investors/${actionId}/${suffix}`;
+    const body = JSON.stringify({ expectedVersion: 1, reasonCode: "SECURITY_CONCERN", synthetic: true });
+    assert.equal((await fetch(webOrigin + route, { method: "POST", headers: { Origin: webOrigin,
+      Cookie: "lifecyclekase_session=synthetic-smoke-only", "Content-Type": "application/json" }, body })).status, 200);
+    assert.deepEqual(seen.at(-1), { path: route, method: "POST", origin: webOrigin,
+      cookie: "lifecyclekase_session=synthetic-smoke-only", body });
+  }
   for (const phaseRoute of ["prepare", "submit", "confirm"]) {
     const route = `/api/v1/instruments/${actionId}/deploy/${phaseRoute}`;
     const body = JSON.stringify({ phase: "MINT_SETUP", synthetic: true });

@@ -1,5 +1,7 @@
 # Walletless QA sandbox
 
+Subsequent registry continuation: the page-local model supports versioned eligibility review (`ELIGIBLE`, `NOT_ELIGIBLE`, `SUSPENDED`) and reversible verified-wallet blocking with fixed reasons, audit events and stale-version conflicts. [Registry acceptance](../testing/registry-governance-2026-10-11.md) records the later checks; the publication/counts below refer to the earlier QA release.
+
 Current publication — **2026-10-11, 17:08 Asia/Qyzylorda**: [public `/qa`](https://lifecyclekase-web.onrender.com/qa) returns **200** at application commit `1e6c96dd119f32cbf01cecef028723b9134ebe4b`. All three CI jobs passed; the current repository check contains **350 Node tests**. Signed-out browser acceptance covers English selection, issuer/approver/Auditor switching, a complete simulated coupon workflow, read-only Auditor results and reset on reload with preserved language. [Deployment evidence and screenshots](../deployment/render-staging.md) distinguish QA from financial acceptance.
 
 Initial validation checkpoint — **2026-10-11, before implementation/publication**: local [desktop/mobile UI checks](../testing/ui-ux-audit-2026-10-11.md), 330 tests and the production build passed; the public route returned **404**. That observation is historical. Native 200% zoom, screen readers, disk receipt downloads and real wallet/API/chain flows remain outside this browser acceptance.
@@ -27,6 +29,10 @@ Changes belong to the current page instance. Navigation within the workspace ret
 Switching identities is a QA control. It demonstrates visible role and issuer boundaries; it is not authentication or proof of server authorization. The normal dashboard's wallet signing, exact transaction validation and server checks are unchanged.
 
 Use the existing forms to create drafts and investor records, attach synthetic wallet addresses, change eligibility and revoke addresses. QA controls simulate wallet verification and the wallet-dependent phases. They do not produce valid signed Solana transactions or financial evidence. Unsupported operations report an error rather than falling through to the real API.
+
+In an investor's detail card, review an existing decision or temporarily block/unblock a verified wallet. Choose a reason, inspect the full-address/decision/version confirmation and check the corresponding audit event. A blocked or suspended receiver stops the next simulated payment without consuming reserve, changing the captured snapshot or burning tokens. Restoring a wallet does not independently restore investor eligibility. Pending/unverified and terminally revoked wallets cannot be activated through temporary status controls. Auditor and QA approver identities cannot perform these registry mutations.
+
+QA deliberately requires every positive holder to be eligible before simulated capture; the real snapshot path also retains ineligible holder evidence for supply reconciliation. QA advances time explicitly and does not reproduce the database capture lock or concurrent transaction timing. Those are covered by the isolated HTTP/PostgreSQL and snapshot tests.
 
 For each coupon, partial-redemption and maturity-redemption action, exercise this sequence:
 

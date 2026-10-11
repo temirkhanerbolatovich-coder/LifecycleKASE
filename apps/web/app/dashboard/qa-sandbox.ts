@@ -25,10 +25,10 @@ const asRecord = (value: object): Record<string, unknown> => value as unknown as
 const now = () => new Date().toISOString();
 const id = () => crypto.randomUUID();
 
-type QaWallet = { id: string; address: string; status: string; network: string; verifiedAt: string | null;
+type QaWallet = { id: string; address: string; status: string; registryVersion: number; network: string; verifiedAt: string | null;
   revokedAt: string | null; revocationReasonCode: string | null };
 type QaInvestor = { id: string; displayName: string; externalReference: string | null; countryCode: string; type: string;
-  status: string; kycStatus: string; eligibilityStatus: string; eligibilityReasonCode: string | null;
+  status: string; registryVersion: number; kycStatus: string; eligibilityStatus: string; eligibilityReasonCode: string | null;
   eligibilityReviewedAt: string | null; _count: { wallets: number }; wallets: QaWallet[] };
 type QaInstrument = { id: string; name: string; ticker: string; network: string; status: string;
   issuerAuthority: string; corporateActionAuthority: string; faceValueMinor: string; couponRateBps: number;
@@ -91,6 +91,15 @@ function publicKey(value: unknown): string {
 }
 function issuer(state: State) {
   if (state.actor !== "ISSUER") fail("QA_ROLE_REQUIRED", "Это действие доступно эмитенту QA.", 403);
+}
+function registryReviewInput(body: unknown, field: "decision" | "status") {
+  const value = input(body, [field, "expectedVersion", "reasonCode"]);
+  const version = value["expectedVersion"];
+  if (typeof version !== "number" || !Number.isSafeInteger(version) || version < 1 || version >= 2_147_483_647 ||
+      !["REGISTRY_CORRECTION", "PERIODIC_REVIEW", "SECURITY_CONCERN", "OWNER_REQUEST"].includes(String(value["reasonCode"]))) {
+    fail("INVALID_REQUEST", "Registry review requires a valid version and fixed reason code.", 400);
+  }
+  return { target: value[field], expectedVersion: version, reasonCode: String(value["reasonCode"]) };
 }
 function approver(state: State) {
   if (state.actor !== "APPROVER") fail("QA_ROLE_REQUIRED", "Решение принимает отдельный согласующий QA.", 403);
@@ -281,9 +290,9 @@ function seed(): State {
   const state: State = { actor: "ISSUER", investors: [], instruments: [], actions: [], audit: [], transactions: [], challenges: [], receivedCashMinor: {} };
   for (const [index, balance] of ["10", "20", "5"].entries()) {
     state.investors.push({ id: `30000000-0000-4000-8000-00000000000${index + 1}`, displayName: `QA Investor ${index + 1} · ${balance} bond`,
-      externalReference: `QA-${index + 1}`, countryCode: "KZ", type: index === 1 ? "INSTITUTIONAL" : "INDIVIDUAL", status: "ACTIVE",
+      externalReference: `QA-${index + 1}`, countryCode: "KZ", type: index === 1 ? "INSTITUTIONAL" : "INDIVIDUAL", status: "ACTIVE", registryVersion: 1,
       kycStatus: "NOT_STARTED", eligibilityStatus: "ELIGIBLE", eligibilityReasonCode: "DEMO_CRITERIA_MET", eligibilityReviewedAt: now(), _count: { wallets: 1 },
-      wallets: [{ id: `40000000-0000-4000-8000-00000000000${index + 1}`, address: syntheticAddress(index + 20), status: "ACTIVE", network: "SOLANA_LOCALNET",
+      wallets: [{ id: `40000000-0000-4000-8000-00000000000${index + 1}`, address: syntheticAddress(index + 20), status: "ACTIVE", registryVersion: 1, network: "SOLANA_LOCALNET",
         verifiedAt: now(), revokedAt: null, revocationReasonCode: null }] });
   }
   const baseTime = Math.floor(Date.now() / 1000) * 1000;
@@ -362,7 +371,7 @@ export function createQaSandbox() {
       if (!/^[A-Z]{2}$/.test(countryCode) || !["INDIVIDUAL", "INSTITUTIONAL"].includes(String(value["type"]))) fail("INVALID_REQUEST", "Некорректная страна или тип инвестора.", 400);
       const externalReference = text(value["externalReference"], "Код", 100);
       if (draft.investors.some(row => row.externalReference === externalReference)) fail("REGISTRY_CONFLICT", "Код инвестора уже существует.");
-      const row: QaInvestor = { id: id(), displayName: text(value["displayName"], "Имя", 200), externalReference, countryCode, type: String(value["type"]), status: "ACTIVE",
+      const row: QaInvestor = { id: id(), displayName: text(value["displayName"], "Имя", 200), externalReference, countryCode, type: String(value["type"]), status: "ACTIVE", registryVersion: 1,
         kycStatus: "NOT_STARTED", eligibilityStatus: "PENDING_REVIEW", eligibilityReasonCode: null, eligibilityReviewedAt: null, _count: { wallets: 0 }, wallets: [] };
       draft.investors.push(row); audit(draft, "INVESTOR_CREATED", "Investor", row.id); return asRecord(row);
     }
@@ -392,7 +401,25 @@ export function createQaSandbox() {
       else if (value["redemptionPercentageBps"] != null || value["redemptionPriceKzt"] != null) fail("INVALID_REQUEST", "Досрочные параметры разрешены только для EARLY_REDEMPTION.", 400);
       row.draftInput = copy(value); draft.actions.push(row); audit(draft, "CORPORATE_ACTION_DRAFT_CREATED", "CorporateAction", row.id, {}, row.id); return view(draft, row);
     }
-    const match = /^\/api\/v1\/investors\/([0-9a-f-]+)\/(wallets|eligibility)(?:\/([0-9a-f-]+)\/(revoke|verification\/(?:challenge|verify)))?$/i.exec(path);
+    const reviewMatch = /^\/api\/v1\/investors\/([0-9a-f-]+)\/eligibility\/review$/i.exec(path);
+    if (reviewMatch) {
+      const holder = investor(draft, reviewMatch[1]!);
+      const { target, expectedVersion, reasonCode } = registryReviewInput(body, "decision");
+      if (!["ELIGIBLE", "NOT_ELIGIBLE", "SUSPENDED"].includes(String(target))) fail("INVALID_REQUEST", "Eligibility review decision is invalid.", 400);
+      if (holder.status !== "ACTIVE") fail("INVESTOR_INACTIVE", "Investor is not active.");
+      if (holder.registryVersion !== expectedVersion) fail("REGISTRY_CONFLICT", "Concurrent change; refresh before retrying.");
+      if (holder.eligibilityStatus === "PENDING_REVIEW" || holder.eligibilityStatus === target) fail("REGISTRY_TRANSITION_INVALID", "Use initial review for pending eligibility; repeated decisions are not allowed.");
+      if (target === "ELIGIBLE" && !holder.wallets.some(wallet => wallet.status === "ACTIVE" && wallet.verifiedAt !== null && wallet.revokedAt === null)) {
+        fail("VERIFIED_WALLET_REQUIRED", "An active verified wallet is required for eligibility.");
+      }
+      const previousEligibilityStatus = holder.eligibilityStatus;
+      holder.eligibilityStatus = String(target); holder.eligibilityReviewedAt = now(); holder.registryVersion++;
+      holder.eligibilityReasonCode = target === "ELIGIBLE" ? "DEMO_CRITERIA_MET" : target === "NOT_ELIGIBLE" ? "DEMO_CRITERIA_NOT_MET" : "DEMO_ELIGIBILITY_SUSPENDED";
+      audit(draft, "INVESTOR_ELIGIBILITY_REVIEWED", "Investor", holder.id, { previousEligibilityStatus,
+        eligibilityStatus: target, previousVersion: expectedVersion, registryVersion: holder.registryVersion, reasonCode, source: "qa-simulation" });
+      return asRecord(holder);
+    }
+    const match = /^\/api\/v1\/investors\/([0-9a-f-]+)\/(wallets|eligibility)(?:\/([0-9a-f-]+)\/(revoke|status|verification\/(?:challenge|verify)))?$/i.exec(path);
     if (match) {
       const holder = investor(draft, match[1]!);
       if (match[2] === "eligibility" && !match[3]) {
@@ -400,21 +427,34 @@ export function createQaSandbox() {
         if (holder.eligibilityStatus !== "PENDING_REVIEW") fail("ELIGIBILITY_ALREADY_DECIDED", "Допуск уже рассмотрен.");
         if (!["ELIGIBLE", "NOT_ELIGIBLE"].includes(String(decision)) || value["reasonCode"] !== (decision === "ELIGIBLE" ? "DEMO_CRITERIA_MET" : "DEMO_CRITERIA_NOT_MET")) fail("INVALID_REQUEST", "Некорректное решение по допуску.", 400);
         if (decision === "ELIGIBLE" && !holder.wallets.some(wallet => wallet.status === "ACTIVE")) fail("VERIFIED_WALLET_REQUIRED", "Сначала подтвердите кошелёк QA.");
-        holder.eligibilityStatus = String(decision); holder.eligibilityReasonCode = String(value["reasonCode"]); holder.eligibilityReviewedAt = now();
+        holder.eligibilityStatus = String(decision); holder.eligibilityReasonCode = String(value["reasonCode"]); holder.eligibilityReviewedAt = now(); holder.registryVersion++;
         audit(draft, "INVESTOR_ELIGIBILITY_DECIDED", "Investor", holder.id); return asRecord(holder);
       }
       if (!match[3]) {
         const value = input(body, ["address"]); const address = publicKey(value["address"]);
         if (draft.investors.some(row => row.wallets.some(wallet => wallet.address === address))) fail("REGISTRY_CONFLICT", "Адрес уже принадлежит инвестору.");
-        const wallet: QaWallet = { id: id(), address, status: "PENDING", network: "SOLANA_LOCALNET", verifiedAt: null, revokedAt: null, revocationReasonCode: null };
+        const wallet: QaWallet = { id: id(), address, status: "PENDING", registryVersion: 1, network: "SOLANA_LOCALNET", verifiedAt: null, revokedAt: null, revocationReasonCode: null };
         holder.wallets.push(wallet); holder._count.wallets++; audit(draft, "INVESTOR_WALLET_ATTACHED", "Investor", holder.id); return asRecord(wallet);
       }
       const wallet = holder.wallets.find(row => row.id === match[3]); if (!wallet) fail("WALLET_NOT_FOUND", "Кошелёк не найден.", 404);
+      if (match[4] === "status") {
+        const { target, expectedVersion, reasonCode } = registryReviewInput(body, "status");
+        if (target !== "ACTIVE" && target !== "BLOCKED") fail("INVALID_REQUEST", "Wallet status must be ACTIVE or BLOCKED.", 400);
+        if (holder.status !== "ACTIVE") fail("INVESTOR_INACTIVE", "Investor is not active.");
+        if (wallet.registryVersion !== expectedVersion) fail("REGISTRY_CONFLICT", "Concurrent change; refresh before retrying.");
+        if (!["ACTIVE", "BLOCKED"].includes(wallet.status) || wallet.verifiedAt === null || wallet.revokedAt !== null) fail("WALLET_STATUS_TRANSITION_INVALID", "Only verified active or blocked wallets can change temporary status.");
+        if (wallet.status === target) fail("REGISTRY_TRANSITION_INVALID", "Wallet already has this status.");
+        const previousStatus = wallet.status;
+        wallet.status = target; wallet.registryVersion++;
+        audit(draft, "INVESTOR_WALLET_STATUS_CHANGED", "Wallet", wallet.id, { investorId: holder.id, previousStatus, status: target,
+          previousVersion: expectedVersion, registryVersion: wallet.registryVersion, reasonCode, network: wallet.network });
+        return asRecord(wallet);
+      }
       if (match[4] === "revoke") {
         const value = input(body, ["reasonCode"]);
         if (!["OWNER_REQUEST", "SECURITY_CONCERN", "WALLET_REPLACEMENT", "REGISTRY_CORRECTION"].includes(String(value["reasonCode"]))) fail("INVALID_REQUEST", "Выберите причину отзыва.", 400);
         if (wallet.status === "REVOKED") fail("WALLET_ALREADY_REVOKED", "Кошелёк уже отозван.");
-        wallet.status = "REVOKED"; wallet.revokedAt = now(); wallet.revocationReasonCode = String(value["reasonCode"]); audit(draft, "INVESTOR_WALLET_REVOKED", "Investor", holder.id); return asRecord(wallet);
+        wallet.status = "REVOKED"; wallet.revokedAt = now(); wallet.revocationReasonCode = String(value["reasonCode"]); wallet.registryVersion++; audit(draft, "INVESTOR_WALLET_REVOKED", "Investor", holder.id); return asRecord(wallet);
       }
       if (wallet.status !== "PENDING") fail("QA_WALLET_STATE", "QA-подтверждение доступно только PENDING-кошельку.");
       if (match[4] === "verification/challenge") {
@@ -426,7 +466,7 @@ export function createQaSandbox() {
       const challenge = draft.challenges.find(row => row.walletId === wallet.id && row.challengeId === value["challengeId"] && row.nonce === value["nonce"]);
       if (!challenge || value["signature"] !== "QA_SIMULATED_PROOF") fail("INVALID_CHALLENGE", "Неверное или уже использованное QA-подтверждение.", 400);
       draft.challenges = draft.challenges.filter(row => row.challengeId !== challenge.challengeId);
-      wallet.status = "ACTIVE"; wallet.verifiedAt = now(); audit(draft, "QA_WALLET_CONFIRMED", "Investor", holder.id); return asRecord(wallet);
+      wallet.status = "ACTIVE"; wallet.verifiedAt = now(); wallet.registryVersion++; audit(draft, "QA_WALLET_CONFIRMED", "Investor", holder.id); return asRecord(wallet);
     }
     fail("QA_ROUTE_UNAVAILABLE", "Этот маршрут недоступен в QA. Реальные транзакции и кошелёк проверяются отдельно.", 404);
   }

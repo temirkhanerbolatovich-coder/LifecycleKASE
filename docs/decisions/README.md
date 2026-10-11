@@ -27,3 +27,4 @@
 - [ADR-025: Atomic redemption with immutable source accounts](ADR-025-atomic-redemption.md)
 - [ADR-026: Walletless UI QA with page-local synthetic state](ADR-026-walletless-qa-sandbox.md)
 - [ADR-027: Locale preference without changing operator routes or transaction state](ADR-027-display-locales.md)
+- [ADR-028: Governed registry review with monotonic versions](ADR-028-registry-review-versioning.md)

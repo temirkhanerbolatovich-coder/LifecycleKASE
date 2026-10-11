@@ -77,6 +77,53 @@ test("wallet revocation after approval blocks payment without consuming reserve 
   const before = model.exportState(); await assert.rejects(model.advanceAction(QA_ACTION_IDS.partial, "PAY"), rejected("ELIGIBILITY_BLOCKED")); assert.deepEqual(model.exportState(), before);
 });
 
+test("eligibility review and temporary wallet blocking stop future payment without rewriting snapshot or reserve", async () => {
+  const model = createQaSandbox(); await prepare(model, QA_ACTION_IDS.partial);
+  const initial = model.exportState(); const holder = initial.investors[0]!; const wallet = holder.wallets[0]!;
+  const reviewPath = `/api/v1/investors/${holder.id}/eligibility/review`;
+  const statusPath = `/api/v1/investors/${holder.id}/wallets/${wallet.id}/status`;
+  await model.request(reviewPath, post({ decision: "SUSPENDED", expectedVersion: holder.registryVersion, reasonCode: "PERIODIC_REVIEW" }));
+  const suspended = model.exportState();
+  assert.deepEqual(suspended.actions, initial.actions);
+  await assert.rejects(model.advanceAction(QA_ACTION_IDS.partial, "PAY"), rejected("ELIGIBILITY_BLOCKED"));
+  assert.deepEqual(model.exportState(), suspended);
+  await model.request(reviewPath, post({ decision: "ELIGIBLE", expectedVersion: holder.registryVersion + 1, reasonCode: "REGISTRY_CORRECTION" }));
+  await assert.rejects(model.request(reviewPath, post({ decision: "NOT_ELIGIBLE", expectedVersion: holder.registryVersion, reasonCode: "OWNER_REQUEST" })), rejected("REGISTRY_CONFLICT"));
+  await model.request(statusPath, post({ status: "BLOCKED", expectedVersion: wallet.registryVersion, reasonCode: "SECURITY_CONCERN" }));
+  const blocked = model.exportState();
+  assert.deepEqual(blocked.actions, initial.actions);
+  await assert.rejects(model.advanceAction(QA_ACTION_IDS.partial, "PAY"), rejected("ELIGIBILITY_BLOCKED"));
+  assert.deepEqual(model.exportState(), blocked);
+  await model.request(statusPath, post({ status: "ACTIVE", expectedVersion: wallet.registryVersion + 1, reasonCode: "OWNER_REQUEST" }));
+  await assert.rejects(model.request(statusPath, post({ status: "BLOCKED", expectedVersion: wallet.registryVersion, reasonCode: "OWNER_REQUEST" })), rejected("REGISTRY_CONFLICT"));
+  const restored = model.exportState().investors[0]!.wallets[0]!;
+  assert.equal(restored.verifiedAt, wallet.verifiedAt); assert.equal(restored.revokedAt, null);
+  assert.equal(restored.address, wallet.address); assert.equal(restored.registryVersion, wallet.registryVersion + 2);
+  await model.advanceAction(QA_ACTION_IDS.partial, "PAY");
+  assert.equal(model.exportState().actions.find(row => row.id === QA_ACTION_IDS.partial)!.entitlements[0]!.status, "REDEEMED");
+});
+
+test("QA registry transitions validate version, fixed reason, no-op, revoked wallets and read-only roles", async () => {
+  const model = createQaSandbox(); const holder = model.exportState().investors[0]!; const wallet = holder.wallets[0]!;
+  const reviewPath = `/api/v1/investors/${holder.id}/eligibility/review`;
+  const statusPath = `/api/v1/investors/${holder.id}/wallets/${wallet.id}/status`;
+  for (const body of [{ status: "BLOCKED", expectedVersion: "1", reasonCode: "SECURITY_CONCERN" },
+    { status: "BLOCKED", expectedVersion: 1, reasonCode: "OTHER" }, { status: "REVOKED", expectedVersion: 1, reasonCode: "OWNER_REQUEST" },
+    { status: "BLOCKED", expectedVersion: 1, reasonCode: "OWNER_REQUEST", verifiedAt: "now" }]) {
+    const before = model.exportState(); await assert.rejects(model.request(statusPath, post(body)), rejected("INVALID_REQUEST"));
+    assert.deepEqual(model.exportState(), before);
+  }
+  await assert.rejects(model.request(reviewPath, post({ decision: "ELIGIBLE", expectedVersion: 1, reasonCode: "PERIODIC_REVIEW" })), rejected("REGISTRY_TRANSITION_INVALID"));
+  for (const actor of ["AUDITOR", "APPROVER"] as const) {
+    model.setActor(actor);
+    await assert.rejects(model.request(statusPath, post({ status: "BLOCKED", expectedVersion: 1, reasonCode: "OWNER_REQUEST" })), rejected("QA_ROLE_REQUIRED"));
+    await assert.rejects(model.request(reviewPath, post({ decision: "SUSPENDED", expectedVersion: 1, reasonCode: "OWNER_REQUEST" })), rejected("QA_ROLE_REQUIRED"));
+  }
+  model.setActor("ISSUER");
+  await model.request(`/api/v1/investors/${holder.id}/wallets/${wallet.id}/revoke`, post({ reasonCode: "OWNER_REQUEST" }));
+  await assert.rejects(model.request(statusPath, post({ status: "ACTIVE", expectedVersion: 2, reasonCode: "OWNER_REQUEST" })), rejected("WALLET_STATUS_TRANSITION_INVALID"));
+});
+
 test("local registry workflow verifies only explicit synthetic challenges and rejects replay", async () => {
   const model = createQaSandbox();
   const created = await model.request("/api/v1/investors", post({ displayName: "QA New", externalReference: "QA-NEW", countryCode: "KZ", type: "INDIVIDUAL" }));

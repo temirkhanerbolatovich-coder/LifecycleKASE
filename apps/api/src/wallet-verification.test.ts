@@ -20,7 +20,7 @@ function fixture() {
   const address = encodePublicKey(publicDer.subarray(-32));
   let state = {
     wallet: { id: WALLET_ID, investorId: INVESTOR_ID, address, network: "SOLANA_LOCALNET",
-      status: "PENDING", verifiedAt: null as Date | null, revokedAt: null as Date | null,
+      status: "PENDING", registryVersion: 1, verifiedAt: null as Date | null, revokedAt: null as Date | null,
       investor: { status: "ACTIVE" } },
     challenges: new Map<string, any>(),
     audit: [] as any[]
@@ -30,7 +30,12 @@ function fixture() {
     corporateAction: { findFirst: async () => null },
     wallet: {
       findFirst: async ({ where }: any) => state.wallet.id === where.id && state.wallet.investorId === where.investorId ? state.wallet : null,
-      update: async ({ data }: any) => Object.assign(state.wallet, data)
+      update: async ({ data }: any) => {
+        const { registryVersion, ...fields } = data;
+        Object.assign(state.wallet, fields);
+        state.wallet.registryVersion += registryVersion?.increment ?? 0;
+        return state.wallet;
+      }
     },
     authChallenge: {
       findUnique: async ({ where }: any) => state.challenges.get(where.id) ?? null,

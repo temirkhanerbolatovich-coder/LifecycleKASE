@@ -3,7 +3,8 @@ import { randomUUID } from "node:crypto";
 import { AuthFlowError, authOptionsFromEnvironment, readOperatorSession, requireAuthenticationEnabled,
   requireRequestOrigin, sessionTokenFromCookieHeader } from "./auth.js";
 import { AuthRateLimitError, AuthRateLimitService, authenticationClientKey } from "./auth-rate-limit.js";
-import { attachPendingWallet, createInvestor, decideInvestorEligibility, InvestorRegistryError, listInvestors,
+import { attachPendingWallet, changeInvestorWalletStatus, createInvestor, decideInvestorEligibility, InvestorRegistryError, listInvestors,
+  reviewInvestorEligibility,
   registryMutationOptionsFromEnvironment, revokeInvestorWallet } from "./investor-registry.js";
 import { PrismaService } from "./prisma.service.js";
 import { createWalletVerificationChallenge, verifyWalletOwnership } from "./wallet-verification.js";
@@ -89,6 +90,27 @@ export class InvestorController {
       return await revokeInvestorWallet(
         this.prisma, investorId, walletId, body, actor, registryMutationOptionsFromEnvironment()
       );
+    } catch (error) { this.httpError(error, response); }
+  }
+
+  @Post(":id/eligibility/review")
+  @Header("Cache-Control", "no-store")
+  async reviewEligibility(@Param("id") investorId: string, @Body() body: unknown, @Req() request: Request,
+    @Res({ passthrough: true }) response: Response, @Headers("origin") origin?: string) {
+    try {
+      const actor = await this.actor(request, response, true, origin);
+      return await reviewInvestorEligibility(this.prisma, investorId, body, actor, registryMutationOptionsFromEnvironment());
+    } catch (error) { this.httpError(error, response); }
+  }
+
+  @Post(":id/wallets/:walletId/status")
+  @Header("Cache-Control", "no-store")
+  async walletStatus(@Param("id") investorId: string, @Param("walletId") walletId: string,
+    @Body() body: unknown, @Req() request: Request, @Res({ passthrough: true }) response: Response,
+    @Headers("origin") origin?: string) {
+    try {
+      const actor = await this.actor(request, response, true, origin);
+      return await changeInvestorWalletStatus(this.prisma, investorId, walletId, body, actor, registryMutationOptionsFromEnvironment());
     } catch (error) { this.httpError(error, response); }
   }
 

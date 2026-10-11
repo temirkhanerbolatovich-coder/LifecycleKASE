@@ -1,5 +1,7 @@
 # Submission candidate acceptance — 2026-10-11
 
+Subsequent registry implementation and its own acceptance are recorded in [governed registry review](registry-governance-2026-10-11.md). The release counts and deployment below retain their original revision.
+
 Scope: application release `1e6c96dd119f32cbf01cecef028723b9134ebe4b` following the [initial full audit](../PROJECT_AUDIT_2026-10-11.md), originally based on `eb7a6025cadb45229949a7107f7e0a72c07e1058`. Local validation, successful GitHub CI, public Render/browser acceptance, owner acceptance and hackathon submission are distinct checkpoints. Historical audit counts and original recordings remain dated evidence.
 
 ## Closed implementation gates
@@ -69,7 +71,7 @@ The initial audit's EN and two confirmed defect items are implemented and the ap
 | Priority | Work | Acceptance |
 | --- | --- | --- |
 | P1 | Full issuer/compliance/approver/Auditor role model and controlled operator lifecycle | Reads scoped to issuer, explicit role permissions and reasoned role/wallet changes tested end to end. |
-| P1 | Investor correction, suspend/unblock/close | Audited reasons and explicit effect on active actions; no rewriting immutable holder evidence. |
+| P1, partially implemented | Investor profile/lifecycle administration and issuer scoping | Eligibility correction/suspension/restoration and temporary verified-wallet block/unblock are implemented in the [registry continuation](registry-governance-2026-10-11.md). Profile editing and Investor lifecycle suspension/closure still require governed policies and acceptance. |
 | P1 | Real disposable Phantom happy, rejection, expiry and recovery paths | All three financial actions verified with actual wallet interaction; retained-owner upgrade remains a separately authorized milestone. |
 | P1 | Missed-window processing, restart/reindex and unknown-signature tooling | Durable restart behavior and original-signature confirmation without replacement payments. |
 | P1 | Governed pause/resume, authority/policy rotation and post-approval reserve recovery | Reviewed authority transitions and failure/recovery evidence without privilege bypass. |

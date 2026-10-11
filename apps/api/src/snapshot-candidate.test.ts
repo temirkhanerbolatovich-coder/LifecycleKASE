@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { PrismaClient } from "@prisma/client";
+import { evaluateInvestorEligibility } from "@lifecycle-kase/domain";
 import { decodePublicKey, TOKEN_2022_PROGRAM_ID, type SolanaRpc } from "@lifecycle-kase/solana-client";
 
 import { prepareSnapshotCandidate, SnapshotPreparationError } from "./snapshot-candidate.js";
@@ -42,6 +43,7 @@ function fixture(overrides: {
   now?: Date;
   actionStatus?: string;
   snapshotExists?: boolean;
+  investorStatus?: "ACTIVE" | "SUSPENDED" | "CLOSED";
 } = {}) {
   const action = {
     id: ACTION_ID,
@@ -66,27 +68,33 @@ function fixture(overrides: {
       investorId: INVESTOR_ONE,
       address: TOKEN_2022_PROGRAM_ID,
       status: "ACTIVE",
+      registryVersion: 1,
       verifiedAt: new Date("2026-09-28T00:00:00.000Z"),
+      revokedAt: null,
       network: "SOLANA_DEVNET",
-      investor: { id: INVESTOR_ONE, eligibilityStatus: "ELIGIBLE" }
+      investor: { id: INVESTOR_ONE, eligibilityStatus: "ELIGIBLE", status: overrides.investorStatus ?? "ACTIVE", registryVersion: 1 }
     },
     {
       id: "00000000-0000-4000-8000-000000000022",
       investorId: INVESTOR_ONE,
       address: ASSOCIATED,
       status: "ACTIVE",
+      registryVersion: 1,
       verifiedAt: overrides.unverifiedWallet ? null : new Date(secondWalletVerifiedAt),
+      revokedAt: null,
       network: "SOLANA_DEVNET",
-      investor: { id: INVESTOR_ONE, eligibilityStatus: "ELIGIBLE" }
+      investor: { id: INVESTOR_ONE, eligibilityStatus: "ELIGIBLE", status: overrides.investorStatus ?? "ACTIVE", registryVersion: 1 }
     },
     {
       id: "00000000-0000-4000-8000-000000000023",
       investorId: INVESTOR_TWO,
       address: SYSTEM,
       status: "BLOCKED",
+      registryVersion: 1,
       verifiedAt: new Date("2026-09-28T00:00:00.000Z"),
+      revokedAt: null,
       network: "SOLANA_DEVNET",
-      investor: { id: INVESTOR_TWO, eligibilityStatus: "SUSPENDED" }
+      investor: { id: INVESTOR_TWO, eligibilityStatus: "SUSPENDED", status: "ACTIVE", registryVersion: 1 }
     }
   ];
   const requestedMethods: string[] = [];
@@ -151,12 +159,35 @@ test("builds a canonical investor-level candidate from DB mappings and finalized
   assert.equal(candidate.captureSlot, 101);
   assert.equal(candidate.actionVersion, 3);
   assert.equal(candidate.instrumentVersion, 2);
+  assert.equal(candidate.registryFacts.length, 3);
+  assert.equal(candidate.registryFacts[0]?.walletRegistryVersion, 1);
+  assert.equal(candidate.registryFacts[0]?.investorRegistryVersion, 1);
+  assert.equal(candidate.canonicalJson.includes("registryFacts"), false);
+  assert.equal(candidate.canonicalJson.includes("registryVersion"), false);
   assert.match(candidate.sha256, /^[0-9a-f]{64}$/);
   assert.deepEqual(setup.requestedMethods, [
     "getGenesisHash", "getTokenSupply", "getProgramAccounts", "getTokenSupply", "getBlockTime"
   ]);
   assert.equal(setup.walletQueryCount, 1);
 });
+
+for (const [status, capturedEligibility] of [["SUSPENDED", "SUSPENDED"], ["CLOSED", "NOT_ELIGIBLE"]] as const) {
+  test(`captures ${status} lifecycle as ineligible even if restored after capture`, async () => {
+    const setup = fixture({ investorStatus: status });
+    const candidate = await prepareSnapshotCandidate(setup.database, setup.rpc, ACTION_ID, setup.options);
+    const investor = candidate.snapshot.investors.find(row => row.investor_id === INVESTOR_ONE)!;
+    assert.equal(investor.eligibility_status, capturedEligibility);
+    assert.equal(investor.balance, "30");
+    assert.equal(candidate.registryFacts[0]?.eligibilityStatus, "ELIGIBLE");
+    assert.equal(candidate.registryFacts[0]?.investorStatus, status);
+    const restored = evaluateInvestorEligibility({
+      snapshotEligibility: investor.eligibility_status, currentEligibility: "ELIGIBLE", investorStatus: "ACTIVE",
+      kycStatus: "VERIFIED", instrumentStatus: "ACTIVE", payoutWalletStatus: "ACTIVE",
+      payoutWalletVerified: true, payoutWalletBelongsToInvestor: true
+    });
+    assert.deepEqual(restored, { eligible: false, reason: "NOT_ELIGIBLE_AT_RECORD_DATE" });
+  });
+}
 
 test("uses the finalized slot for wallet verification after the planned record time", async () => {
   const setup = fixture({ verifiedAfterRecord: true });

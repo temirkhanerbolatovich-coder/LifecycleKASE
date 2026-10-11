@@ -1,6 +1,8 @@
 # Testing strategy and acceptance levels
 
-Fresh redemption continuation: 320 Node tests (126 API /66 web /27 domain /54 client /47 root) pass. Both Rust profiles pass the same 18 host tests with Rustfmt/Clippy; the 663968-byte SBF candidate builds. Current real-chain/runtime evidence and reproduction are in [three-action acceptance](kase-three-actions-2026-10-10.md). Earlier SQL, build, audit and publication checkpoints remain in the [dated audit](../PROJECT_AUDIT_2026-10-10.md).
+Current registry continuation — **2026-10-11**: 378 Node tests (155 API / 95 web / 27 domain / 54 Solana client / 47 repository) pass, together with clean production/proxy build and isolated HTTP/PostgreSQL acceptance on all 20 migrations. See [governed registry acceptance](registry-governance-2026-10-11.md). Rust/SBF and real-chain tests were not rerun for this registry-only phase; their dated evidence remains in [submission readiness](submission-readiness-2026-10-11.md).
+
+Earlier redemption continuation — **2026-10-10**: 320 Node tests (126 API / 66 web / 27 domain / 54 client / 47 root) passed. Both Rust profiles passed the same 18 host tests with Rustfmt/Clippy; the 663968-byte SBF candidate built. Real-chain/runtime evidence and reproduction are in [three-action acceptance](kase-three-actions-2026-10-10.md). Earlier SQL, build, audit and publication checkpoints remain in the [dated audit](../PROJECT_AUDIT_2026-10-10.md).
 
 Reviewed: 2026-10-10. Commands below define repeatable checks; dated results belong in acceptance records and the [current audit](../PROJECT_AUDIT_2026-10-10.md). A test pass proves only the exercised behavior and environment.
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { attachPendingWallet, createInvestor, decideInvestorEligibility, InvestorRegistryError, listInvestors,
-  registryMutationOptionsFromEnvironment, revokeInvestorWallet } from "./investor-registry.js";
+  registryMutationOptionsFromEnvironment, revokeInvestorWallet, reviewInvestorEligibility, changeInvestorWalletStatus } from "./investor-registry.js";
 
 const ID = "00000000-0000-4000-8000-000000000001";
 const actor = { id: ID, walletAddress: "11111111111111111111111111111111", correlationId: ID };
@@ -15,11 +15,14 @@ function fixture() {
     investor: {
       findUnique: async () => state.investor,
       findUniqueOrThrow: async () => state.investor,
-      create: async ({ data }: any) => (state.investor = { id: ID, status: "ACTIVE", ...data }),
+      create: async ({ data }: any) => (state.investor = { id: ID, status: "ACTIVE", registryVersion: 1, ...data }),
       updateMany: async ({ where, data }: any) => {
         if (!state.investor || state.investor.id !== where.id || state.investor.status !== where.status ||
-            state.investor.eligibilityStatus !== where.eligibilityStatus) return { count: 0 };
-        Object.assign(state.investor, data);
+            state.investor.eligibilityStatus !== where.eligibilityStatus ||
+            (where.registryVersion !== undefined && state.investor.registryVersion !== where.registryVersion)) return { count: 0 };
+        const { registryVersion, ...fields } = data;
+        Object.assign(state.investor, fields);
+        state.investor.registryVersion += registryVersion?.increment ?? 0;
         return { count: 1 };
       }
     },
@@ -28,12 +31,15 @@ function fixture() {
       findUniqueOrThrow: async () => state.wallet,
       findFirst: async ({ where }: any) => state.wallet?.id === where.id && state.wallet?.investorId === where.investorId
         ? state.wallet : null,
-      create: async ({ data }: any) => (state.wallet = { id: ID, ...data }),
+      create: async ({ data }: any) => (state.wallet = { id: ID, registryVersion: 1, ...data }),
       count: async () => state.wallet?.status === "ACTIVE" && state.wallet.verifiedAt && !state.wallet.revokedAt ? 1 : 0,
       updateMany: async ({ where, data }: any) => {
         if (!state.wallet || state.wallet.id !== where.id || state.wallet.investorId !== where.investorId ||
-            state.wallet.status !== where.status || state.wallet.revokedAt !== where.revokedAt) return { count: 0 };
-        Object.assign(state.wallet, data);
+            state.wallet.status !== where.status || state.wallet.revokedAt !== where.revokedAt ||
+            (where.registryVersion !== undefined && state.wallet.registryVersion !== where.registryVersion)) return { count: 0 };
+        const { registryVersion, ...fields } = data;
+        Object.assign(state.wallet, fields);
+        state.wallet.registryVersion += registryVersion?.increment ?? 0;
         return { count: 1 };
       }
     },
@@ -238,4 +244,95 @@ test("blocks wallet revocation during snapshot capture", async () => {
     code("REGISTRY_CAPTURE_LOCKED")
   );
   assert.equal(f.state().wallet.status, "PENDING");
+});
+
+async function reviewedFixture() {
+  const f = fixture();
+  await createInvestor(f.database, input, actor);
+  await attachPendingWallet(f.database, ID, { address: actor.walletAddress }, actor);
+  f.state().wallet.status = "ACTIVE";
+  f.state().wallet.verifiedAt = new Date("2026-10-01T09:00:00Z");
+  await decideInvestorEligibility(f.database, ID, { decision: "ELIGIBLE", reasonCode: "DEMO_CRITERIA_MET" }, actor);
+  return f;
+}
+const review = (decision: string, expectedVersion: number) => ({ decision, expectedVersion, reasonCode: "PERIODIC_REVIEW" });
+const walletStatus = (status: string, expectedVersion: number) => ({ status, expectedVersion, reasonCode: "SECURITY_CONCERN" });
+
+test("review suspends and restores eligibility with versions, stable demo criteria and actor audit", async () => {
+  const f = await reviewedFixture();
+  assert.equal(f.state().investor.registryVersion, 2);
+  const suspended = await reviewInvestorEligibility(f.database, ID, review("SUSPENDED", 2), actor);
+  assert.equal(suspended.registryVersion, 3);
+  assert.equal(suspended.eligibilityStatus, "SUSPENDED");
+  const entry = f.state().audit.at(-1);
+  assert.equal(entry.event, "INVESTOR_ELIGIBILITY_REVIEWED");
+  assert.equal(entry.actorId, actor.id);
+  assert.equal(entry.correlationId, actor.correlationId);
+  assert.deepEqual(entry.metadataJson, { previousEligibilityStatus: "ELIGIBLE", eligibilityStatus: "SUSPENDED",
+    previousVersion: 2, registryVersion: 3, reasonCode: "PERIODIC_REVIEW", source: "administrator-api" });
+  const restored = await reviewInvestorEligibility(f.database, ID, review("ELIGIBLE", 3), actor);
+  assert.equal(restored.registryVersion, 4);
+  assert.equal(restored.eligibilityReasonCode, "DEMO_CRITERIA_MET");
+  await assert.rejects(reviewInvestorEligibility(f.database, ID, review("NOT_ELIGIBLE", 2), actor), code("REGISTRY_CONFLICT"));
+  await assert.rejects(reviewInvestorEligibility(f.database, ID, review("ELIGIBLE", 4), actor), code("REGISTRY_TRANSITION_INVALID"));
+  assert.equal(f.state().audit.length, 5);
+});
+
+test("wallet temporary block/unblock preserves ownership evidence and rejects stale ABA forms", async () => {
+  const f = await reviewedFixture();
+  const evidence = { address: f.state().wallet.address, investorId: f.state().wallet.investorId,
+    verifiedAt: f.state().wallet.verifiedAt, network: f.state().wallet.network };
+  const blocked = await changeInvestorWalletStatus(f.database, ID, ID, walletStatus("BLOCKED", 1), actor);
+  assert.equal(blocked.status, "BLOCKED");
+  assert.equal(blocked.registryVersion, 2);
+  assert.deepEqual(f.state().audit.at(-1).metadataJson, { investorId: ID, previousStatus: "ACTIVE", status: "BLOCKED",
+    previousVersion: 1, registryVersion: 2, reasonCode: "SECURITY_CONCERN", network: "SOLANA_LOCALNET" });
+  await assert.rejects(changeInvestorWalletStatus(f.database, ID, ID, walletStatus("BLOCKED", 2), actor), code("REGISTRY_TRANSITION_INVALID"));
+  await reviewInvestorEligibility(f.database, ID, review("SUSPENDED", 2), actor);
+  // A blocked wallet cannot be used to restore a suspended investor's eligibility.
+  await assert.rejects(reviewInvestorEligibility(f.database, ID, review("ELIGIBLE", 3), actor), code("VERIFIED_WALLET_REQUIRED"));
+  await changeInvestorWalletStatus(f.database, ID, ID, walletStatus("ACTIVE", 2), actor);
+  assert.equal(f.state().wallet.registryVersion, 3);
+  for (const [field, value] of Object.entries(evidence)) assert.deepEqual(f.state().wallet[field], value);
+  assert.equal(f.state().wallet.revokedAt, null);
+  await assert.rejects(changeInvestorWalletStatus(f.database, ID, ID, walletStatus("BLOCKED", 1), actor), code("REGISTRY_CONFLICT"));
+});
+
+test("review rejects malformed values, privilege fields and pending initial decisions", async () => {
+  for (const body of [review("ACTIVE", 1), review("ELIGIBLE", 0), review("ELIGIBLE", 1.5), review("ELIGIBLE", 2_147_483_647),
+    { ...review("ELIGIBLE", 1), expectedVersion: "1" }, { ...review("ELIGIBLE", 1), reasonCode: "OTHER" },
+    { ...review("ELIGIBLE", 1), kycStatus: "VERIFIED" }, { ...walletStatus("BLOCKED", 1), note: "free text" }]) {
+    const call = "status" in body ? changeInvestorWalletStatus({} as PrismaClient, ID, ID, body, actor) :
+      reviewInvestorEligibility({} as PrismaClient, ID, body, actor);
+    await assert.rejects(call, code("INVALID_REQUEST"));
+  }
+  const f = fixture(); await createInvestor(f.database, input, actor);
+  await assert.rejects(reviewInvestorEligibility(f.database, ID, review("NOT_ELIGIBLE", 1), actor), code("REGISTRY_TRANSITION_INVALID"));
+  await assert.rejects(changeInvestorWalletStatus(f.database, ID, ID, walletStatus("BLOCKED", 1), actor), code("WALLET_NOT_FOUND"));
+});
+
+test("temporary status never revives pending, revoked, unverified or operator wallets", async () => {
+  for (const change of [{ status: "PENDING" }, { status: "REVOKED" }, { revokedAt: new Date() }, { verifiedAt: null }, { userId: ID }]) {
+    const f = await reviewedFixture(); Object.assign(f.state().wallet, change);
+    const before = structuredClone(f.state());
+    await assert.rejects(changeInvestorWalletStatus(f.database, ID, ID, walletStatus("BLOCKED", 1), actor), code("WALLET_STATUS_TRANSITION_INVALID"));
+    assert.deepEqual(f.state(), before);
+  }
+});
+
+test("new registry transitions are capture-locked and atomic with audit persistence", async () => {
+  for (const operation of ["review", "wallet"]) {
+    for (const failure of ["capture", "audit", "inactive"]) {
+      const f = await reviewedFixture();
+      if (failure === "capture") f.lockCapture();
+      if (failure === "audit") f.failAudit();
+      if (failure === "inactive") f.state().investor.status = "SUSPENDED";
+      const before = structuredClone(f.state());
+      const call = operation === "review" ? reviewInvestorEligibility(f.database, ID, review("SUSPENDED", 2), actor) :
+        changeInvestorWalletStatus(f.database, ID, ID, walletStatus("BLOCKED", 1), actor);
+      await assert.rejects(call, failure === "audit" ? /synthetic audit failure/ :
+        code(failure === "capture" ? "REGISTRY_CAPTURE_LOCKED" : "INVESTOR_INACTIVE"));
+      assert.deepEqual(f.state(), before);
+    }
+  }
 });

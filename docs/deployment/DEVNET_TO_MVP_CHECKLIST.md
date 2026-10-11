@@ -1,5 +1,9 @@
 # Remaining delivery checklist
 
+## Current registry continuation — 2026-10-11
+
+Reasoned eligibility correction/suspension/restoration and temporary verified-wallet block/unblock are implemented with atomic audit, monotonic versions, stale-form protection, capture-window locking and RU/EN controls. [Current acceptance and remaining work](../testing/registry-governance-2026-10-11.md) supersede the pending correction/block subset in the historical continuation table below. Investor profile/lifecycle administration, issuer-scoped access, historical cutoff and retained-owner/public-network acceptance remain open. This phase uses the Administrator/Auditor MVP allowance in product requirements section 3.3.
+
 ## Current redemption continuation — 2026-10-10
 
 The isolated candidate implements coupon, partial 20% and maturity execution with finalized Solana receipts. Current completed runtime evidence, signatures/hashes, checks and reproduction are in [three-action acceptance](../testing/kase-three-actions-2026-10-10.md). The retained owner ledger/program was not upgraded. KZT-Test and eligibility are simulated; transfers/burns are actual Token-2022 operations. The sections under the historical heading preserve the earlier audit checkpoint.

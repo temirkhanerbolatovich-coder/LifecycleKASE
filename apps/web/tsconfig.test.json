@@ -2,6 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "outDir": ".test-dist", "rootDir": "app/dashboard", "lib": ["esnext", "dom"] },
   "include": [
+    "app/dashboard/investor-registry-workflow.test.ts",
     "app/dashboard/locale.test.ts",
     "app/dashboard/qa-sandbox.test.ts",
     "app/dashboard/redemption-calculation-workflow.test.ts",

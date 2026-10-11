@@ -21,7 +21,8 @@ export function QaWorkspace() {
   const failNext = useRef(false);
   const [failureArmed, setFailureArmed] = useState(false);
 
-  useEffect(() => { setSandbox(createQaSandbox()); }, []);
+  // Fast Refresh repeats effects; preserve the isolated model during source updates.
+  useEffect(() => { setSandbox(current => current ?? createQaSandbox()); }, []);
 
   const request = useCallback(async (path: string, init?: RequestInit) => {
     if (!sandbox) throw new Error("QA-песочница ещё загружается.");

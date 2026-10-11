@@ -137,7 +137,13 @@ try {
       }]
     }]
   });
-  const candidate = { ...commitment, captureSlot: 101, actionVersion: 0, instrumentVersion: 0 };
+  const registryWallet = await database.wallet.findUniqueOrThrow({ where: { id: ids.wallet }, include: { investor: true } });
+  const registryFacts = [{ walletId: registryWallet.id, walletAddress: registryWallet.address,
+    investorId: registryWallet.investorId, walletStatus: registryWallet.status, network: registryWallet.network,
+    verifiedAt: registryWallet.verifiedAt?.toISOString() ?? null, revokedAt: registryWallet.revokedAt?.toISOString() ?? null,
+    walletRegistryVersion: registryWallet.registryVersion, investorStatus: registryWallet.investor.status,
+    eligibilityStatus: registryWallet.investor.eligibilityStatus, investorRegistryVersion: registryWallet.investor.registryVersion }];
+  const candidate = { ...commitment, captureSlot: 101, actionVersion: 0, instrumentVersion: 0, registryFacts };
   const result = await persistSnapshotCandidate(database, candidate, {
     now: new Date(),
     graceSeconds: 300,

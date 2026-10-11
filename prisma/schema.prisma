@@ -230,6 +230,7 @@ model Investor {
   eligibilityReasonCode  String?                 @map("eligibility_reason_code") @db.VarChar(50)
   eligibilityReviewedAt  DateTime?               @map("eligibility_reviewed_at") @db.Timestamptz(6)
   status                 InvestorStatus          @default(ACTIVE)
+  registryVersion        Int                     @default(1) @map("registry_version")
   createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
   wallets                Wallet[]
@@ -250,6 +251,7 @@ model Wallet {
   verifiedAt             DateTime?        @map("verified_at") @db.Timestamptz(6)
   revokedAt              DateTime?        @map("revoked_at") @db.Timestamptz(6)
   revocationReasonCode   String?          @map("revocation_reason_code") @db.VarChar(50)
+  registryVersion        Int              @default(1) @map("registry_version")
   createdAt              DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   user                   User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
   investor               Investor?        @relation(fields: [investorId], references: [id], onDelete: Restrict)

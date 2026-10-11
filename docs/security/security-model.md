@@ -1,8 +1,8 @@
 # Security model and remaining controls
 
-Fresh scan: root deployed npm graph has zero advisories; the isolated legacy integration harness has 12 (5 high, 7 moderate). Full-history and publishable-content secret scans are separate gates. Evidence access is currently Administrator/Auditor-wide; issuer-scoped multi-tenant authorization and the full five-role matrix remain unfinished. See the [current audit](../PROJECT_AUDIT_2026-10-10.md).
+The [October 10 audit](../PROJECT_AUDIT_2026-10-10.md) records zero advisories in the root deployed npm graph and 12 (5 high, 7 moderate) in the isolated legacy integration harness. Fresh dependency, full-history and publishable-content secret scans are separate dated checks. Evidence access is currently Administrator/Auditor-wide; issuer-scoped multi-tenant authorization remains unfinished. The MVP uses Administrator/Auditor permissions; specialized role workflows remain deferred rather than being implied by these registry routes.
 
-Reviewed: 2026-10-10. This is the current implementation boundary, not an external security audit or production authorization. Use only synthetic data and Localnet/Devnet test assets. Mainnet, real cash, legal issuance and real KYC are outside the accepted pilot scope.
+Reviewed: 2026-10-11. This is the current source implementation boundary, not an external security audit, hosted-deployment confirmation or production authorization. Use only synthetic data and Localnet/Devnet test assets. Mainnet, real cash, legal issuance and real KYC are outside the accepted pilot scope.
 
 Update — 2026-10-11: the shared operator-session gate now revalidates the current wallet on every protected read or mutation. An unexpired cookie does not retain access after that wallet becomes blocked, pending, revoked, unverified, deleted or assigned to another user. The earlier stale-wallet finding remains dated in the [technical audit](../testing/technical-audit-2026-10-11.md).
 
@@ -26,6 +26,14 @@ Operator login signs a purpose-specific message containing domain, Origin, publi
 Administrator mutations and Auditor reads are separate. Financial workflows additionally bind the session wallet to the instrument issuer and saved attempt. Investor ownership proof does not grant operator authority or eligibility. Provisioning is a controlled local operation using a public address; see [operator provisioning](../operations/operator-provisioning.md). Authentication is disabled unless explicitly enabled and configured; disabled protected routes fail closed.
 
 Current rate limits are process-local and reset on restart. They do not provide a shared multi-instance abuse budget. Separate approver authority and action reserves are implemented in an isolated opt-in candidate; owner acceptance, policy rotation and a complete transfer/compliance policy remain unfinished.
+
+## Investor registry governance
+
+Administrator-only eligibility review and temporary verified-wallet block/unblock require an exact allowed Origin, an active session, a fixed reason code and the affected record's `expectedVersion`. Auditor has read access. `PENDING_REVIEW` uses the separate initial-decision route; pending/revoked/operator-bound wallets cannot be temporarily unblocked, and wallet ownership cannot be reassigned. State change, previous/new version and actor/reason/correlation audit commit together or roll back. These are explicit local-demo decisions; they do not implement real KYC, investor lifecycle administration or issuer-scoped multi-tenant authority.
+
+Migration `20261011130000_registry_review_versions` advances positive investor/wallet versions on effective changes, including controlled direct SQL writes. API compare-and-set guards reject stale forms, and snapshot persistence rechecks transient captured identity/status/network/verification/revocation/lifecycle/eligibility facts plus both versions. This detects a block/unblock or suspend/restore round trip even when the final value matches an old read. Version-only rewrites are rejected; the trigger does not authorize direct database access or create its missing actor audit. See [ADR-028](../decisions/ADR-028-registry-review-versioning.md).
+
+Registry fact mutations are blocked during any inclusive scheduled snapshot window in this single workspace. Captured canonical-v2 JSON and relational snapshot facts are immutable; the transient freshness metadata is not part of their hash or receipt/PDA encoding. New unsigned execution checks current selected-receiver eligibility. Finalized proof and previously signed attempts preserve their original evidence for confirmation/recovery; blocking a wallet cannot cancel an already signed chain transaction. Restoring eligibility cannot rewrite an earlier ineligible record point. Issuer-scoped locking/access and historical effective-time reconstruction remain open; Administrator/Auditor-wide evidence access must not be described as tenant isolation. See the [registry contract](../features/investor-registry.md).
 
 ## Transaction integrity and recovery
 
@@ -56,6 +64,7 @@ Scanning reduces accidental exposure; it cannot prove absence of every secret, d
 | Changed transaction or wrong network | Exact signed bytes, signer/genesis checks and regression tests | Owner negative/manual variants |
 | Double send or lost response | Persisted attempts, active-attempt uniqueness, confirmation-only recovery | Durable execution jobs and reindex |
 | Tampered snapshot/calculation/audit | Canonical hash rebuild, immutability, source commitments, versions and rollback tests | Owner coupon/redemption acceptance; runtime proof is scoped to the isolated candidate |
+| Stale registry form or capture after a status round trip | API expected-version guards, monotonic DB triggers, exact transient snapshot facts and atomic reason/actor audit | Issuer-scoped locks/access and effective-time history; ordinary wallet transfers remain outside this API |
 | Unfunded/double-allocated payout | Per-action vault custody, full-budget preflight, per-entitlement replay rejection and atomic coupon/redemption receipts | Owner reserve/payout acceptance and independent external review |
 | Dependency/supply-chain defect | Lockfiles, production dependency audit, checksum-pinned scanner | 12 legacy test-harness advisories; full SBF/runtime CI and external review |
 

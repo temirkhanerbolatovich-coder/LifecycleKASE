@@ -1,5 +1,7 @@
 # Полный аудит LifecycleKASE — 2026-10-11
 
+**Продолжение реализации:** добавлены управляемый пересмотр тестового допуска и временная блокировка/разблокировка verified Wallet Mapping: причины, атомарный аудит, версии, защита snapshot от устаревших фактов и формы RU/EN. [Приёмка этапа и актуальный остаток ТЗ](testing/registry-governance-2026-10-11.md). Investor lifecycle/profile administration и issuer isolation остаются открытыми; нижние результаты аудита сохраняют свой исходный checkpoint.
+
 **После аудита, 2026-10-11:** исправлены оба подтверждённых дефекта, добавлен RU/EN интерфейс и выполнена новая изолированная financial acceptance. Ниже сохранён первоначальный снимок аудита; текущее закрытие пунктов и оставшиеся gates находятся в [приёмке кандидата](testing/submission-readiness-2026-10-11.md).
 
 **Публикация, 2026-10-11, 17:08 UTC+5:** source `1e6c96d` опубликован, все три CI jobs прошли; API/web в Render — Live. [Публичный `/qa`](https://lifecyclekase-web.onrender.com/qa) проверен без входа: EN, три роли и завершённый simulated coupon. Защищённые маршруты сохраняют 401. [Доказательства деплоя](deployment/render-staging.md) закрывают публикацию UI, но не owner/public-network financial acceptance, видео или отправку заявки.
@@ -73,7 +75,7 @@ Browser observed Render cold starts; public web `/qa` later shows **404**, `/das
 ### P1: product correctness and operator acceptance
 
 6. Full issuer/compliance/approver/Auditor role matrix, issuer-scoped reads and controlled operator lifecycle.
-7. Investor edit/correction, suspend/unblock/close with reasons/audit and explicit impact on active actions.
+7. Investor profile edit and lifecycle suspend/close; issuer-scoped registry and evidence. Eligibility correction/suspension/restoration and temporary verified-wallet block/unblock are implemented in the [registry continuation](testing/registry-governance-2026-10-11.md); this does not close profile/lifecycle administration.
 8. Real disposable Phantom happy/negative/recovery acceptance for all three actions; reviewed retained-owner upgrade/approver assignment only as a separately authorized owner milestone.
 9. Durable missed-window sweep, restart/reindex and stale/unknown-signature operator tooling, retaining confirmation-only recovery.
 10. Governed pause/resume, authority/policy rotation and post-approval reserve recovery.

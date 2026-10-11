@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@prisma/client";
+import type { EligibilityStatus, Investor, PrismaClient, WalletStatus } from "@prisma/client";
 import { createSnapshotV2Commitment } from "@lifecycle-kase/domain";
 import {
   collectToken2022Holders,
@@ -24,6 +24,28 @@ export type SnapshotCandidateOptions = {
   graceSeconds: number;
   now: Date;
 };
+
+/** Transient stale-read checks; these facts are never added to canonical snapshot-v2. */
+export type SnapshotRegistryFact = {
+  walletId: string;
+  walletAddress: string;
+  investorId: string;
+  walletStatus: WalletStatus;
+  network: string;
+  verifiedAt: string | null;
+  revokedAt: string | null;
+  walletRegistryVersion: number;
+  investorStatus: Investor["status"];
+  eligibilityStatus: EligibilityStatus;
+  investorRegistryVersion: number;
+};
+
+/** Restoring a lifecycle later must not grant eligibility at an earlier record point. */
+export function snapshotInvestorEligibility(investor: Pick<Investor, "status" | "eligibilityStatus">): EligibilityStatus {
+  if (investor.status === "SUSPENDED") return "SUSPENDED";
+  if (investor.status === "CLOSED") return "NOT_ELIGIBLE";
+  return investor.eligibilityStatus;
+}
 
 function validPublicKey(value: unknown): value is string {
   if (typeof value !== "string") return false;
@@ -141,7 +163,7 @@ export async function prepareSnapshotCandidate(
       }
       return {
         investorId: holder.investorId,
-        eligibilityStatus: investor.eligibilityStatus,
+        eligibilityStatus: snapshotInvestorEligibility(investor),
         wallets: holder.wallets.map((wallet) => ({
           walletId: wallet.walletId,
           walletAddress: wallet.address,
@@ -151,8 +173,24 @@ export async function prepareSnapshotCandidate(
       };
     })
   });
+  const registryFacts: SnapshotRegistryFact[] = walletRows.map(wallet => {
+    const investor = wallet.investor;
+    if (!investor || wallet.investorId !== investor.id) {
+      throw new SnapshotPreparationError("INVESTOR_NOT_FOUND", "Registered investor was not found");
+    }
+    return {
+      walletId: wallet.id, walletAddress: wallet.address, investorId: investor.id,
+      walletStatus: wallet.status, network: wallet.network,
+      verifiedAt: wallet.verifiedAt?.toISOString() ?? null,
+      revokedAt: wallet.revokedAt?.toISOString() ?? null,
+      walletRegistryVersion: wallet.registryVersion,
+      investorStatus: investor.status, eligibilityStatus: investor.eligibilityStatus,
+      investorRegistryVersion: investor.registryVersion
+    };
+  });
   return {
     ...candidate,
+    registryFacts,
     captureSlot: capture.slot,
     actionVersion: action.version,
     instrumentVersion: action.instrument.version

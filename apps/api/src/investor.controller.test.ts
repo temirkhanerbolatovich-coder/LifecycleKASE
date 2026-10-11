@@ -35,12 +35,22 @@ test("registry requires a session, keeps auditors read-only and checks mutation 
     await assert.rejects(controller.revokeWallet(investorId, investorId, {
       reasonCode: "OWNER_REQUEST"
     }, request, response, "http://localhost:3000"), status(403));
+    await assert.rejects(controller.reviewEligibility(investorId, {
+      decision: "SUSPENDED", expectedVersion: 1, reasonCode: "PERIODIC_REVIEW"
+    }, request, response, "http://localhost:3000"), status(403));
+    await assert.rejects(controller.walletStatus(investorId, investorId, {
+      status: "BLOCKED", expectedVersion: 1, reasonCode: "SECURITY_CONCERN"
+    }, request, response, "http://localhost:3000"), status(403));
     role = "ISSUER_OPERATOR";
     await assert.rejects(controller.list(request, response), status(403));
     assert.equal(reads, 1);
     role = "ADMINISTRATOR";
     await assert.rejects(controller.create({}, request, response, "https://untrusted.example"), status(403));
     await assert.rejects(controller.create({}, request, response), status(403));
+    await assert.rejects(controller.reviewEligibility(investorId, {}, request, response, "https://untrusted.example"), status(403));
+    await assert.rejects(controller.walletStatus(investorId, investorId, {}, request, response), status(403));
+    await assert.rejects(controller.reviewEligibility(investorId, {}, request, response, "http://localhost:3000"), status(400));
+    await assert.rejects(controller.walletStatus(investorId, investorId, {}, request, response, "http://localhost:3000"), status(400));
     await assert.rejects(controller.create({ eligibilityStatus: "ELIGIBLE" }, request, response, "http://localhost:3000"), status(400));
     await assert.rejects(controller.eligibility(investorId, {
       decision: "ELIGIBLE", reasonCode: "DEMO_CRITERIA_NOT_MET"
@@ -52,6 +62,8 @@ test("registry requires a session, keeps auditors read-only and checks mutation 
     const limited = new InvestorController(database, { consumeMutation() { throw new AuthRateLimitError(9); } } as unknown as AuthRateLimitService);
     await assert.rejects(limited.create({}, request, { setHeader(name, value) { headers.set(name, value); } }, "http://localhost:3000"), status(429));
     assert.equal(headers.get("Retry-After"), "9");
+    await assert.rejects(limited.reviewEligibility(investorId, {}, request, response, "http://localhost:3000"), status(429));
+    await assert.rejects(limited.walletStatus(investorId, investorId, {}, request, response, "http://localhost:3000"), status(429));
     process.env.AUTH_ENABLED = "false";
     await assert.rejects(controller.list(request, response), status(503));
   } finally {

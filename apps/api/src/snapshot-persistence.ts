@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 
 import { Prisma, type PrismaClient } from "@prisma/client";
 
-import { MAX_SNAPSHOT_GRACE_SECONDS, prepareSnapshotCandidate, SnapshotPreparationError } from "./snapshot-candidate.js";
+import { MAX_SNAPSHOT_GRACE_SECONDS, prepareSnapshotCandidate, snapshotInvestorEligibility,
+  SnapshotPreparationError } from "./snapshot-candidate.js";
 
 type SnapshotCandidate = Awaited<ReturnType<typeof prepareSnapshotCandidate>>;
 
@@ -68,6 +69,11 @@ export async function persistSnapshotCandidate(
     const candidateWallets = payload.investors.flatMap((investor) =>
       investor.wallets.map((wallet) => ({ investor, wallet }))
     );
+    if (!Array.isArray(candidate.registryFacts) || candidate.registryFacts.length !== candidateWallets.length ||
+        new Set(candidate.registryFacts.map(fact => fact.walletAddress)).size !== candidateWallets.length) {
+      throw new SnapshotPreparationError("CANDIDATE_CHANGED", "Snapshot registry facts are missing or duplicated");
+    }
+    const factsByAddress = new Map(candidate.registryFacts.map(fact => [fact.walletAddress, fact]));
     const effectiveAt = new Date(payload.block_time);
     const walletRows = await tx.wallet.findMany({
       where: { address: { in: candidateWallets.map(({ wallet }) => wallet.wallet_address) } },
@@ -78,13 +84,24 @@ export async function persistSnapshotCandidate(
       throw new SnapshotPreparationError("REGISTRY_CHANGED", "Holder wallet mapping changed after capture");
     }
     for (const { investor, wallet } of candidateWallets) {
+      const captured = factsByAddress.get(wallet.wallet_address);
+      if (!captured || captured.walletId !== wallet.wallet_id || captured.investorId !== investor.investor_id ||
+          captured.walletStatus !== wallet.wallet_status ||
+          snapshotInvestorEligibility({ status: captured.investorStatus, eligibilityStatus: captured.eligibilityStatus }) !== investor.eligibility_status) {
+        throw new SnapshotPreparationError("CANDIDATE_CHANGED", "Snapshot registry facts differ from the canonical candidate");
+      }
       const current = walletsByAddress.get(wallet.wallet_address);
       if (
         !current || current.id !== wallet.wallet_id ||
         current.investorId !== investor.investor_id ||
-        current.investor?.eligibilityStatus !== investor.eligibility_status ||
+        !current.investor || current.investor.status !== captured.investorStatus ||
+        current.investor.eligibilityStatus !== captured.eligibilityStatus ||
+        current.investor.registryVersion !== captured.investorRegistryVersion ||
+        current.registryVersion !== captured.walletRegistryVersion ||
+        (current.verifiedAt?.toISOString() ?? null) !== captured.verifiedAt ||
+        (current.revokedAt?.toISOString() ?? null) !== captured.revokedAt ||
         current.verifiedAt === null || current.verifiedAt > effectiveAt ||
-        current.network !== options.walletNetwork ||
+        current.network !== options.walletNetwork || current.network !== captured.network ||
         current.status !== wallet.wallet_status
       ) {
         throw new SnapshotPreparationError("REGISTRY_CHANGED", "Holder wallet or investor status changed after capture");

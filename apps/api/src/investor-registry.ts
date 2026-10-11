@@ -11,12 +11,12 @@ export class InvestorRegistryError extends Error {
 export type RegistryActor = { id: string; walletAddress: string; correlationId: string };
 const walletSelect = {
   id: true, address: true, network: true, status: true, verifiedAt: true, revokedAt: true,
-  revocationReasonCode: true
+  revocationReasonCode: true, registryVersion: true
 } as const;
 const investorSelect = {
   id: true, externalReference: true, displayName: true, type: true, countryCode: true,
   kycStatus: true, eligibilityStatus: true, eligibilityReasonCode: true, eligibilityReviewedAt: true,
-  status: true, createdAt: true,
+  status: true, registryVersion: true, createdAt: true,
   _count: { select: { wallets: true } },
   wallets: { select: walletSelect, take: 20, orderBy: { id: "asc" as const } }
 } satisfies Prisma.InvestorSelect;
@@ -177,7 +177,8 @@ export async function revokeInvestorWallet(
       const previousStatus = wallet.status;
       const changed = await tx.wallet.updateMany({
         where: { id: walletId, investorId, status: previousStatus, revokedAt: null },
-        data: { status: "REVOKED", revokedAt: options.now, revocationReasonCode: reasonCode }
+        data: { status: "REVOKED", revokedAt: options.now, revocationReasonCode: reasonCode,
+          registryVersion: { increment: 1 } }
       });
       if (changed.count !== 1) {
         throw new InvestorRegistryError("REGISTRY_CONFLICT", "Concurrent change; refresh before retrying", 409);
@@ -234,7 +235,8 @@ export async function decideInvestorEligibility(
       }
       const changed = await tx.investor.updateMany({
         where: { id: investorId, status: "ACTIVE", eligibilityStatus: "PENDING_REVIEW" },
-        data: { eligibilityStatus: decision, eligibilityReasonCode: reasonCode, eligibilityReviewedAt: options.now }
+        data: { eligibilityStatus: decision, eligibilityReasonCode: reasonCode, eligibilityReviewedAt: options.now,
+          registryVersion: { increment: 1 } }
       });
       if (changed.count !== 1) throw new InvestorRegistryError("REGISTRY_CONFLICT", "Concurrent change; refresh before retrying", 409);
       const updated = await tx.investor.findUniqueOrThrow({ where: { id: investorId }, select: investorSelect });
@@ -247,6 +249,105 @@ export async function decideInvestorEligibility(
         entityId: investorId,
         metadataJson: { previousStatus: "PENDING_REVIEW", decision, reasonCode }
       } });
+      return updated;
+    }, { isolationLevel: "Serializable" });
+  } catch (error) { databaseError(error); }
+}
+
+const REGISTRY_REVIEW_REASONS = new Set([
+  "REGISTRY_CORRECTION", "PERIODIC_REVIEW", "SECURITY_CONCERN", "OWNER_REQUEST"
+]);
+
+function reviewInput(body: unknown, field: "decision" | "status") {
+  const input = payload(body, [field, "expectedVersion", "reasonCode"]);
+  const expectedVersion = input["expectedVersion"];
+  if (typeof expectedVersion !== "number" || !Number.isSafeInteger(expectedVersion) ||
+      expectedVersion < 1 || expectedVersion >= 2_147_483_647) {
+    invalid("Expected registry version must be a positive integer below the database maximum");
+  }
+  const reasonCode = input["reasonCode"];
+  if (typeof reasonCode !== "string" || !REGISTRY_REVIEW_REASONS.has(reasonCode)) {
+    invalid("Registry review reason code is invalid");
+  }
+  return { value: input[field], expectedVersion, reasonCode };
+}
+
+/** Review a previous demo eligibility decision; captured snapshots and signed attempts are never rewritten. */
+export async function reviewInvestorEligibility(database: PrismaClient, investorId: string, body: unknown,
+  actor: RegistryActor, options: RegistryMutationOptions = registryMutationOptionsFromEnvironment()) {
+  if (!REGISTRY_UUID.test(investorId)) invalid("Investor ID must be a UUID");
+  const { value: decision, expectedVersion, reasonCode } = reviewInput(body, "decision");
+  if (decision !== "ELIGIBLE" && decision !== "NOT_ELIGIBLE" && decision !== "SUSPENDED") {
+    invalid("Eligibility review decision is invalid");
+  }
+  try {
+    return await database.$transaction(async tx => {
+      await assertRegistryMutationAllowed(tx, options);
+      const investor = await tx.investor.findUnique({ where: { id: investorId },
+        select: { status: true, eligibilityStatus: true, registryVersion: true } });
+      if (!investor) throw new InvestorRegistryError("INVESTOR_NOT_FOUND", "Investor not found", 404);
+      if (investor.status !== "ACTIVE") throw new InvestorRegistryError("INVESTOR_INACTIVE", "Investor is not active", 409);
+      if (investor.registryVersion !== expectedVersion) {
+        throw new InvestorRegistryError("REGISTRY_CONFLICT", "Concurrent change; refresh before retrying", 409);
+      }
+      if (investor.eligibilityStatus === "PENDING_REVIEW" || investor.eligibilityStatus === decision) {
+        throw new InvestorRegistryError("REGISTRY_TRANSITION_INVALID", "Use the initial review for pending eligibility; repeated decisions are not allowed", 409);
+      }
+      if (decision === "ELIGIBLE" && await tx.wallet.count({ where: {
+        investorId, status: "ACTIVE", verifiedAt: { not: null }, revokedAt: null
+      } }) < 1) {
+        throw new InvestorRegistryError("VERIFIED_WALLET_REQUIRED", "An active verified wallet is required for eligibility", 409);
+      }
+      // Domain eligibility keeps its established demo criteria; the operator's correction reason is audited separately.
+      const eligibilityReasonCode = decision === "ELIGIBLE" ? "DEMO_CRITERIA_MET" :
+        decision === "NOT_ELIGIBLE" ? "DEMO_CRITERIA_NOT_MET" : "DEMO_ELIGIBILITY_SUSPENDED";
+      const previousEligibilityStatus = investor.eligibilityStatus;
+      const changed = await tx.investor.updateMany({ where: { id: investorId, status: "ACTIVE",
+        eligibilityStatus: investor.eligibilityStatus, registryVersion: expectedVersion },
+        data: { eligibilityStatus: decision, eligibilityReasonCode, eligibilityReviewedAt: options.now,
+          registryVersion: { increment: 1 } } });
+      if (changed.count !== 1) throw new InvestorRegistryError("REGISTRY_CONFLICT", "Concurrent change; refresh before retrying", 409);
+      const updated = await tx.investor.findUniqueOrThrow({ where: { id: investorId }, select: investorSelect });
+      await tx.auditLog.create({ data: { actorId: actor.id, actorWallet: actor.walletAddress,
+        correlationId: actor.correlationId, event: "INVESTOR_ELIGIBILITY_REVIEWED", entityType: "Investor", entityId: investorId,
+        metadataJson: { previousEligibilityStatus, eligibilityStatus: decision,
+          previousVersion: expectedVersion, registryVersion: updated.registryVersion, reasonCode, source: "administrator-api" } } });
+      return updated;
+    }, { isolationLevel: "Serializable" });
+  } catch (error) { databaseError(error); }
+}
+
+/** Temporarily block or restore a verified investor wallet without changing ownership or revocation evidence. */
+export async function changeInvestorWalletStatus(database: PrismaClient, investorId: string, walletId: string,
+  body: unknown, actor: RegistryActor, options: RegistryMutationOptions = registryMutationOptionsFromEnvironment()) {
+  if (!REGISTRY_UUID.test(investorId) || !REGISTRY_UUID.test(walletId)) invalid("Investor and wallet IDs must be UUIDs");
+  const { value: status, expectedVersion, reasonCode } = reviewInput(body, "status");
+  if (status !== "ACTIVE" && status !== "BLOCKED") invalid("Wallet status must be ACTIVE or BLOCKED");
+  try {
+    return await database.$transaction(async tx => {
+      await assertRegistryMutationAllowed(tx, options);
+      const investor = await tx.investor.findUnique({ where: { id: investorId }, select: { status: true } });
+      if (!investor) throw new InvestorRegistryError("INVESTOR_NOT_FOUND", "Investor not found", 404);
+      if (investor.status !== "ACTIVE") throw new InvestorRegistryError("INVESTOR_INACTIVE", "Investor is not active", 409);
+      const wallet = await tx.wallet.findFirst({ where: { id: walletId, investorId }, select: { ...walletSelect, userId: true } });
+      if (!wallet) throw new InvestorRegistryError("WALLET_NOT_FOUND", "Investor wallet not found", 404);
+      if (wallet.registryVersion !== expectedVersion) {
+        throw new InvestorRegistryError("REGISTRY_CONFLICT", "Concurrent change; refresh before retrying", 409);
+      }
+      if (wallet.userId || !["ACTIVE", "BLOCKED"].includes(wallet.status) || wallet.verifiedAt === null || wallet.revokedAt !== null) {
+        throw new InvestorRegistryError("WALLET_STATUS_TRANSITION_INVALID", "Only active or blocked verified investor wallets can change temporary status", 409);
+      }
+      if (wallet.status === status) throw new InvestorRegistryError("REGISTRY_TRANSITION_INVALID", "Wallet already has this status", 409);
+      const previousStatus = wallet.status;
+      const changed = await tx.wallet.updateMany({ where: { id: walletId, investorId,
+        status: wallet.status, registryVersion: expectedVersion, verifiedAt: wallet.verifiedAt, revokedAt: null },
+        data: { status, registryVersion: { increment: 1 } } });
+      if (changed.count !== 1) throw new InvestorRegistryError("REGISTRY_CONFLICT", "Concurrent change; refresh before retrying", 409);
+      const updated = await tx.wallet.findUniqueOrThrow({ where: { id: walletId }, select: walletSelect });
+      await tx.auditLog.create({ data: { actorId: actor.id, actorWallet: actor.walletAddress,
+        correlationId: actor.correlationId, event: "INVESTOR_WALLET_STATUS_CHANGED", entityType: "Wallet", entityId: walletId,
+        metadataJson: { investorId, previousStatus, status, previousVersion: expectedVersion,
+          registryVersion: updated.registryVersion, reasonCode, network: wallet.network } } });
       return updated;
     }, { isolationLevel: "Serializable" });
   } catch (error) { databaseError(error); }

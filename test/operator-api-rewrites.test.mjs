@@ -3,7 +3,12 @@ import test from "node:test";
 import { operatorApiRewrites } from "../apps/web/next.config.mjs";
 
 test("proxies only the implemented operator routes to the fixed server origin", () => {
-  const routes = operatorApiRewrites({ API_SERVER_URL: "https://api.example.com", NEXT_PUBLIC_API_URL: "https://ignored.example" });
+  const allRoutes = operatorApiRewrites({ API_SERVER_URL: "https://api.example.com", NEXT_PUBLIC_API_URL: "https://ignored.example" });
+  assert.equal(allRoutes.length, 57);
+  const governance = allRoutes.filter(route => route.source.endsWith("/eligibility/review") || route.source.endsWith("/:walletId([0-9a-fA-F-]{36})/status"));
+  assert.deepEqual(governance.map(route => route.destination), ["https://api.example.com/api/v1/investors/:id/eligibility/review",
+    "https://api.example.com/api/v1/investors/:id/wallets/:walletId/status"]);
+  const routes = allRoutes.filter(route => !governance.includes(route));
   assert.equal(routes.length, 55);
   assert.equal(routes.find((route) => route.source === "/api/v1/auth/session").destination, "https://api.example.com/api/v1/auth/session");
   assert.ok(routes.every((route) => !route.source.includes(":path")));
