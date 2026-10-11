@@ -41,7 +41,9 @@ No Rust/program source changed, and the Rust suites or chain scenario were not r
 
 ## Source publication
 
-The continuation targets the existing `codex/full-project-audit-20261010` branch and [draft PR #1](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/pull/1). Remote SHA and CI are checked after the source push. The earlier hosted `8ea7a42` release remains a separate deployment checkpoint; this continuation does not deploy or merge the branch.
+The application continuation was committed and pushed as [`a739af28606e78aad0c237146a7cc538c38be563`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/a739af28606e78aad0c237146a7cc538c38be563) on `codex/full-project-audit-20261010`; local and remote SHA matched and the worktree was clean immediately after push. All three jobs in [CI run 38153120559](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/actions/runs/38153120559) passed: repository checks, program checks and full-history secret checks. CI includes clean service-order builds, the database suites and both locked Rust profiles/formatting/Clippy.
+
+The existing [draft PR #1](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/pull/1) tracks this continuation. A following documentation-only commit records this source/CI checkpoint and synchronizes the submission matrix; it does not change the validated application. The earlier hosted `8ea7a42` release remains a separate deployment checkpoint; this continuation does not deploy or merge the branch.
 
 ## Remaining specification work
 
