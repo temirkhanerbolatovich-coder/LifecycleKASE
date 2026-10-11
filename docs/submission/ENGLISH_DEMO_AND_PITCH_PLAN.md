@@ -1,6 +1,8 @@
 # English demo and pitch plan — Crypto World's Fair
 
-Prepared: **2026-10-11**, Asia/Qyzylorda. This is a recording plan and English script; no new narrated recording, upload or submission was performed. The initial plan inspected the working tree based on `eb7a6025cadb45229949a7107f7e0a72c07e1058`. The implemented RU/EN/QA candidate is now published as [application revision `1e6c96d`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/1e6c96dd119f32cbf01cecef028723b9134ebe4b) and [public QA](https://lifecyclekase-web.onrender.com/qa), with successful CI and [Render/browser acceptance](../deployment/render-staging.md). Preserve the existing original recordings and canonical receipts.
+Prepared: **2026-10-11**, Asia/Qyzylorda. This is a recording plan and English script; no new narrated recording, upload or submission was performed. The initial plan inspected the working tree based on `eb7a6025cadb45229949a7107f7e0a72c07e1058`. Current published [source `8ea7a42`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/8ea7a42cc13b27c40fc4b3d2c4562a249a4fc02f) includes RU/EN/QA and the governed registry continuation; all three [CI jobs](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/actions/runs/38149599630) passed. Both existing Render services are Live on this source, with migration 20 applied. The [deployment record](../deployment/render-staging.md) holds revision and public-check observations. Preserve the original recordings/canonical receipts and their historical media source `8c0f4f1`.
+
+Registry continuation: reasoned eligibility review/suspension/restoration and temporary verified-wallet block/unblock passed **378 Node tests** and isolated HTTP/PostgreSQL acceptance with **20 migrations**. Versions and atomic audit protect transitions; current eligibility is checked without rewriting captured snapshots. See [acceptance](../testing/registry-governance-2026-10-11.md). This is partial MVP progress; issuer isolation, the full role matrix and investor editing/closure remain open. No new financial/validator run or recording was performed for this phase.
 
 ## Target and verified rules
 
@@ -24,7 +26,7 @@ The [Superteam Kazakhstan × KASE side track](https://superteam.fun/earn/listing
 | [Canonical receipts and run record](../testing/evidence/kase-three-actions-2026-10-10.json) | Recorded on-chain test payments/burns/final receipts; exact evidence can be checked | Public Devnet/Mainnet Explorer, retained-owner rollout or continuously queryable disposable ledger |
 | [Public dashboard](https://lifecyclekase-web.onrender.com/dashboard) | Hosted application staging; recorded availability details are in [deployment record](../deployment/render-staging.md) | Cloud access to owner's loopback validator, anonymous financial access or new settlement acceptance |
 | Published `/qa` [sandbox](../features/qa-sandbox.md) | Walletless page-local synthetic UX exercise in RU/EN | Solana execution, real wallet auth, database persistence or real money |
-| [Pinned submission package](README.md) | Source/media/evidence location | Latest working-tree publication, correct default branch or actual submission |
+| [Pinned submission package](README.md) | Current source `8ea7a42` with three CI jobs passed and both Render services Live; historical media `8c0f4f1`; separate registry/financial evidence | Deployment observations do not establish authenticated financial execution or actual project submission |
 
 The saved Localnet numbers are **1,750 KZT-Test coupon**, **7,000 KZT-Test partial redemption with 7 burned**, then **29,400 KZT-Test maturity including final coupon with 28 burned and supply 0**. After later maturity, a historical partial card can show current supply 0; use its action receipt to demonstrate the earlier 35 → 28 change. Never narrate current supply as if it were the historical partial result.
 
@@ -97,11 +99,11 @@ If the new interactive video fails, the fallback is an honest narrated review of
 | Priority | Owner/action | Acceptance |
 | --- | --- | --- |
 | P0 | Owner: check current logged-in Arena form and personal/team eligibility | Exact fields/hosts/limits and deadline read; registration distinct from submission |
-| Closed locally | Development: RU/EN recording path | All workspace sections checked in English; form/error state preserved and exact signed/canonical evidence unchanged. Public deployment and KK remain separate. |
+| Implemented and published | Development: RU/EN recording path | All workspace sections checked in English; form/error state preserved and exact signed/canonical evidence unchanged. The public QA path is available at the accepted application revision; KK remains separate. |
 | P0 | Founder name/background supplied; owner still checks team contribution and prior-work history | Spoken introduction filled; actual team/application fields remain accurate |
 | P0 | Recording: 2:40 pitch plus ≤3:00 demo | English speech, readable evidence, full duration measured, disclosure intact |
-| P0 | Repository/media: publish the actual chosen source state and working reviewer links | Signed-out source/video check; working-tree additions not falsely described as already on GitHub |
-| P0 if using a public interactive UX link | Deployment: publish and verify the English `/qa` candidate, then explain simulation and reset | Fresh signed-out route check avoids 404; no wallet installation needed for synthetic UX; dashboard access/health checked separately |
+| Published source; final link check remains | Repository/media: use source `8ea7a42`, retain historical media `8c0f4f1` and verify reviewer access | Three CI jobs passed; signed-out source/video access, narrated videos and actual submission remain separate checks |
+| Deployed source; final recording rehearsal remains | Deployment: confirm the dated public checks in the deployment record, then rehearse English `/qa` with simulation/reset disclosures | Both services are Live on the new source; QA is synthetic, and authenticated registry/financial workflows require separate evidence |
 | P1 | Demand evidence: invite reachable operators for a narrow usability/problem test | Proposed test: 3–5 relevant operators attempt one coupon workflow; report sample/tasks/completion/errors/time and contrary findings. This is a plan, not traction |
 | P1 after recording | KK review/full RU-KK-EN rollout and public-network acceptance | Separate milestones; neither is silently declared completed by a video |
 

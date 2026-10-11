@@ -6,6 +6,7 @@
 - Require the loaded registry version, reject stale/concurrent changes and preserve terminal revocation and wallet ownership evidence. Database triggers version direct maintenance changes as well as API transitions.
 - Reject snapshot candidates whose captured registry facts changed, including block/unblock and suspend/restore round trips; keep canonical snapshot-v2 and signed recovery evidence unchanged.
 - Add RU/EN operator forms and equivalent page-local QA flows, explicit confirmation and refresh locks after a saved mutation. See [acceptance and remaining work](docs/testing/registry-governance-2026-10-11.md) and [ADR-028](docs/decisions/ADR-028-registry-review-versioning.md).
+- Publish exact application commit `8ea7a42cc13b27c40fc4b3d2c4562a249a4fc02f` on both existing Render services after successful CI. Migration 20 applied; public health/protected routes and synthetic registry/Auditor browser flows passed. [Deployment evidence](docs/deployment/render-staging.md).
 
 ## Public walletless QA and English release — 2026-10-11
 

@@ -1,0 +1,140 @@
+{
+  "checkedAt": "2026-10-11T15:06:49.047Z",
+  "applicationCommit": "8ea7a42cc13b27c40fc4b3d2c4562a249a4fc02f",
+  "checks": [
+    {
+      "name": "qa",
+      "url": "https://lifecyclekase-web.onrender.com/qa",
+      "expectedStatus": 200,
+      "status": 200,
+      "elapsedMs": 1518,
+      "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+      "title": "LifecycleKASE — QA-песочница",
+      "passed": true
+    },
+    {
+      "name": "dashboard",
+      "url": "https://lifecyclekase-web.onrender.com/dashboard",
+      "expectedStatus": 200,
+      "status": 200,
+      "elapsedMs": 1504,
+      "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+      "title": "LifecycleKASE — рабочее место оператора",
+      "passed": true
+    },
+    {
+      "name": "web-live",
+      "url": "https://lifecyclekase-web.onrender.com/health/live",
+      "expectedStatus": 200,
+      "status": 200,
+      "elapsedMs": 862,
+      "cacheControl": null,
+      "response": {
+        "status": "live"
+      },
+      "passed": true
+    },
+    {
+      "name": "api-live",
+      "url": "https://lifecyclekase-api.onrender.com/api/v1/health/live",
+      "expectedStatus": 200,
+      "status": 200,
+      "elapsedMs": 742,
+      "cacheControl": null,
+      "response": {
+        "status": "live"
+      },
+      "passed": true
+    },
+    {
+      "name": "api-ready",
+      "url": "https://lifecyclekase-api.onrender.com/api/v1/health/ready",
+      "expectedStatus": 200,
+      "status": 200,
+      "elapsedMs": 751,
+      "cacheControl": null,
+      "response": {
+        "status": "ready"
+      },
+      "passed": true
+    },
+    {
+      "name": "api-protected-transactions",
+      "url": "https://lifecyclekase-api.onrender.com/api/v1/transactions",
+      "expectedStatus": 401,
+      "status": 401,
+      "elapsedMs": 395,
+      "cacheControl": "no-store",
+      "response": {
+        "code": "SESSION_REQUIRED",
+        "message": "An active operator session is required"
+      },
+      "passed": true
+    },
+    {
+      "name": "api-protected-eligibility-review",
+      "url": "https://lifecyclekase-api.onrender.com/api/v1/investors/30000000-0000-4000-8000-000000000001/eligibility/review",
+      "expectedStatus": 401,
+      "status": 401,
+      "elapsedMs": 481,
+      "cacheControl": "no-store",
+      "response": {
+        "code": "SESSION_REQUIRED",
+        "message": "An active operator session is required"
+      },
+      "passed": true
+    },
+    {
+      "name": "api-protected-wallet-status",
+      "url": "https://lifecyclekase-api.onrender.com/api/v1/investors/30000000-0000-4000-8000-000000000001/wallets/40000000-0000-4000-8000-000000000001/status",
+      "expectedStatus": 401,
+      "status": 401,
+      "elapsedMs": 401,
+      "cacheControl": "no-store",
+      "response": {
+        "code": "SESSION_REQUIRED",
+        "message": "An active operator session is required"
+      },
+      "passed": true
+    },
+    {
+      "name": "web-protected-transactions",
+      "url": "https://lifecyclekase-web.onrender.com/api/v1/transactions",
+      "expectedStatus": 401,
+      "status": 401,
+      "elapsedMs": 1490,
+      "cacheControl": "no-store",
+      "response": {
+        "code": "SESSION_REQUIRED",
+        "message": "An active operator session is required"
+      },
+      "passed": true
+    },
+    {
+      "name": "web-protected-eligibility-review",
+      "url": "https://lifecyclekase-web.onrender.com/api/v1/investors/30000000-0000-4000-8000-000000000001/eligibility/review",
+      "expectedStatus": 401,
+      "status": 401,
+      "elapsedMs": 1510,
+      "cacheControl": "no-store",
+      "response": {
+        "code": "SESSION_REQUIRED",
+        "message": "An active operator session is required"
+      },
+      "passed": true
+    },
+    {
+      "name": "web-protected-wallet-status",
+      "url": "https://lifecyclekase-web.onrender.com/api/v1/investors/30000000-0000-4000-8000-000000000001/wallets/40000000-0000-4000-8000-000000000001/status",
+      "expectedStatus": 401,
+      "status": 401,
+      "elapsedMs": 1489,
+      "cacheControl": "no-store",
+      "response": {
+        "code": "SESSION_REQUIRED",
+        "message": "An active operator session is required"
+      },
+      "passed": true
+    }
+  ]
+}

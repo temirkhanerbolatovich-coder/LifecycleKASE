@@ -2,6 +2,8 @@
 
 LifecycleKASE is a corporate-action terminal for test tokenized bonds on Solana. It covers coupon payment, partial early redemption and redemption at maturity, with holder capture, exact calculation, separate approval, reserved funding, execution and canonical receipt reconciliation.
 
+Current published implementation: [source `8ea7a42`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/8ea7a42cc13b27c40fc4b3d2c4562a249a4fc02f) and its successful [three-job CI run](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/actions/runs/38149599630). The registry continuation adds reasoned eligibility review/suspension/restoration, temporary verified-wallet blocking, stale-version rejection and atomic audit. Local checks passed **378 Node tests** (API 155, web 95, domain 27, Solana client 54, root 47) and all **20 migrations** in isolated HTTP/PostgreSQL acceptance. See [registry evidence](../testing/registry-governance-2026-10-11.md). It does not complete the full role matrix, issuer isolation or investor editing/closure.
+
 ## Verified prototype result
 
 The fresh **2026-10-11 disposable Localnet run** completed these actions through the HTTP API, PostgreSQL and a newly built Solana program:
@@ -22,7 +24,7 @@ The current candidate has RU/EN display languages. Select **English** in the log
 
 Open [public walletless QA](https://lifecyclekase-web.onrender.com/qa) and select **English**. `/qa` is a page-local **simulation** for reviewing usability. Its synthetic roles, balances, approvals, receipts and burns do not establish blockchain execution. Reload/reset restores the fixture. The protected [operator dashboard](https://lifecyclekase-web.onrender.com/dashboard) remains a registered-wallet interface.
 
-Both existing Render services are Live at [application source `1e6c96d`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/1e6c96dd119f32cbf01cecef028723b9134ebe4b). All three [CI jobs](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/actions/runs/38137890172), public health/protected-route checks and a complete signed-out QA coupon simulation passed. See [deployment evidence](../deployment/render-staging.md). Documentation following this application revision records publication; original videos remain historical media.
+Both existing Render services are Live at the current source above; API deployment logs confirm migration 20 and both new review/status routes. Fresh public HTTP checks passed, including 401 `SESSION_REQUIRED` for the new protected POST routes through API and proxy. Signed-out English QA passed all four simulated registry transitions and Auditor reason/version audit without browser errors/warnings. The [deployment record](../deployment/render-staging.md) holds revision and dated observations. CI passed both Rust profiles; no local Rust/SBF/fresh-validator or financial transaction was rerun for this registry phase. Original videos remain historical media.
 
 ## Reproduce locally
 
@@ -44,6 +46,6 @@ The demo wrapper creates unique candidate artifacts and temporary test resources
 
 ## Submission material and honest limits
 
-[English demo/pitch scripts](ENGLISH_DEMO_AND_PITCH_PLAN.md) include complete narration, timing and a recording checklist. Plain [demo narration](DEMO_NARRATION_EN.txt) and [pitch narration](PITCH_NARRATION_EN.txt) are ready for rehearsal or a teleprompter. [Founder profile](FOUNDER_PROFILE_EN.md) supplies the founder introduction. The original 2026-10-10 short recordings are retained as historical evidence; they have Russian UI and no speech. They are not a completed English narrated submission.
+[English demo/pitch scripts](ENGLISH_DEMO_AND_PITCH_PLAN.md) include complete narration, timing and a recording checklist. Plain [demo narration](DEMO_NARRATION_EN.txt) and [pitch narration](PITCH_NARRATION_EN.txt) are ready for rehearsal or a teleprompter. [Founder profile](FOUNDER_PROFILE_EN.md) supplies the founder introduction. The original 2026-10-10 short recordings retain historical [media source `8c0f4f1`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/8c0f4f1d250c2e1acfb73c60f7e1143fba71e9b1); they have Russian UI and no speech. They are not a recording of the newer registry controls or a completed English narrated submission.
 
 KZT-Test and investor eligibility are simulated. Effective ownership is the finalized capture slot/time, not reconstructed ownership at an earlier planned timestamp. Real KYC, custody, fiat settlement, public-network financial acceptance, exchange/CSD integration and customer adoption require separate work. LifecycleKASE is not affiliated with or approved by KASE. No owner program upgrade, live financial transaction or hackathon submission is performed by this package.

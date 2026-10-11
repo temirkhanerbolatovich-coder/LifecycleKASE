@@ -1,6 +1,19 @@
 # Disposable Render staging
 
-## Current QA and English application rollout — 2026-10-11
+## Current governed registry rollout — 2026-10-11
+
+Both existing free services are **Live** at exact application commit [`8ea7a42cc13b27c40fc4b3d2c4562a249a4fc02f`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/commit/8ea7a42cc13b27c40fc4b3d2c4562a249a4fc02f), following successful [CI run 38149599630](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/actions/runs/38149599630). The authenticated Render Dashboard selected this specific commit. Service plans, database, build/start commands, authentication settings and default branch were retained. The registry migration is additive; it introduces version columns and guards without changing Solana layouts or existing snapshot commitments.
+
+- API `dep-db5qau67bikc73dn0280`: started **20:04:24 Asia/Qyzylorda (UTC+5)**, **Deploy succeeded | Live**, duration **1m12s**. [Screenshot](../testing/evidence/registry-governance-2026-10-11/render-api-live.png).
+- Web `dep-db5qb72d0e5s738bj0qg`: started **20:05:01 Asia/Qyzylorda (UTC+5)**, **Deploy succeeded | Live**, duration **1m29s**. [Screenshot](../testing/evidence/registry-governance-2026-10-11/render-web-live.png).
+- API build logs: **20 migrations found**, `20261011130000_registry_review_versions` applied and **All migrations have been successfully applied**. Startup logs mapped both `/investors/:id/eligibility/review` and `/investors/:id/wallets/:walletId/status` POST routes. No direct cloud SQL mutation or migration-count query was performed.
+- Public checks at `2026-10-11T15:06:49.047Z`: QA, dashboard, web/API live and API/PostgreSQL ready returned **200**. Protected transactions and both new POST routes returned **401 SESSION_REQUIRED** with `no-store`, through direct API and same-origin web proxy. [Exact HTTP observations](../testing/evidence/registry-governance-2026-10-11/public-http.json) record individual timings, not performance acceptance.
+
+The signed-out public English QA passed eligibility suspend/restore and verified-wallet block/unblock, ending with both registry versions **3**. Auditor mutation controls were absent; the read-only audit displayed the four changes and their reason/state/version metadata, explicitly marked simulation. Browser error/warning capture was empty. [Published registry screenshot](../testing/evidence/registry-governance-2026-10-11/public-qa-governance-en.png) and [Auditor audit screenshot](../testing/evidence/registry-governance-2026-10-11/public-auditor-governance-en.png) preserve these checks. RU/EN form retention, failed-write recovery and responsive checks were performed locally in [registry acceptance](../testing/registry-governance-2026-10-11.md).
+
+Public QA is page-local simulation and does not use an API session, wallet or chain. Authenticated staging registry mutations and financial/wallet execution were not performed. The retained owner database/program/ledger were not modified. Render cannot reach the owner's loopback validator; no public Solana deployment or new financial acceptance is established. Existing execution configuration was preserved without independently rereading individual flags. Auto-deploy remains disabled; the PR remains draft and `master` remains `27af655bc3b0354ad067778fed8ebd0e68c61a64`. Following documentation commits record this rollout without redeploying the application.
+
+## Earlier QA and English application rollout — 2026-10-11
 
 Both existing free services are **Live** at application commit [`1e6c96dd119f32cbf01cecef028723b9134ebe4b`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/commit/1e6c96dd119f32cbf01cecef028723b9134ebe4b). All three jobs in [GitHub CI run 38137890172](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/actions/runs/38137890172) passed before deployment. The user authorized publication of the QA sandbox on the existing website. The authenticated Render Dashboard deployed the exact commit without changing service plans, database, build/start commands, authentication settings or the default branch.
 
