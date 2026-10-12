@@ -10,6 +10,7 @@ import { confirmInstrumentActivation, confirmInstrumentDistribution, confirmInst
   prepareInstrumentDistribution, prepareInstrumentInitialization, prepareInstrumentMintSetup,
   submitInstrumentDeployment, type InstrumentDeploymentPhase } from "./instrument-deployment.js";
 import { PrismaService } from "./prisma.service.js";
+import { ControlledRegistryError } from "./controlled-policy.js";
 
 type Request = { headers?: { cookie?: string }; ip?: string; socket?: { remoteAddress?: string } };
 type Response = { setHeader(name: string, value: string): void };
@@ -33,7 +34,7 @@ export class InstrumentController {
   }
 
   private httpError(error: unknown, response: Response): never {
-    if (error instanceof AuthFlowError || error instanceof InstrumentRegistryError || error instanceof InstrumentDeploymentError) {
+    if (error instanceof AuthFlowError || error instanceof InstrumentRegistryError || error instanceof InstrumentDeploymentError || error instanceof ControlledRegistryError) {
       if (error instanceof AuthRateLimitError) response.setHeader("Retry-After", String(error.retryAfterSeconds));
       throw new HttpException({ code: error.code, message: error.message }, error.status);
     }

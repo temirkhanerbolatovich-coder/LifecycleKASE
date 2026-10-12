@@ -2,6 +2,7 @@ import { coreMessages } from "./core-messages";
 import { financialMessages } from "./financial-messages";
 import { registryMessages } from "./registry-messages";
 import { qaMessages } from "./qa-messages";
+import type { RationalMinorAmount } from "./entitlement-workflow";
 
 export type Locale = "ru" | "en";
 export const LOCALE_COOKIE = "lifecyclekase_locale";
@@ -58,6 +59,20 @@ export function formatLocaleAmount(value: string, locale: Locale): string {
   const fraction = (amount % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "").padEnd(2, "0");
   const decimal = new Intl.NumberFormat(LOCALE_FORMATS[locale]).formatToParts(1.1).find(part => part.type === "decimal")!.value;
   return `${integer}${decimal}${fraction} KZT-Test`;
+}
+/** Shows fractional minor units as an exact fraction rather than rounding a rational amount. */
+export function formatLocaleRationalAmount(value: RationalMinorAmount, locale: Locale): string {
+  if (!/^(0|[1-9][0-9]*)$/.test(value.numerator) || !/^[1-9][0-9]*$/.test(value.denominator)) {
+    throw new Error(createTranslator(locale)("common.invalidAmount"));
+  }
+  const numerator = BigInt(value.numerator); const denominator = BigInt(value.denominator);
+  const wholeMinor = formatLocaleAmount((numerator / denominator).toString(), locale);
+  let remainder = numerator % denominator;
+  if (remainder === 0n) return wholeMinor;
+  let divisor = denominator; let factor = remainder;
+  while (factor !== 0n) { const next = divisor % factor; divisor = factor; factor = next; }
+  remainder /= divisor;
+  return createTranslator(locale)("financial.coupon.fractional.minor", { amount: wholeMinor, numerator: remainder.toString(), denominator: (denominator / divisor).toString() });
 }
 export function formatLocaleDate(value: string | null | undefined, locale: Locale, timeZone: string, dateOnly = false): string {
   const t = createTranslator(locale);

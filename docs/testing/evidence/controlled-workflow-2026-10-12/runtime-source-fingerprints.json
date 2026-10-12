@@ -1,0 +1,760 @@
+{
+  "schema": "controlled-workflow-source-fingerprints-v1",
+  "capturedAt": "2026-10-12T09:21:13.693Z",
+  "baseCommit": "8368d6833799e4133437fde4ecd60691c04fab39",
+  "branch": "codex/full-project-audit-20261010",
+  "status": "UNCOMMITTED_LOCALNET_APPLICATION_CANDIDATE",
+  "artifact": {
+    "path": "generated/localnet-candidate-controlled-20261012-c/lifecycle_kase.so",
+    "sha256": "772d8217c6395bbcd854f60f743139d756a15e7a0b7bb03396a586dc4b7b407b"
+  },
+  "idl": {
+    "path": "generated/localnet-candidate-controlled-20261012-c/lifecycle_kase.json",
+    "sha256": "4d50cb17cd0c0e0d3740e4b0ec42a71e2bdb62001fc9b654093024d33f5d046f"
+  },
+  "compiledClient": {
+    "path": "packages/solana-client/dist/controlled-registry.js",
+    "sha256": "98f2e9e63f0b099ea9b30c9747b032e6b60ef5a33169b1a11f05c1a77b836623"
+  },
+  "runtime": {
+    "path": "runtime.json",
+    "startedAt": "2026-10-12T08:55:16.785Z",
+    "completedAt": "2026-10-12T09:19:06.723Z",
+    "genesisHash": "HETv4uDMjHRvazJaDxBAKgqLV8pu52jWo9y72sjbvQGk",
+    "sha256": "8371e4bf85ecb35e4b0e540c06bfa357eade27f8c615c15c382cbaf27e1980c7"
+  },
+  "runtimeSourceChecks": [
+    {
+      "path": "scripts/test-kase-demo.mjs",
+      "sha256": "996bc916fa6706c7d8978310de51c048aa67474de9e9d57edb618bbe541cda39"
+    },
+    {
+      "path": "scripts/test-controlled-workflow.mjs",
+      "sha256": "cc2d0dd35d53b461e8877daddbfb031f58cd9179f81eeada92178f5191c75955"
+    },
+    {
+      "path": "scripts/test-controlled-workflow.ps1",
+      "sha256": "65b042a70df0bb4836ea5a55cc72e8c1b90885e06b752796d8c81f7658afd1ca"
+    },
+    {
+      "path": "scripts/test-initialize-instrument.sh",
+      "sha256": "d26b8ed826d50792001f4804af7bec5bc5622c47789f9e2b4f74505c94e860aa"
+    },
+    {
+      "path": "tools/solana-integration/test-initialize-instrument.mjs",
+      "sha256": "13c730197149bfc61147f0b9d4c7f894df59a6399c968ab2fd4d9504a7b3147a"
+    },
+    {
+      "path": "tools/solana-integration/test-zero-rounded-coupon.mjs",
+      "sha256": "8831f752efcb844026934166d49b8c88ab582baf97a7d52929ff48e7df495a8d"
+    },
+    {
+      "path": "apps/api/src/instrument-deployment.ts",
+      "sha256": "3ee7468a55c3129fd48480084a6e1c4d8fcea236080c26d528d89b1ad268b8ab"
+    },
+    {
+      "path": "apps/api/src/instrument-registry.ts",
+      "sha256": "61e8a6084df5d9988822849b711bbc26386b754b28f06a98f53b96e3bebd56a2"
+    },
+    {
+      "path": "apps/api/src/controlled-policy.ts",
+      "sha256": "839ffa8dca617786cb0edc4025337918fab358dbfc6efa53f333bd1967fe11fa"
+    },
+    {
+      "path": "prisma/schema.prisma",
+      "sha256": "c9068c254e5b8a65c91cb7e28e885f9a608252bcb08e280644ff0af03b559da1"
+    },
+    {
+      "path": "prisma/migrations/20261012010000_controlled_registry_policy/migration.sql",
+      "sha256": "9ef269f875572f5a9c6be05a0914993f193f19f4fd5230133ff8c19ddf6eca25"
+    },
+    {
+      "path": "apps/api/src/controlled-capture.ts",
+      "sha256": "d481d6e91e876f3d047213dc6af508706282dd4e5c9c5539a059b8c0d9ade55d"
+    },
+    {
+      "path": "apps/api/src/controlled-snapshot.ts",
+      "sha256": "510fe1f3b44a3aef4ad710d452e55219c6e4a44957282780756294810f29c739"
+    },
+    {
+      "path": "apps/api/src/onchain-entitlements.ts",
+      "sha256": "183311a21ecd3e8089b320982c46699112879bdf3492a78986dab4971c18dccd"
+    },
+    {
+      "path": "apps/api/src/snapshot-persistence.ts",
+      "sha256": "be9962c16d378f355959fafb3cea733c28d0b4261be9519fecd4478c61921e3f"
+    },
+    {
+      "path": "apps/api/src/coupon-execution.ts",
+      "sha256": "ce67847586176b3be1304e7aa468643c8f8317136ed77e2d4c1af9b34061c3fb"
+    },
+    {
+      "path": "apps/api/src/coupon-receipt.ts",
+      "sha256": "c6d759b64c1df2a38bc965065bdc27d127ebcc8e52897b73cc31412ab1eeae5c"
+    },
+    {
+      "path": "apps/api/src/controlled-settlement.ts",
+      "sha256": "106840738f3c38682fce44d435a0acddad5ee3701e3a2b9a784ddad88bbe2ac9"
+    },
+    {
+      "path": "apps/api/src/redemption-receipt.ts",
+      "sha256": "5b8545c845b982d328fdeb50ab22e7318e3407f1350167d0ddcf098c5f2fa576"
+    },
+    {
+      "path": "apps/api/src/action-approval.ts",
+      "sha256": "8b4ffed7d8618f9bf8b82c2a9ac689b9101c2b0bc594ae720410c67b2a7067ff"
+    },
+    {
+      "path": "apps/api/src/entitlements.ts",
+      "sha256": "0583b50a1d2b96b097c79fea7a1c670721a4bd8436deb26b13959158e5591e72"
+    },
+    {
+      "path": "apps/api/src/redemption-execution.ts",
+      "sha256": "8984b183e37e7a95e11038ac84b11920d28984fc3d06e62b8171deb171e9af3d"
+    },
+    {
+      "path": "packages/solana-client/dist/controlled-registry.js",
+      "sha256": "98f2e9e63f0b099ea9b30c9747b032e6b60ef5a33169b1a11f05c1a77b836623"
+    },
+    {
+      "path": "apps/web/.test-dist/instrument-deployment-workflow.js",
+      "sha256": "aef3beba860dc83f07cbd22645f857c750a2c04665baead13121e6e35bc995ce"
+    },
+    {
+      "path": "apps/web/.test-dist/controlled-capture-workflow.js",
+      "sha256": "05772ef3f527331fcaf478440c6c12b8d799670c969cb491fbb0f74d1e4c285d"
+    },
+    {
+      "path": "apps/web/.test-dist/onchain-entitlement-workflow.js",
+      "sha256": "f86f1e64ba63d53c1c6b23651f423f4f368e4c6acaab847569a7696c0de397b8"
+    },
+    {
+      "path": "apps/web/.test-dist/redemption-calculation-workflow.js",
+      "sha256": "18ded9c54997bcede593e59ded5c4f5dd3cbb566df69b60701c153a811887df1"
+    },
+    {
+      "path": "apps/web/.test-dist/coupon-execution-workflow.js",
+      "sha256": "b108daf799ec5d5d5f5b8727aa1cfd80d9dcd5913c5163006bb3a4d586c1690d"
+    },
+    {
+      "path": "apps/web/.test-dist/redemption-execution-workflow.js",
+      "sha256": "4715176684fa298af0e0a772bce2da969fe930127d6af66da552221bd9332403"
+    }
+  ],
+  "acceptedProtocolSourceChecks": [
+    {
+      "path": "packages/solana-client/src/controlled-registry.test.ts",
+      "sha256": "044bd74be3bcd78cd65580190de5b59c95436f9d76fea4e0e0d7eba53a5dd2e7"
+    },
+    {
+      "path": "packages/solana-client/src/controlled-registry.ts",
+      "sha256": "82a54d3d176caee732a5041a876bcda5323bd05c9b45350dc7fab73592ee58c6"
+    },
+    {
+      "path": "packages/solana-client/src/corporate-action.test.ts",
+      "sha256": "b5e735f84d63f4b94e40bbf2047a138de576fcf64b0bc33af3dbe9bb977ceff6"
+    },
+    {
+      "path": "packages/solana-client/src/corporate-action.ts",
+      "sha256": "6ef1636aec6a66fdaf721f842d04e0e777f711fac71542c4aae2313c0e48e2cf"
+    },
+    {
+      "path": "packages/solana-client/src/entitlement-registration.test.ts",
+      "sha256": "188ef837d2b1a8615904882a0aaaf5eda7504f9804bc6d435e1244a88026f0df"
+    },
+    {
+      "path": "packages/solana-client/src/entitlement-registration.ts",
+      "sha256": "4e2402dd05b63c2853f051878db74124946fb0627b5832b9af8d71267a0a384b"
+    },
+    {
+      "path": "packages/solana-client/src/index.ts",
+      "sha256": "fa2610aaf5ec9a8da2951fc86ecc82d0da1efa11c6d727b20d6cb8dc212a3581"
+    },
+    {
+      "path": "packages/solana-client/src/snapshot-confirmation.test.ts",
+      "sha256": "f25717ffe4a0055cc1d574c10ae339b03db605a78cee5e190c102a5d2f5f68f3"
+    },
+    {
+      "path": "packages/solana-client/src/snapshot-confirmation.ts",
+      "sha256": "e909165f6f7d7f9e7c4bbf98a3c0356b70e1f007ba517d4f403ba009f007fc6b"
+    },
+    {
+      "path": "programs/lifecycle_kase/README.md",
+      "sha256": "b08ba33d77d78117b83a3df77eb9348ec0d160d1522e394d527a14a46482cf10"
+    },
+    {
+      "path": "programs/lifecycle_kase/src/controlled_registry.rs",
+      "sha256": "8509b87e40951b2bef215a338f905e834d62092ffec81e2223696006272e18eb"
+    },
+    {
+      "path": "programs/lifecycle_kase/src/entitlement.rs",
+      "sha256": "c79cf979a90ee463eb24521d367f2414ec5282bf8de89076eeb320546c6b9a03"
+    },
+    {
+      "path": "programs/lifecycle_kase/src/exact_redemption.rs",
+      "sha256": "f078aef33cb76307373eb60dd6ad2708b3973dbed14ba9597dc4f19c488cc562"
+    },
+    {
+      "path": "programs/lifecycle_kase/src/lib.rs",
+      "sha256": "bd985829c827276a34d95a3b81a216d2dd29c4d1fa62ae382bc1793f77c69ed1"
+    },
+    {
+      "path": "programs/lifecycle_kase/src/redemption.rs",
+      "sha256": "fae5e031b8e79ae985d8cce5501a18c2e32bfead34e1bdad422ddadfaef01eb8"
+    }
+  ],
+  "files": [
+    {
+      "path": ".env.example",
+      "sha256": "a846c9708b3801c339e10f965169dbddb51b6416a1e51a173f22526a8fa0f3d0"
+    },
+    {
+      "path": ".gitleaks.toml",
+      "sha256": "88b6fa7861417076a65d8405083f8b463dfef2158ad598ad75854bb33c98b0b7"
+    },
+    {
+      "path": "README.md",
+      "sha256": "1d7af83e01b2b9ab30dcf18ddfd5af1bec9ea792c3c8474f244495686f72ed16"
+    },
+    {
+      "path": "apps/api/README.md",
+      "sha256": "05f3955390bee2d81ea7f777b8878d278bfad7db8df5ff2f29c690978dece037"
+    },
+    {
+      "path": "apps/api/src/action-approval.ts",
+      "sha256": "8b4ffed7d8618f9bf8b82c2a9ac689b9101c2b0bc594ae720410c67b2a7067ff"
+    },
+    {
+      "path": "apps/api/src/controlled-capture.test.ts",
+      "sha256": "fc1d870e5a6a8a9a468b7f6c442b692c4ad1c5f4fadfdda00855b968f8761187"
+    },
+    {
+      "path": "apps/api/src/controlled-capture.ts",
+      "sha256": "d481d6e91e876f3d047213dc6af508706282dd4e5c9c5539a059b8c0d9ade55d"
+    },
+    {
+      "path": "apps/api/src/controlled-policy.ts",
+      "sha256": "839ffa8dca617786cb0edc4025337918fab358dbfc6efa53f333bd1967fe11fa"
+    },
+    {
+      "path": "apps/api/src/controlled-settlement.test.ts",
+      "sha256": "4b42331b09cfbc8c0288dec39cd409a6bd1cb7a33248f85b8e7e3e5194332584"
+    },
+    {
+      "path": "apps/api/src/controlled-settlement.ts",
+      "sha256": "106840738f3c38682fce44d435a0acddad5ee3701e3a2b9a784ddad88bbe2ac9"
+    },
+    {
+      "path": "apps/api/src/controlled-snapshot.ts",
+      "sha256": "510fe1f3b44a3aef4ad710d452e55219c6e4a44957282780756294810f29c739"
+    },
+    {
+      "path": "apps/api/src/corporate-action-operations.ts",
+      "sha256": "daf6231cd236bc07471cd4d5580c238b97cb779dca12369f2e71b1f4f05a6d63"
+    },
+    {
+      "path": "apps/api/src/corporate-action-registry.ts",
+      "sha256": "f4531978e0b87baa76595a93d68075fea68d2ed907ec48948f4a289f661a4cd5"
+    },
+    {
+      "path": "apps/api/src/corporate-action.controller.ts",
+      "sha256": "97dd668da4454869ccda0ea5d0fb74540127b8bab0b1278ab6022a910e4de045"
+    },
+    {
+      "path": "apps/api/src/coupon-execution.ts",
+      "sha256": "ce67847586176b3be1304e7aa468643c8f8317136ed77e2d4c1af9b34061c3fb"
+    },
+    {
+      "path": "apps/api/src/coupon-funding.ts",
+      "sha256": "a55978a653a826c6b42b8ea35b2d9ff3fa5c4372f610f1a72ce4bf1c0e9157d1"
+    },
+    {
+      "path": "apps/api/src/coupon-receipt.ts",
+      "sha256": "c6d759b64c1df2a38bc965065bdc27d127ebcc8e52897b73cc31412ab1eeae5c"
+    },
+    {
+      "path": "apps/api/src/entitlements.test.ts",
+      "sha256": "76df3a8d363279676d771134364f79f89992f12a32f1dc2edae245d9a5bd235b"
+    },
+    {
+      "path": "apps/api/src/entitlements.ts",
+      "sha256": "0583b50a1d2b96b097c79fea7a1c670721a4bd8436deb26b13959158e5591e72"
+    },
+    {
+      "path": "apps/api/src/exact-redemption-calculation.test.ts",
+      "sha256": "ad4674455a4a66d89a5d1021a104a416263d9e21afead5ea89cf303f98a2b56e"
+    },
+    {
+      "path": "apps/api/src/instrument-deployment.test.ts",
+      "sha256": "d281e62644a489e64e3f60f983bcdd7afee6086f9f85b873393d5bf0bbbf410f"
+    },
+    {
+      "path": "apps/api/src/instrument-deployment.ts",
+      "sha256": "3ee7468a55c3129fd48480084a6e1c4d8fcea236080c26d528d89b1ad268b8ab"
+    },
+    {
+      "path": "apps/api/src/instrument-registry.test.ts",
+      "sha256": "8db37c671ceb9fb206f9050fd42ffcefa8eec8030243e49ecde507cac059d795"
+    },
+    {
+      "path": "apps/api/src/instrument-registry.ts",
+      "sha256": "61e8a6084df5d9988822849b711bbc26386b754b28f06a98f53b96e3bebd56a2"
+    },
+    {
+      "path": "apps/api/src/instrument.controller.test.ts",
+      "sha256": "cb0f385cec4c9537f608bbf4bfc84d2e5a12067ca2f8ac8a10db8c09da048cf4"
+    },
+    {
+      "path": "apps/api/src/instrument.controller.ts",
+      "sha256": "0cbe11c7121f43cf60cefdfa0725f999f74ba4e8a741c2263f6d2e975db1f313"
+    },
+    {
+      "path": "apps/api/src/investor-registry.ts",
+      "sha256": "cd4e04c0847eba6ee363e2e8724b8c0fe5ac6b34960aa173418f3ae31dc4e559"
+    },
+    {
+      "path": "apps/api/src/onchain-entitlements.test.ts",
+      "sha256": "a2e491745487baf92e713aeae4e8ab961137cd2b342fdbcc0857fbf844f39c08"
+    },
+    {
+      "path": "apps/api/src/onchain-entitlements.ts",
+      "sha256": "183311a21ecd3e8089b320982c46699112879bdf3492a78986dab4971c18dccd"
+    },
+    {
+      "path": "apps/api/src/redemption-execution.test.ts",
+      "sha256": "f386a55765a2e54db7b1035900132eb717c270479e4a2c803a847793d0280245"
+    },
+    {
+      "path": "apps/api/src/redemption-execution.ts",
+      "sha256": "8984b183e37e7a95e11038ac84b11920d28984fc3d06e62b8171deb171e9af3d"
+    },
+    {
+      "path": "apps/api/src/redemption-policy.test.ts",
+      "sha256": "461588985f7a42c8968436582581edb5f98937e132bf0f78c37973e5d878b4e7"
+    },
+    {
+      "path": "apps/api/src/redemption-policy.ts",
+      "sha256": "5cfe3d490645da797e39583670b3ef3a4b87c1186313a49c9b86807362a06516"
+    },
+    {
+      "path": "apps/api/src/redemption-receipt.ts",
+      "sha256": "5b8545c845b982d328fdeb50ab22e7318e3407f1350167d0ddcf098c5f2fa576"
+    },
+    {
+      "path": "apps/api/src/snapshot-candidate.ts",
+      "sha256": "58ec0727ce91e57f87877b814d3872d2b43ef330953f26a2501cb5d5786df015"
+    },
+    {
+      "path": "apps/api/src/snapshot-confirmation.ts",
+      "sha256": "8e90f5e8e74f6ca69260f502099cc55bf9a8989973ab369e549aa2e3056f91cc"
+    },
+    {
+      "path": "apps/api/src/snapshot-http.ts",
+      "sha256": "324a6d5bc98d12df21c525115b9f6d2448cd431467d622ecef4bfe1cff76d469"
+    },
+    {
+      "path": "apps/api/src/snapshot-persistence.ts",
+      "sha256": "be9962c16d378f355959fafb3cea733c28d0b4261be9519fecd4478c61921e3f"
+    },
+    {
+      "path": "apps/api/src/snapshot-registration.ts",
+      "sha256": "8bf2b0631babf2daef2e4bf866e3541fac11b576d9aaf4ca6113b2fb57ab0bae"
+    },
+    {
+      "path": "apps/api/src/snapshot-submission.ts",
+      "sha256": "a567a215e3bc983c7aeb1593258635b0b330d7bcf71c697c734a48b9d4934f59"
+    },
+    {
+      "path": "apps/api/src/snapshot-window.ts",
+      "sha256": "fd441c0e1611b34891ad1bc4d0519f7b68220582488c97fb067583cc7b2ea638"
+    },
+    {
+      "path": "apps/api/src/snapshot.controller.test.ts",
+      "sha256": "da3480c5b0dc5d5d39372534fc68510d10250764753ff64e250e48102f463eea"
+    },
+    {
+      "path": "apps/api/src/snapshot.controller.ts",
+      "sha256": "0d5b343931e4c9b47a4b5a6fe31a813f73aba06c100d9bc5f204f131d62cb824"
+    },
+    {
+      "path": "apps/web/README.md",
+      "sha256": "797347a97dd56d02d64bfa390a52b56d2cfaf21a9110a5e3ffea6b82dde034c6"
+    },
+    {
+      "path": "apps/web/app/dashboard/action-workflow.test.ts",
+      "sha256": "3dd9b6eeaec763c2723b75d8eb7b60b6417b53f51c2fb62b16156576e66058e3"
+    },
+    {
+      "path": "apps/web/app/dashboard/action-workflow.ts",
+      "sha256": "0455c0802fd0c0668c1fca78e1d693d615228f3e8a395252cb71b837b346b5c5"
+    },
+    {
+      "path": "apps/web/app/dashboard/controlled-capture-panel.tsx",
+      "sha256": "9ae6f19e70e89d8d2921e6e7b529a78980c215213e56f35a5ae40db69d5b927b"
+    },
+    {
+      "path": "apps/web/app/dashboard/controlled-capture-workflow.ts",
+      "sha256": "9cc4acf43c7687e788711abaca8f983c667c2c9eb1f99b8d3a9b33807a0a808f"
+    },
+    {
+      "path": "apps/web/app/dashboard/controlled-evidence.ts",
+      "sha256": "1f96801b098186b1ff6328df01633e27f6d55805975f8c08b93bd77fa9abccbb"
+    },
+    {
+      "path": "apps/web/app/dashboard/controlled-identity.ts",
+      "sha256": "5ab05d97b777ed047c3f738e76d1b6c61bb715ba48122ef4ddcc43d57ef92016"
+    },
+    {
+      "path": "apps/web/app/dashboard/controlled-workflow.test.ts",
+      "sha256": "04996181f550733c9f3ea2da2a0814bb7d2aace3f748c4556779059bce18280e"
+    },
+    {
+      "path": "apps/web/app/dashboard/corporate-action-detail.tsx",
+      "sha256": "a1b8eb30dfef697e5f5360526e044f99ba98ca834f8bf800ab30006ef14ee530"
+    },
+    {
+      "path": "apps/web/app/dashboard/corporate-action-panel.tsx",
+      "sha256": "17e42e31d655db997748556ae5ebd161f4f2034598fd9ef482db4082c93a70f1"
+    },
+    {
+      "path": "apps/web/app/dashboard/coupon-execution-panel.tsx",
+      "sha256": "5410e0f5167c85722c03f263d62071e221c1e09b5fcefe660c6f9dbaa1ff2236"
+    },
+    {
+      "path": "apps/web/app/dashboard/coupon-execution-workflow.test.ts",
+      "sha256": "dbc45b3ba5cd051fc9221497c69f4eae0458f02f4e787f846a9c526f61dc9768"
+    },
+    {
+      "path": "apps/web/app/dashboard/coupon-execution-workflow.ts",
+      "sha256": "4b2dc0e22d073b447b9f2070dfb7f0de4183e18b42eb8236a90421350243259e"
+    },
+    {
+      "path": "apps/web/app/dashboard/entitlement-panel.tsx",
+      "sha256": "90045e0e469ff751ab5214090ad2205b053d358f895e50f5b3c93cd8ee0bfc4e"
+    },
+    {
+      "path": "apps/web/app/dashboard/entitlement-workflow.test.ts",
+      "sha256": "2953981d2da1f2bf0cce222c5a753611f5b78f8102febe1c11dcb13a7fe68b1c"
+    },
+    {
+      "path": "apps/web/app/dashboard/entitlement-workflow.ts",
+      "sha256": "8aa1baeec4d837434bbc9c49d0b6db494f853a06f9ad7abde91021f526a74b80"
+    },
+    {
+      "path": "apps/web/app/dashboard/exact-redemption-action-workflow.test.ts",
+      "sha256": "f5382ff15ce41a17b81d3b3e4e7eaac0bd4b2ca9e5101fc5a9ec603268a7591a"
+    },
+    {
+      "path": "apps/web/app/dashboard/financial-messages.ts",
+      "sha256": "061aff9f91b2171274c567968100b0f359db4adb8e2df3a29729b9be412e38be"
+    },
+    {
+      "path": "apps/web/app/dashboard/instrument-deployment-workflow.ts",
+      "sha256": "f23cbb434132d6cae82aceda66d5773a644298a471fe61f0860036f1235a6c3a"
+    },
+    {
+      "path": "apps/web/app/dashboard/instrument-panel.tsx",
+      "sha256": "6d361d159ecc2415eb87e07ae9e5f05892846da5a5812945df00b1c8fdcdda2d"
+    },
+    {
+      "path": "apps/web/app/dashboard/locale.test.ts",
+      "sha256": "ac0afc53193d246e28c52297a9f1114be72110f93e29660e0c8c57d12681a222"
+    },
+    {
+      "path": "apps/web/app/dashboard/locale.ts",
+      "sha256": "ed8be020f564b84bf4d148bfa3d3ea600b3f1a56166ab70afdc28ea0a7b870e0"
+    },
+    {
+      "path": "apps/web/app/dashboard/onchain-entitlement-workflow.test.ts",
+      "sha256": "f3a490fb5243e3ce41a39d3526c1350c1b50bd0bc5c2fa72f9aa32fcba8f5813"
+    },
+    {
+      "path": "apps/web/app/dashboard/onchain-entitlement-workflow.ts",
+      "sha256": "3b863687c954137c124e0638920114bd037726b73e2be1f68817126d87ba9f33"
+    },
+    {
+      "path": "apps/web/app/dashboard/qa-sandbox.test.ts",
+      "sha256": "872ea1e5a1d731e12add035aef782790708087ac872a9daa4ba1314254ca77f0"
+    },
+    {
+      "path": "apps/web/app/dashboard/qa-sandbox.ts",
+      "sha256": "462862c581aa72a7a1f6642f27848ea07524eee2b425e009f59db865beb4b097"
+    },
+    {
+      "path": "apps/web/app/dashboard/redemption-calculation-workflow.test.ts",
+      "sha256": "e218c0457f66eccdab0e4caec51a337c25c5ed475b1873d96c7af2b3466a7967"
+    },
+    {
+      "path": "apps/web/app/dashboard/redemption-calculation-workflow.ts",
+      "sha256": "85b942603794aa7798e6447d8e165dca4f345d1686c5fe1a41e705bf48a6d6d9"
+    },
+    {
+      "path": "apps/web/app/dashboard/redemption-execution-panel.tsx",
+      "sha256": "5a446ff1b758b055b5edac108e8520d8a310dd46d4ea283c35b1b43782fe45c2"
+    },
+    {
+      "path": "apps/web/app/dashboard/redemption-execution-workflow.test.ts",
+      "sha256": "fd0f8d649d82270dc64e8899310f2229442ab4300f1f415715924457245ac350"
+    },
+    {
+      "path": "apps/web/app/dashboard/redemption-execution-workflow.ts",
+      "sha256": "4061fa85b66e13f05e7729a8627ba57aa16c7c52422de3cb2dcd0c6ba536937e"
+    },
+    {
+      "path": "apps/web/app/dashboard/snapshot-panel.tsx",
+      "sha256": "23bf65f7c48357167e1cf3e9a09c1f7183c60a131c21306939eae056d50245e4"
+    },
+    {
+      "path": "apps/web/next.config.mjs",
+      "sha256": "30a20158832af0e361cbe7ddbd5371299260361b629541b08bc880ffbeb79015"
+    },
+    {
+      "path": "apps/web/package.json",
+      "sha256": "24fb459ceabd9e777d309e425200823793a931cd23449fc69ef9eb299a9ab912"
+    },
+    {
+      "path": "apps/web/tsconfig.test.json",
+      "sha256": "e6fab54de661a217dc79435d8c45dd3559f072de8d58507f3b90aa2b3e0261c8"
+    },
+    {
+      "path": "docs/architecture/overview.md",
+      "sha256": "cb229b08430b0ac7589d1a31cb22a30fe3c2787cbd0064bc1f651797fcfe59a3"
+    },
+    {
+      "path": "docs/decisions/ADR-029-exact-target-redemption.md",
+      "sha256": "50104b285b071dd401c05edb94ac80ac541d36e5b412a69cf3241aaa00804908"
+    },
+    {
+      "path": "docs/decisions/ADR-030-controlled-registry-and-unit-reservations.md",
+      "sha256": "367d4a79e7dfe8525bf37f69858f2fe9028efd35d98d544ff097dc647342bae6"
+    },
+    {
+      "path": "docs/decisions/ADR-031-controlled-workflow-integration.md",
+      "sha256": "de097ffbd38c2e6b41b618285fb33ce353e5dc6194ef2ea7d2ac68149ffab558"
+    },
+    {
+      "path": "docs/decisions/README.md",
+      "sha256": "3b85f9571e758edcd256cafcb9abd9471e545f28ff5d1122539bb084c66acd4f"
+    },
+    {
+      "path": "docs/features/bondflow-implementation-plan.md",
+      "sha256": "b27a73864c897fcc4370b0cd32fb18601d69303e3d5ebd1e97e696a945235a2a"
+    },
+    {
+      "path": "docs/features/controlled-registry.md",
+      "sha256": "600ccae5437edb83b873fd8a5d3c3d880a4472e545c851733044218773b00632"
+    },
+    {
+      "path": "docs/features/entitlements-and-review.md",
+      "sha256": "4f4198e666c243737de16ad9fadefa2351e29c3347654f0cdadbf1c1e4a54b4e"
+    },
+    {
+      "path": "docs/features/exact-target-redemption.md",
+      "sha256": "da8c7522b4d5e82cf03e5eff19c8900ea98503191a61c0b32be89a65e3af4803"
+    },
+    {
+      "path": "docs/features/on-chain-entitlement-registration.md",
+      "sha256": "c646817a0d115a97729d9f1f8d07f79c2a889a97e89c9b5fb2e638ba7f9e0b84"
+    },
+    {
+      "path": "docs/features/redemption-execution-and-receipts.md",
+      "sha256": "cefb5c2a410047de8709bf84da29f5496c86f615f9b5765694160acdd652a447"
+    },
+    {
+      "path": "docs/requirements/KASE_BondFlow_TZ.md",
+      "sha256": "21c7143cd0c5f88f2e802198e1d342061f4a2a6a1f2dc8be32a02dbbf683c4d4"
+    },
+    {
+      "path": "docs/testing/bondflow-coupon-summary-2026-10-11.md",
+      "sha256": "d3d796e6ea42dd5cc1d09ea187b4bf1e01590e5e7167e240be304ddc8a587045"
+    },
+    {
+      "path": "docs/testing/bondflow-exact-redemption-2026-10-12.md",
+      "sha256": "3c36aed6516849ba14b8eb096d4ad1618029c52bf5ec424f676f0ab5d968a36e"
+    },
+    {
+      "path": "docs/testing/controlled-registry-2026-10-12.md",
+      "sha256": "e5c0f2de2e1140363fa42ea5e229ceb86abe98f2baa32812f355783c2e075d1c"
+    },
+    {
+      "path": "docs/testing/controlled-workflow-integration-2026-10-12.md",
+      "sha256": "4590158e18408063cc1dcc3e0c90a2eaf9d52ef99d74f5e3be0530d7634bdfdb"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "f564aa6e3dcdb61b2fa0bfb324f9aea77f4e726d9940f951b7c99fa7802c6132"
+    },
+    {
+      "path": "package.json",
+      "sha256": "941db79e4af19a6a9be5bcf4ea3da65132cb224a2d6870999eb3ead4d2f2f470"
+    },
+    {
+      "path": "packages/domain/package.json",
+      "sha256": "f0fe3472c6e113e9eb808e7e0ff012bf7ee5d55cce01ad89622862b09965cc54"
+    },
+    {
+      "path": "packages/domain/src/early-redemption-allocation.test.ts",
+      "sha256": "878c00c4470464de736d27048d947a5e09531a93b594639de38ef544beace405"
+    },
+    {
+      "path": "packages/domain/src/early-redemption-allocation.ts",
+      "sha256": "f85ae64377a17f2433da9149a8c04ca8efdce22a16a19310a23e06d65f7d6380"
+    },
+    {
+      "path": "packages/domain/src/financial.test.ts",
+      "sha256": "28878898874d85a27acd6baab9aa074016bdd7027439bdaeb552ccdcfe4639d8"
+    },
+    {
+      "path": "packages/domain/src/financial.ts",
+      "sha256": "7454b781c65a8cc8c95a3657239ca6cdd6c82675c56e99faef1055787cdff9d1"
+    },
+    {
+      "path": "packages/domain/src/index.ts",
+      "sha256": "49dcdc90e3ec217cb662e38a57af74cd320b6a47822a003d184a47f58cc3f2bb"
+    },
+    {
+      "path": "packages/solana-client/README.md",
+      "sha256": "776f946c9f6c41d5555633c3e8a1a328ac7b8464f0cd5a73c8b78a6c63cb1f17"
+    },
+    {
+      "path": "packages/solana-client/src/controlled-registry.test.ts",
+      "sha256": "044bd74be3bcd78cd65580190de5b59c95436f9d76fea4e0e0d7eba53a5dd2e7"
+    },
+    {
+      "path": "packages/solana-client/src/controlled-registry.ts",
+      "sha256": "82a54d3d176caee732a5041a876bcda5323bd05c9b45350dc7fab73592ee58c6"
+    },
+    {
+      "path": "packages/solana-client/src/corporate-action.test.ts",
+      "sha256": "b5e735f84d63f4b94e40bbf2047a138de576fcf64b0bc33af3dbe9bb977ceff6"
+    },
+    {
+      "path": "packages/solana-client/src/corporate-action.ts",
+      "sha256": "6ef1636aec6a66fdaf721f842d04e0e777f711fac71542c4aae2313c0e48e2cf"
+    },
+    {
+      "path": "packages/solana-client/src/entitlement-registration.test.ts",
+      "sha256": "188ef837d2b1a8615904882a0aaaf5eda7504f9804bc6d435e1244a88026f0df"
+    },
+    {
+      "path": "packages/solana-client/src/entitlement-registration.ts",
+      "sha256": "4e2402dd05b63c2853f051878db74124946fb0627b5832b9af8d71267a0a384b"
+    },
+    {
+      "path": "packages/solana-client/src/index.ts",
+      "sha256": "fa2610aaf5ec9a8da2951fc86ecc82d0da1efa11c6d727b20d6cb8dc212a3581"
+    },
+    {
+      "path": "packages/solana-client/src/snapshot-confirmation.test.ts",
+      "sha256": "f25717ffe4a0055cc1d574c10ae339b03db605a78cee5e190c102a5d2f5f68f3"
+    },
+    {
+      "path": "packages/solana-client/src/snapshot-confirmation.ts",
+      "sha256": "e909165f6f7d7f9e7c4bbf98a3c0356b70e1f007ba517d4f403ba009f007fc6b"
+    },
+    {
+      "path": "prisma/migrations/20261011160000_exact_redemption_target/migration.sql",
+      "sha256": "6a5e0f16ff61bc0377b24b8c94437ab7bb1c5d9f9b81bb28384122774981b3bf"
+    },
+    {
+      "path": "prisma/migrations/20261012010000_controlled_registry_policy/migration.sql",
+      "sha256": "9ef269f875572f5a9c6be05a0914993f193f19f4fd5230133ff8c19ddf6eca25"
+    },
+    {
+      "path": "prisma/schema.prisma",
+      "sha256": "c9068c254e5b8a65c91cb7e28e885f9a608252bcb08e280644ff0af03b559da1"
+    },
+    {
+      "path": "programs/lifecycle_kase/README.md",
+      "sha256": "b08ba33d77d78117b83a3df77eb9348ec0d160d1522e394d527a14a46482cf10"
+    },
+    {
+      "path": "programs/lifecycle_kase/src/controlled_registry.rs",
+      "sha256": "8509b87e40951b2bef215a338f905e834d62092ffec81e2223696006272e18eb"
+    },
+    {
+      "path": "programs/lifecycle_kase/src/entitlement.rs",
+      "sha256": "c79cf979a90ee463eb24521d367f2414ec5282bf8de89076eeb320546c6b9a03"
+    },
+    {
+      "path": "programs/lifecycle_kase/src/exact_redemption.rs",
+      "sha256": "f078aef33cb76307373eb60dd6ad2708b3973dbed14ba9597dc4f19c488cc562"
+    },
+    {
+      "path": "programs/lifecycle_kase/src/lib.rs",
+      "sha256": "bd985829c827276a34d95a3b81a216d2dd29c4d1fa62ae382bc1793f77c69ed1"
+    },
+    {
+      "path": "programs/lifecycle_kase/src/redemption.rs",
+      "sha256": "fae5e031b8e79ae985d8cce5501a18c2e32bfead34e1bdad422ddadfaef01eb8"
+    },
+    {
+      "path": "scripts/test-controlled-registry.mjs",
+      "sha256": "fa30b36fe8776853724ebda95c6e486786864bdc9fdabb627117000c3b8b9334"
+    },
+    {
+      "path": "scripts/test-controlled-registry.ps1",
+      "sha256": "56cf53cdc4f0149ac3141ea7c2a48a371288ab826a8f8ade5f5bb7ef255162d6"
+    },
+    {
+      "path": "scripts/test-controlled-registry.sh",
+      "sha256": "e6ba829149d232b92a75d97f6dc668cd0fa073fe36cdb2d3935165b583f1ddfd"
+    },
+    {
+      "path": "scripts/test-controlled-workflow.mjs",
+      "sha256": "cc2d0dd35d53b461e8877daddbfb031f58cd9179f81eeada92178f5191c75955"
+    },
+    {
+      "path": "scripts/test-controlled-workflow.ps1",
+      "sha256": "65b042a70df0bb4836ea5a55cc72e8c1b90885e06b752796d8c81f7658afd1ca"
+    },
+    {
+      "path": "scripts/test-initialize-instrument.sh",
+      "sha256": "d26b8ed826d50792001f4804af7bec5bc5622c47789f9e2b4f74505c94e860aa"
+    },
+    {
+      "path": "scripts/test-kase-demo.mjs",
+      "sha256": "996bc916fa6706c7d8978310de51c048aa67474de9e9d57edb618bbe541cda39"
+    },
+    {
+      "path": "scripts/test-kase-demo.ps1",
+      "sha256": "3484baa8c2e7663ad47e070bd1b3f583d41aa1ba1ecf4ff7af0a421cdfb7d695"
+    },
+    {
+      "path": "scripts/test-web-operator-proxy.mjs",
+      "sha256": "e9ab7998632562b423b43330f6305ced122ff06f49d0471c80cfb1ade325eb18"
+    },
+    {
+      "path": "scripts/verify-controlled-workflow-evidence.mjs",
+      "sha256": "41e7de39ceeb32eb7c97d55777d7f577d94c1acc7c57d6a17bfaf448f2954483"
+    },
+    {
+      "path": "scripts/verify-kase-demo-evidence.mjs",
+      "sha256": "787059fa4ca4880a33a5dac8fc455fe6d1b24eef780bd882fbefff7676736bf8"
+    },
+    {
+      "path": "test/controlled-api-contract.test.mjs",
+      "sha256": "e5f3b496bd9cdadcb97e82fc3615abec24ce1c899711a23ed08f2c3b2f80ecec"
+    },
+    {
+      "path": "test/controlled-workflow-evidence.test.mjs",
+      "sha256": "d866475e716296f68b8737f547f220a5cb03c9c09ce7aad1f9b157ebe2097b7e"
+    },
+    {
+      "path": "test/fixtures/early-redemption-allocation-parity.tsv",
+      "sha256": "dcef71224d80befe849b1b46afcdd10b42bf2f422a86b2ee80574bcaea8128c1"
+    },
+    {
+      "path": "test/kase-demo-evidence.test.mjs",
+      "sha256": "07d90cce17bd077006eabc86951e24abf95cd5f05f51564da3db7908bd793788"
+    },
+    {
+      "path": "test/operator-api-rewrites.test.mjs",
+      "sha256": "c3df7dcc98acf21499e4c3332af5a0e3923c887371f9a94143cf76e9aa0b4c94"
+    },
+    {
+      "path": "tools/solana-integration/test-initialize-instrument.mjs",
+      "sha256": "13c730197149bfc61147f0b9d4c7f894df59a6399c968ab2fd4d9504a7b3147a"
+    }
+  ]
+}

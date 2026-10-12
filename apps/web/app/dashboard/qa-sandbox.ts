@@ -1,6 +1,7 @@
-import { calculateCouponBreakdown, calculateEarlyRedemption, calculatePrincipal } from "@lifecycle-kase/domain/financial";
+import { calculateCouponBreakdown, calculateEarlyRedemption, calculatePrincipal, summarizeCouponBreakdowns } from "@lifecycle-kase/domain/financial";
+import { allocateEarlyRedemption } from "@lifecycle-kase/domain/early-redemption-allocation";
 import type { CorporateActionView } from "./action-workflow";
-import type { EntitlementsView } from "./entitlement-workflow";
+import type { CouponSummary, EntitlementsView } from "./entitlement-workflow";
 import { OperatorApiError } from "./operator-api";
 import { encodeBase58, isActionId } from "./snapshot-workflow";
 import { REGISTRY_REVIEW_REASONS } from "./investor-registry-workflow";
@@ -38,6 +39,7 @@ type QaInstrument = { id: string; name: string; ticker: string; network: string;
   settlementAsset: { code: string; name: string; mintAddress: string | null; disclaimer: string };
   treasuryBalanceMinor: string; balances: Record<string, string> };
 type QaAction = CorporateActionView & { holderBalances: Record<string, string>; entitlements: EntitlementsView["items"];
+  holderSources: Record<string, { address: string; walletAddress: string; balanceAtSnapshot: string }[]>;
   reservedMinor: string; totalAmountMinor: string; receipt: Record<string, unknown> | null; draftInput: Record<string, unknown> | null };
 type QaLog = { id: string; createdAt: string; corporateActionId: string | null; instrumentId: string | null;
   entityType: string; entityId: string; event: string; actorWallet: string; metadataJson: Record<string, unknown> };
@@ -151,7 +153,7 @@ function requireEligible(state: State, row: QaAction) {
 }
 function view(state: State, row: QaAction): Record<string, unknown> {
   const current = instrument(state, row.instrumentId);
-  const { holderBalances: _holders, entitlements: _entitlements, reservedMinor: _reserved, totalAmountMinor: _total, receipt: _receipt, draftInput: _draft, ...base } = row;
+  const { holderBalances: _holders, holderSources: _sources, entitlements: _entitlements, reservedMinor: _reserved, totalAmountMinor: _total, receipt: _receipt, draftInput: _draft, ...base } = row;
   return asRecord({ ...base, instrument: { ...base.instrument, status: current.status },
     events: state.audit.filter(event => event.corporateActionId === row.id).map(event => ({ id: event.id, event: event.event,
       actorWallet: event.actorWallet, createdAt: event.createdAt })),
@@ -160,9 +162,31 @@ function view(state: State, row: QaAction): Record<string, unknown> {
       payable: row.entitlements.filter(item => item.amountMinor !== "0").length, receipt: row.receipt } });
 }
 function entitlements(state: State, row: QaAction): Record<string, unknown> {
+  const currentInstrument = instrument(state, row.instrumentId);
+  let couponSummary: CouponSummary | null = null;
+  if (row.type === "COUPON_PAYMENT" && row.entitlements.length) {
+    const summary = summarizeCouponBreakdowns(row.entitlements.map(item => ({ amountMinor: BigInt(item.amountMinor),
+      remainder: BigInt(item.calculationInputs.roundingRemainder), denominator: BigInt(item.calculationInputs.denominator) })));
+    couponSummary = { roundedTotalMinor: summary.roundedTotalMinor.toString(),
+      theoreticalTotal: { numerator: summary.theoreticalTotal.numerator.toString(), denominator: summary.theoreticalTotal.denominator.toString() },
+      roundingResidual: { numerator: summary.roundingResidual.numerator.toString(), denominator: summary.roundingResidual.denominator.toString() },
+      roundingPolicy: "FLOOR_PER_INVESTOR", residualDestination: "TREASURY", taxTreatment: "NOT_IMPLEMENTED" };
+  }
   const result: EntitlementsView = { actionId: row.id, actionVersion: row.version, actionType: row.type, status: row.status,
+    ...(row.redemptionAllocationPolicy === "exact-target-largest-remainder-v2" ? {
+      instrumentId: row.instrumentId, programId: currentInstrument.programId,
+      network: currentInstrument.network, networkGenesisHash: null,
+      corporateActionAuthority: currentInstrument.corporateActionAuthority, tokenMint: currentInstrument.mintAddress
+    } : {}),
     approvedById: ["APPROVED", "EXECUTING", "PARTIALLY_SETTLED", "SETTLED", "FINALIZED"].includes(row.status) ? "qa-approver" : null,
-    approvedAt: null, reviewNote: row.reviewNote, totalEntitlementMinor: row.totalAmountMinor,
+    approvedAt: null, reviewNote: row.reviewNote, totalEntitlementMinor: row.totalAmountMinor, couponSummary,
+    redemptionAllocationPolicy: row.redemptionAllocationPolicy ?? "integer-entitlements-v1", redemptionTargetTokens: row.redemptionTargetTokens ?? null,
+    exactRedemptionSummary: row.redemptionAllocationPolicy === "exact-target-largest-remainder-v2" && row.entitlements.length ? {
+      policy: "exact-target-largest-remainder-v2", targetTokens: row.redemptionTargetTokens!,
+      allocatedTokens: row.entitlements.reduce((sum, item) => sum + BigInt(item.tokensToRedeem), 0n).toString(),
+      totalBalance: row.snapshot!.totalBalance,
+      remainingTokens: (BigInt(row.snapshot!.totalBalance) - BigInt(row.redemptionTargetTokens!)).toString(), tieBreak: "SNAPSHOT_OWNER_BASE58_ASC"
+    } : null,
     eligibleHolders: row.entitlements.filter(item => item.amountMinor !== "0").length,
     onchainRegistrationEnabled: false, onchainCalculationFinalized: false, actionApprovalEnabled: false, onchainPending: null,
     items: row.entitlements.map(item => ({ ...item, currentEligibility: { eligible: eligible(state, item.investorId, item.settlementWalletAddress),
@@ -175,23 +199,32 @@ function entitlements(state: State, row: QaAction): Record<string, unknown> {
 }
 function calculate(state: State, row: QaAction) {
   const current = instrument(state, row.instrumentId);
+  const exact = row.redemptionAllocationPolicy === "exact-target-largest-remainder-v2" ? allocateEarlyRedemption({
+    targetTokens: BigInt(row.redemptionTargetTokens!), rows: Object.entries(row.holderBalances).map(([investorId, balance]) => ({
+      investorId, balance: BigInt(balance), tieAddress: row.holderSources[investorId]!.map(source => source.walletAddress).sort()[0]!
+    }))
+  }) : null;
   const items: EntitlementsView["items"] = Object.entries(row.holderBalances).map(([investorId, balance]) => {
     const holder = investor(state, investorId);
     const receiver = holder.wallets.find(wallet => wallet.status === "ACTIVE" && wallet.verifiedAt !== null && wallet.revokedAt === null);
     if (!receiver || !eligible(state, investorId)) fail("ELIGIBILITY_BLOCKED", "Для расчёта требуется активный подтверждённый кошелёк и допуск.");
     const coupon = calculateCouponBreakdown({ balance: BigInt(balance), faceValueMinor: BigInt(current.faceValueMinor),
       couponRateBps: current.couponRateBps, paymentsPerYear: current.paymentsPerYear });
-    const early = row.type === "EARLY_REDEMPTION" ? calculateEarlyRedemption({ balance: BigInt(balance),
+    const allocation = exact?.rows.find(item => item.investorId === investorId);
+    const early = row.type === "EARLY_REDEMPTION" && !allocation ? calculateEarlyRedemption({ balance: BigInt(balance),
       percentageBps: row.redemptionPercentageBps!, redemptionPriceMinor: BigInt(row.redemptionPriceMinor!) }) : null;
-    const amount = early?.amountMinor ?? (row.type === "BOND_REDEMPTION" ? calculatePrincipal({ balance: BigInt(balance), faceValueMinor: BigInt(current.faceValueMinor) }) + coupon.amountMinor : coupon.amountMinor);
+    const amount = allocation ? allocation.redeemedTokens * BigInt(row.redemptionPriceMinor!) : early?.amountMinor ?? (row.type === "BOND_REDEMPTION" ? calculatePrincipal({ balance: BigInt(balance), faceValueMinor: BigInt(current.faceValueMinor) }) + coupon.amountMinor : coupon.amountMinor);
     if (amount > MAX_DB) fail("CALCULATION_RANGE", "Расчёт превышает допустимый диапазон.");
     return { id: id(), investorId, onchainPda: null, settlementWalletAddress: receiver.address, balanceAtRecordDate: balance,
-      amountMinor: amount.toString(), tokensToRedeem: (early?.redeemedTokens ?? (row.type === "BOND_REDEMPTION" ? BigInt(balance) : 0n)).toString(),
-      status: amount === 0n ? "NOT_ELIGIBLE_ZERO_ROUNDING" : "CALCULATED", eligibilityReason: "QA_LOCAL_ELIGIBLE", formulaVersion: "integer-entitlements-v1",
+      amountMinor: amount.toString(), tokensToRedeem: (allocation?.redeemedTokens ?? early?.redeemedTokens ?? (row.type === "BOND_REDEMPTION" ? BigInt(balance) : 0n)).toString(),
+      ...(row.type === "COUPON_PAYMENT" ? {} : { redemptionSources: copy(row.holderSources[investorId]!) }),
+      status: amount === 0n ? "NOT_ELIGIBLE_ZERO_ROUNDING" : "CALCULATED", eligibilityReason: "QA_LOCAL_ELIGIBLE", formulaVersion: allocation ? exact!.policy : "integer-entitlements-v1",
       calculationInputs: { snapshotHash: row.snapshot!.snapshotHash, balance, faceValueMinor: current.faceValueMinor,
         couponRateBps: current.couponRateBps, paymentsPerYear: current.paymentsPerYear, redemptionPercentageBps: row.redemptionPercentageBps,
-        redemptionPriceMinor: row.redemptionPriceMinor, roundingRemainder: (early ? BigInt(balance) * BigInt(row.redemptionPercentageBps!) % 10000n : coupon.remainder).toString(),
-        denominator: early ? "10000" : coupon.denominator.toString() }, currentEligibility: { eligible: true, reason: "QA_LOCAL_ELIGIBLE" } };
+        redemptionPriceMinor: row.redemptionPriceMinor, roundingRemainder: (allocation?.quotaRemainder ?? (early ? BigInt(balance) * BigInt(row.redemptionPercentageBps!) % 10000n : coupon.remainder)).toString(),
+        denominator: allocation ? exact!.denominator.toString() : early ? "10000" : coupon.denominator.toString(),
+        ...(allocation ? { allocationPolicy: exact!.policy, targetTokens: exact!.targetTokens.toString(), totalBalance: exact!.totalBalance.toString(),
+          tieAddress: allocation.tieAddress, remainingTokens: allocation.remainingTokens.toString() } : {}) }, currentEligibility: { eligible: true, reason: "QA_LOCAL_ELIGIBLE" } };
   });
   const total = items.reduce((sum, item) => sum + BigInt(item.amountMinor), 0n);
   if (total < 0n || total > MAX_DB) fail("CALCULATION_RANGE", "Итог расчёта выходит за допустимый диапазон.");
@@ -216,6 +249,10 @@ function advance(state: State, actionId: string, step: QaActionStep, note?: stri
       }
       if (current.status !== "ACTIVE" || BigInt(current.circulatingSupply) === 0n) fail("INSTRUMENT_NOT_ACTIVE", "У инструмента нет активных токенов.");
       row.holderBalances = Object.fromEntries(Object.entries(current.balances).filter(([investorId, balance]) => BigInt(balance) > 0n && eligible(state, investorId)));
+      row.holderSources = Object.fromEntries(Object.entries(row.holderBalances).map(([investorId, balance]) => {
+        const owner = investor(state, investorId).wallets.find(wallet => wallet.status === "ACTIVE" && wallet.verifiedAt !== null && wallet.revokedAt === null)!;
+        return [investorId, [{ address: syntheticAddress(220 + state.investors.findIndex(item => item.id === investorId)), walletAddress: owner.address, balanceAtSnapshot: balance }]];
+      }));
       const total = Object.values(row.holderBalances).reduce((sum, balance) => sum + BigInt(balance), 0n);
       if (total !== BigInt(current.circulatingSupply)) fail("ELIGIBILITY_BLOCKED", "Не все держатели supply допущены. Проверьте реестр.");
       row.snapshot = { id: id(), status: "FINALIZED", snapshotHash: "ab".repeat(32), solanaSlot: String(1000 + state.transactions.length),
@@ -275,7 +312,17 @@ function advance(state: State, actionId: string, step: QaActionStep, note?: stri
       row.receipt = { mode: "UI_SIMULATION", simulation: true, onChain: false, no_chain_transaction: true,
         disclaimer: "QA sandbox: synthetic results, no Solana transaction or financial settlement.",
         actionId: row.id, actionType: row.type, amountMinor: row.totalAmountMinor, tokensRedeemed: row.entitlements.reduce((sum, item) => sum + BigInt(item.tokensToRedeem), 0n).toString(),
-        finalSupply: current.circulatingSupply, items: copy(row.entitlements), createdAt: now() };
+        ...(row.redemptionAllocationPolicy === "exact-target-largest-remainder-v2" ? {
+          snapshotSupply: row.snapshot!.totalBalance, totalBalance: row.snapshot!.totalBalance,
+          snapshot: { hash: row.snapshot!.snapshotHash, mintSupply: row.snapshot!.totalBalance },
+          allocation: { policy: row.redemptionAllocationPolicy, targetTokens: row.redemptionTargetTokens!,
+            totalBalance: row.snapshot!.totalBalance, tieBreak: "SNAPSHOT_OWNER_BASE58_ASC" }
+        } : {}),
+        finalSupply: current.circulatingSupply, items: row.entitlements.map(item => ({ ...copy(item),
+          ...(row.redemptionAllocationPolicy === "exact-target-largest-remainder-v2" ? { exactAllocation: {
+            balanceAtRecordDate: row.holderBalances[item.investorId]!,
+            tieAddress: row.holderSources[item.investorId]!.map(source => source.walletAddress).sort()[0]!
+          } } : {}) })), createdAt: now() };
       transaction(state, row, row.type === "COUPON_PAYMENT" ? "COUPON_FINALIZE" : "REDEMPTION_FINALIZE"); break;
     case "CANCEL":
       requireStatus("DRAFT", "SCHEDULED"); row.reviewNote = text(note, "Причина отмены", 1000, 3); row.status = "CANCELLED"; break;
@@ -289,11 +336,13 @@ function advance(state: State, actionId: string, step: QaActionStep, note?: stri
 function newAction(current: QaInstrument, actionId: string, type: string, recordAt: string, executeAt: string): QaAction {
   return { id: actionId, version: 0, instrumentId: current.id, type, intent: `QA: ${type} — synthetic scenario`, sourceType: "MANUAL",
     sourceReference: "QA-FIXTURE", sourceDocument: null, sourceTimestamp: null, recordAt, executeAt, status: "DRAFT", reviewNote: null,
-    couponExecutionEnabled: false, redemptionExecutionEnabled: false, redemptionPercentageBps: type === "EARLY_REDEMPTION" ? 2000 : null,
+    couponExecutionEnabled: false, redemptionExecutionEnabled: false, exactTargetRedemptionEnabled: false, redemptionPercentageBps: null,
+    redemptionAllocationPolicy: type === "EARLY_REDEMPTION" ? "exact-target-largest-remainder-v2" : "integer-entitlements-v1",
+    redemptionTargetTokens: type === "EARLY_REDEMPTION" ? "7" : null,
     redemptionPriceMinor: type === "EARLY_REDEMPTION" ? "1000000000" : null,
     instrument: { id: current.id, ticker: current.ticker, name: current.name, issuerAuthority: QA_ISSUER,
       corporateActionAuthority: QA_ISSUER, network: "SOLANA_LOCALNET" }, snapshot: null, blockchainTransactions: [], events: [],
-    holderBalances: {}, entitlements: [], reservedMinor: "0", totalAmountMinor: "0", receipt: null, draftInput: null };
+    holderBalances: {}, holderSources: {}, entitlements: [], reservedMinor: "0", totalAmountMinor: "0", receipt: null, draftInput: null };
 }
 function seed(): State {
   const state: State = { actor: "ISSUER", investors: [], instruments: [], actions: [], audit: [], transactions: [], challenges: [], receivedCashMinor: {} };
@@ -407,7 +456,7 @@ export function createQaSandbox() {
       draft.investors.push(row); audit(draft, "INVESTOR_CREATED", "Investor", row.id); return asRecord(row);
     }
     if (path === "/api/v1/corporate-actions") {
-      const value = input(body, ["requestId", "instrumentId", "type", "intent", "sourceType", "sourceReference", "sourceDocument", "sourceTimestamp", "recordAt", "executeAt", "redemptionPercentageBps", "redemptionPriceKzt"]);
+      const value = input(body, ["requestId", "instrumentId", "type", "intent", "sourceType", "sourceReference", "sourceDocument", "sourceTimestamp", "recordAt", "executeAt", "redemptionPercentageBps", "redemptionPriceKzt", "redemptionAllocationPolicy", "redemptionTargetTokens"]);
       if (typeof value["requestId"] !== "string" || !isActionId(value["requestId"]) || typeof value["instrumentId"] !== "string" || !isActionId(value["instrumentId"])) fail("INVALID_REQUEST", "Нужны UUID действия и инструмента.", 400);
       const current = instrument(draft, value["instrumentId"]); const existing = draft.actions.find(row => row.id === value["requestId"]);
       if (existing) {
@@ -427,9 +476,19 @@ export function createQaSandbox() {
       row.sourceReference = value["sourceReference"] == null || value["sourceReference"] === "" ? null : text(value["sourceReference"], "Источник", 250, 3);
       row.sourceDocument = value["sourceDocument"] == null || value["sourceDocument"] === "" ? null : text(value["sourceDocument"], "Документ", 500, 3);
       row.sourceTimestamp = value["sourceTimestamp"] == null ? null : date(value["sourceTimestamp"]);
-      if (type === "EARLY_REDEMPTION") { const percentage = value["redemptionPercentageBps"]; if (!Number.isSafeInteger(percentage) || Number(percentage) < 1 || Number(percentage) > 10000) fail("INVALID_REQUEST", "Доля должна быть от 1 до 10000 bps.", 400);
-        row.redemptionPercentageBps = Number(percentage); row.redemptionPriceMinor = minor(value["redemptionPriceKzt"]); }
-      else if (value["redemptionPercentageBps"] != null || value["redemptionPriceKzt"] != null) fail("INVALID_REQUEST", "Досрочные параметры разрешены только для EARLY_REDEMPTION.", 400);
+      const policy = value["redemptionAllocationPolicy"] ?? "integer-entitlements-v1";
+      if (type === "EARLY_REDEMPTION") {
+        if (policy === "exact-target-largest-remainder-v2") {
+          const target = value["redemptionTargetTokens"];
+          if (typeof target !== "string" || !/^[1-9][0-9]{0,18}$/.test(target) || BigInt(target) > MAX_DB || value["redemptionPercentageBps"] != null) fail("INVALID_REQUEST", "Укажите целое целевое количество без процентной доли.", 400);
+          row.redemptionAllocationPolicy = policy; row.redemptionTargetTokens = target; row.redemptionPercentageBps = null;
+        } else {
+          const percentage = value["redemptionPercentageBps"];
+          if (policy !== "integer-entitlements-v1" || value["redemptionTargetTokens"] != null || !Number.isSafeInteger(percentage) || Number(percentage) < 1 || Number(percentage) > 10000) fail("INVALID_REQUEST", "Доля должна быть от 1 до 10000 bps.", 400);
+          row.redemptionAllocationPolicy = policy; row.redemptionTargetTokens = null; row.redemptionPercentageBps = Number(percentage);
+        }
+        row.redemptionPriceMinor = minor(value["redemptionPriceKzt"]);
+      } else if (policy !== "integer-entitlements-v1" || value["redemptionPercentageBps"] != null || value["redemptionPriceKzt"] != null || value["redemptionTargetTokens"] != null) fail("INVALID_REQUEST", "Досрочные параметры разрешены только для EARLY_REDEMPTION.", 400);
       row.draftInput = copy(value); draft.actions.push(row); audit(draft, "CORPORATE_ACTION_DRAFT_CREATED", "CorporateAction", row.id, {}, row.id); return view(draft, row);
     }
     const profileMatch = /^\/api\/v1\/investors\/([0-9a-f-]+)\/profile$/i.exec(path);

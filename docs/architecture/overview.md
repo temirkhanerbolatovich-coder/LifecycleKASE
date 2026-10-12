@@ -2,8 +2,10 @@
 
 Current environment availability and fresh-versus-historical evidence are recorded in the [October 10 audit](../PROJECT_AUDIT_2026-10-10.md).
 
-Status: retained issuance/snapshot/registration history; isolated approval/reserve/coupon/redemption candidate; current runtime evidence in [three-action acceptance](../testing/kase-three-actions-2026-10-10.md); owner rollout pending
-Last updated: 2026-10-10
+Status: retained issuance/snapshot/registration history; isolated legacy settlement and controlled workflow integration candidate; [current integration checks and limits](../testing/controlled-workflow-integration-2026-10-12.md); owner rollout pending
+Last updated: 2026-10-12
+
+Candidate extension **2026-10-12**: [controlled registry](../features/controlled-registry.md) adds an instrument v2/default-frozen mint and policy/Holding/capture/unit-reservation sidecars. The program enforces holder/operator-authorized atomic thaw/transfer/refreeze, freezes the holder set during complete supply-reconciled capture, and consumes assigned units around atomic settlement. [ADR-030](../decisions/ADR-030-controlled-registry-and-unit-reservations.md) explains token enforcement and compatibility. The subsequent [ADR-031 integration](../decisions/ADR-031-controlled-workflow-integration.md) adds immutable token policy, versioned issuance, persisted capture/reservation phases, raw evidence and governed receipts to API/PostgreSQL/UI. Legacy saved operations retain their original sequence and bytes. [Protocol acceptance](../testing/controlled-registry-2026-10-12.md) and [integrated checks](../testing/controlled-workflow-integration-2026-10-12.md) have separate evidence; retained-owner and public-network rollout remain open.
 
 ## Components
 

@@ -5,6 +5,7 @@ import { actionInput, requireActionIssuer, workflowDatabaseError } from "./corpo
 import type { InstrumentActor } from "./instrument-registry.js";
 import { MAX_SNAPSHOT_GRACE_SECONDS, SnapshotPreparationError } from "./snapshot-candidate.js";
 import { uuidBytes } from "./snapshot-registration.js";
+import { isControlledInstrument, readControlledCaptureState } from "./controlled-capture.js";
 import { ACTIVE_TRANSACTION_STATUSES, requireWorkflowNetwork, rpcNumber, rpcObject, TransactionWorkflowError,
   workflowProgramAccount, WORKFLOW_UUID, type WorkflowNetwork } from "./transaction-workflow.js";
 
@@ -65,6 +66,11 @@ export async function checkSnapshotWindow(database: PrismaClient, rpc: SolanaRpc
   if (action.status !== "SCHEDULED") throw new TransactionWorkflowError("ACTION_NOT_READY", "Only a scheduled action can miss snapshot capture");
   if (action.snapshot || await database.blockchainTransaction.findFirst({ where: { corporateActionId: actionId, ...activeAttempts } })) {
     return result("RECOVERY_REQUIRED");
+  }
+  if (isControlledInstrument(action.instrument)) {
+    await requireWorkflowNetwork(rpc, options.expectedGenesisHash);
+    const state = await readControlledCaptureState(rpc, action.instrument, actionId);
+    if (action.controlledCaptureLocked || state.capture || state.policy.captureAction === state.actionAddress) return result("RECOVERY_REQUIRED");
   }
   const elapsedMs = now.getTime() - action.recordAt.getTime();
   if (elapsedMs < 0) return result("NOT_STARTED");

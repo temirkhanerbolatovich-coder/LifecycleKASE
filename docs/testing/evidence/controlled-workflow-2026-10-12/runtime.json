@@ -1,0 +1,1109 @@
+{
+  "schema": "controlled-four-actions-workflow-v1",
+  "scope": "DISPOSABLE_LOCALNET",
+  "simulated": [
+    "KZT-Test",
+    "investor eligibility"
+  ],
+  "instrumentId": "25fdfc36-0bf7-4698-8d72-df86fd0ef749",
+  "programId": "6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo",
+  "bondMint": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+  "actions": [
+    {
+      "type": "COUPON_PAYMENT",
+      "scenario": "COUPON_PAYMENT",
+      "actionId": "d16a854b-17bd-43fd-a941-99bbe60302fc",
+      "snapshotHash": "41457a4a85cbd75db2cf20d8c9c4710df36cc56642442c8dac340291dfbf9471",
+      "scheduleSignature": "3xhni1vXfBguKx4ppNNogtUBKSDLQNu4896v9p2TdRBsjNnxMXyu44m1RJaUouW23uKh8uVzevBoPFEHFR33w86Q",
+      "snapshotSignature": "3GdQrdkmaDmGJ9CcPfPBj5Q3sPW4mLMpEsNJ4pPhW1D2ERy1iGLduVNhSTA5SheSdgtFEs9aeGQfSEnXdiECZBW1",
+      "captureBeginSignature": "3Y2EdbfXVQpm9dwtidaqXHrFQ8cwXZSqAuJoNUmjgqG4t5Ku4tBYnwP1bZ6mYDi9BrXF1vAMyiYrs8iD94rwQ7bj",
+      "captureFinishSignature": "5owaaFFtjzYW5aC2bCV9wp4kPC3T5XdpTndPWwkKmaZRFZgp99VhFBDKSQq3LZVAPTNL3zVdpmLCNmLWP6ubrag7",
+      "captureEvidence": {
+        "schema": "controlled-capture-v1",
+        "readSlot": 826,
+        "registry": {
+          "slot": 826,
+          "supply": "35",
+          "positions": [
+            {
+              "state": "FROZEN",
+              "address": "6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY",
+              "balance": "10",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            },
+            {
+              "state": "FROZEN",
+              "address": "BdfNTBypfKoqvAgqnfWerUgZtxTadXv66TtBR5cGJY1v",
+              "balance": "0",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUkw9EKgMYBVZvnPHLP1wUgB20xKQsrCPpo+2VGyNXFbuQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "4J6bUuTxps8whkFEiTqWVAoP3kAyqncZeXtvFhrJT3ax",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            },
+            {
+              "state": "FROZEN",
+              "address": "CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF",
+              "balance": "20",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            },
+            {
+              "state": "FROZEN",
+              "address": "G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT",
+              "balance": "5",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            }
+          ],
+          "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+          "totalBalance": "35",
+          "positivePositions": [
+            {
+              "state": "FROZEN",
+              "address": "6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY",
+              "balance": "10",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            },
+            {
+              "state": "FROZEN",
+              "address": "CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF",
+              "balance": "20",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            },
+            {
+              "state": "FROZEN",
+              "address": "G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT",
+              "balance": "5",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            }
+          ]
+        },
+        "startedAt": "1791795491",
+        "startedSlot": "826",
+        "registrySha256": "4aa181812d014f2bce6956c3692791a3de6cd3e08f42af805431e5897b970e9d",
+        "registryCanonicalJson": "{\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"slot\":826,\"supply\":\"35\",\"totalBalance\":\"35\",\"positions\":[{\"address\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"balance\":\"10\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"},{\"address\":\"BdfNTBypfKoqvAgqnfWerUgZtxTadXv66TtBR5cGJY1v\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"4J6bUuTxps8whkFEiTqWVAoP3kAyqncZeXtvFhrJT3ax\",\"balance\":\"0\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUkw9EKgMYBVZvnPHLP1wUgB20xKQsrCPpo+2VGyNXFbuQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"},{\"address\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"balance\":\"20\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"},{\"address\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"balance\":\"5\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"}],\"positivePositions\":[{\"address\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"balance\":\"10\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"},{\"address\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"balance\":\"20\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"},{\"address\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"balance\":\"5\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"}]}",
+        "controlledPolicyAddress": "Eaysis9MiS2tTk3Gr2BiCjkFsZeKmJJsgPWYVNx3ZKpx",
+        "controlledCaptureAddress": "7AaBVqPDsHnayPkqQtBuCeFCfhQMJz2yHVDaDpHtRgqY"
+      },
+      "registryMutationBeyondWindowRejected": true,
+      "unitReservations": [],
+      "plannedRecordAt": "2026-10-12T08:57:57.000Z",
+      "effectiveSlot": "826",
+      "effectiveBlockTime": "2026-10-12T08:58:11.000Z",
+      "amountMinor": "1750000000",
+      "supplyBefore": "35",
+      "supplyAfter": "35",
+      "fundingSignature": "5XWY7zSKsA1A3azRkYB2JjVazcr5XCs3SoTV69LjVF7KFYRwp72wjHcgWFs2H3bSoHZw1fgQ5r1Bizu6TMVnBuba",
+      "approvalSignature": "5zHNX42hYnSHcTSUJeuezsrE9qBFntPjaEazmrMjuRnXKk4ZysY1dXVuNomxwQn94X7z7XzGAr9HNR1BYYpbHzfc",
+      "payments": [
+        {
+          "entitlementId": "f5e84fd1-d0a6-4bef-8419-7dddd376928c",
+          "signature": "565QYcYVy63xNwZbykcsjvgAEw1hsQX8bSmLjQ2Uz4v2ijK3XY8tY9ThMHtuoxLyCJn7sGeyWuTbuLfUtrsNVLMe"
+        },
+        {
+          "entitlementId": "15da9e2b-b0fc-42b6-bcd0-2fa4aa0f362b",
+          "signature": "2Ks13s6RHvtNDLSpS7xMhoh9NJexwY5zsgdNc7PgoB6k3QD4yqYUgSBkqHe7tmxW6ZtNhqjeqxpvoLGRPsVgGbBv"
+        },
+        {
+          "entitlementId": "4b8c3bde-91a0-4730-9555-78e109ff0daf",
+          "signature": "2qfpejDQ15kYdoAJkWfLzU8VDQgNYcYvxqjcTb8VGBwa5VSiCjS3994YoGMyHHMyMZohTNzhTf6Qcy1ja9VeW21A"
+        }
+      ],
+      "actionReceipt": "nLAQyZq5D3rucS3MVkLbWG9ZupJNYY4j3LGFiBEEVUf",
+      "receiptHash": "f81e8dae03de1221e3bc4842873d1f45bc4bbec99fcd3cb93a039937343c89be",
+      "finalizedSignature": "5qZsKSjTKYDS7oQ4gLFvaGSDrMk6422rp4aMJCibMSSEsKP9Gova67h6oTkGVRLXCYgAPxcCSuxhYqByJdz4zxAF",
+      "canonicalJson": "{\"schemaVersion\":\"coupon-controlled-action-receipt-v1\",\"actionId\":\"d16a854b-17bd-43fd-a941-99bbe60302fc\",\"instrumentId\":\"25fdfc36-0bf7-4698-8d72-df86fd0ef749\",\"tokenPolicy\":\"CONTROLLED_FROZEN_V2\",\"controlledRegistry\":{\"captureAddress\":\"7AaBVqPDsHnayPkqQtBuCeFCfhQMJz2yHVDaDpHtRgqY\",\"captureFinishSignature\":\"5owaaFFtjzYW5aC2bCV9wp4kPC3T5XdpTndPWwkKmaZRFZgp99VhFBDKSQq3LZVAPTNL3zVdpmLCNmLWP6ubrag7\",\"captureEvidence\":{\"schema\":\"controlled-capture-v1\",\"readSlot\":826,\"registry\":{\"slot\":826,\"supply\":\"35\",\"positions\":[{\"state\":\"FROZEN\",\"address\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"balance\":\"10\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null},{\"state\":\"FROZEN\",\"address\":\"BdfNTBypfKoqvAgqnfWerUgZtxTadXv66TtBR5cGJY1v\",\"balance\":\"0\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUkw9EKgMYBVZvnPHLP1wUgB20xKQsrCPpo+2VGyNXFbuQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"4J6bUuTxps8whkFEiTqWVAoP3kAyqncZeXtvFhrJT3ax\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null},{\"state\":\"FROZEN\",\"address\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"balance\":\"20\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null},{\"state\":\"FROZEN\",\"address\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"balance\":\"5\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"totalBalance\":\"35\",\"positivePositions\":[{\"state\":\"FROZEN\",\"address\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"balance\":\"10\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null},{\"state\":\"FROZEN\",\"address\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"balance\":\"20\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null},{\"state\":\"FROZEN\",\"address\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"balance\":\"5\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null}]},\"startedAt\":\"1791795491\",\"startedSlot\":\"826\",\"registrySha256\":\"4aa181812d014f2bce6956c3692791a3de6cd3e08f42af805431e5897b970e9d\",\"registryCanonicalJson\":\"{\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"slot\\\":826,\\\"supply\\\":\\\"35\\\",\\\"totalBalance\\\":\\\"35\\\",\\\"positions\\\":[{\\\"address\\\":\\\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\\\",\\\"balance\\\":\\\"10\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"},{\\\"address\\\":\\\"BdfNTBypfKoqvAgqnfWerUgZtxTadXv66TtBR5cGJY1v\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"4J6bUuTxps8whkFEiTqWVAoP3kAyqncZeXtvFhrJT3ax\\\",\\\"balance\\\":\\\"0\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUkw9EKgMYBVZvnPHLP1wUgB20xKQsrCPpo+2VGyNXFbuQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"},{\\\"address\\\":\\\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\\\",\\\"balance\\\":\\\"20\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"},{\\\"address\\\":\\\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\\\",\\\"balance\\\":\\\"5\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"}],\\\"positivePositions\\\":[{\\\"address\\\":\\\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\\\",\\\"balance\\\":\\\"10\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"},{\\\"address\\\":\\\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\\\",\\\"balance\\\":\\\"20\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"},{\\\"address\\\":\\\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\\\",\\\"balance\\\":\\\"5\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"}]}\",\"controlledPolicyAddress\":\"Eaysis9MiS2tTk3Gr2BiCjkFsZeKmJJsgPWYVNx3ZKpx\",\"controlledCaptureAddress\":\"7AaBVqPDsHnayPkqQtBuCeFCfhQMJz2yHVDaDpHtRgqY\"},\"assignedUnitPolicy\":\"NOT_APPLICABLE\"},\"ticker\":\"KASEV2\",\"actionType\":\"COUPON_PAYMENT\",\"programId\":\"6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo\",\"network\":\"SOLANA_LOCALNET\",\"genesisHash\":\"HETv4uDMjHRvazJaDxBAKgqLV8pu52jWo9y72sjbvQGk\",\"source\":{\"type\":\"MANUAL\",\"reference\":\"KASE-DEMO-TEST-ONLY\",\"document\":null},\"approval\":{\"actorId\":\"e27b65c3-313f-4513-8620-9d5b9fefcb9f\",\"approvedAt\":\"2026-10-12T09:00:29.000Z\",\"note\":\"Separate approver, immutable full reserve\",\"signature\":\"5zHNX42hYnSHcTSUJeuezsrE9qBFntPjaEazmrMjuRnXKk4ZysY1dXVuNomxwQn94X7z7XzGAr9HNR1BYYpbHzfc\"},\"snapshot\":{\"hash\":\"41457a4a85cbd75db2cf20d8c9c4710df36cc56642442c8dac340291dfbf9471\",\"slot\":\"826\",\"plannedRecordAt\":\"2026-10-12T08:57:57.000Z\",\"effectiveBlockTime\":\"2026-10-12T08:58:11.000Z\"},\"executeAt\":\"2026-10-12T08:58:17.000Z\",\"totalAmountMinor\":\"1750000000\",\"reconciliation\":\"MATCHED\",\"entitlements\":[{\"investorId\":\"3c52508c-98b0-49d0-a32c-80650c76933f\",\"entitlementId\":\"f5e84fd1-d0a6-4bef-8419-7dddd376928c\",\"amountMinor\":\"1000000000\",\"status\":\"PAID\",\"settlement\":{\"receiver\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"signature\":\"565QYcYVy63xNwZbykcsjvgAEw1hsQX8bSmLjQ2Uz4v2ijK3XY8tY9ThMHtuoxLyCJn7sGeyWuTbuLfUtrsNVLMe\",\"receiptAddress\":\"8vFnomoFZndAPYiLr9J6cZkRFpDnGesUqmXK6esp4kRt\",\"executedAt\":\"1791795643\",\"finalizedSlot\":1188,\"cashLeg\":\"CONFIRMED\",\"assetLeg\":\"NOT_APPLICABLE\",\"reconciliation\":\"MATCHED\"}},{\"investorId\":\"c1f5fa26-ff0e-4d4b-865b-df7012985058\",\"entitlementId\":\"15da9e2b-b0fc-42b6-bcd0-2fa4aa0f362b\",\"amountMinor\":\"500000000\",\"status\":\"PAID\",\"settlement\":{\"receiver\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"signature\":\"2Ks13s6RHvtNDLSpS7xMhoh9NJexwY5zsgdNc7PgoB6k3QD4yqYUgSBkqHe7tmxW6ZtNhqjeqxpvoLGRPsVgGbBv\",\"receiptAddress\":\"BfqU7ZGuXcXufRt6zyCvjZ4jVQv33jmo1uC1SHkCtxP\",\"executedAt\":\"1791795658\",\"finalizedSlot\":1222,\"cashLeg\":\"CONFIRMED\",\"assetLeg\":\"NOT_APPLICABLE\",\"reconciliation\":\"MATCHED\"}},{\"investorId\":\"cd48cbbf-1d26-4239-81b7-1e7b3c60ba63\",\"entitlementId\":\"4b8c3bde-91a0-4730-9555-78e109ff0daf\",\"amountMinor\":\"250000000\",\"status\":\"PAID\",\"settlement\":{\"receiver\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"signature\":\"2qfpejDQ15kYdoAJkWfLzU8VDQgNYcYvxqjcTb8VGBwa5VSiCjS3994YoGMyHHMyMZohTNzhTf6Qcy1ja9VeW21A\",\"receiptAddress\":\"DmhMe6AieyB9XUGh5XJFpfhmjFLNqLJVfCY2uCmTx4Fw\",\"executedAt\":\"1791795672\",\"finalizedSlot\":1256,\"cashLeg\":\"CONFIRMED\",\"assetLeg\":\"NOT_APPLICABLE\",\"reconciliation\":\"MATCHED\"}}]}"
+    },
+    {
+      "type": "EARLY_REDEMPTION",
+      "scenario": "EARLY_REDEMPTION",
+      "actionId": "7cc5abf7-a0a8-4064-b464-5a05cc78de44",
+      "snapshotHash": "817a71814a096fdb5ca9542edf72af9294346d3ae24a1151c593730b4538a79d",
+      "scheduleSignature": "pjewzZn3JzcWbaAenbARyucK3HcgPpdJvhvM4xqdxXoHoECrxqBzhssokYivsVdag7V6nxYdrzhzZSUNGSnPKwk",
+      "snapshotSignature": "2sjDM2dQnD1S28RscsRA7YaSxXCmaox14LxPCuBEGDLBCzsodC4zxgeqU7F7D9nSUvKgA7w78nj7VdrvmtgXbXVc",
+      "captureBeginSignature": "udFNJCTwRhbAUczHAUaU8N2Rn1zHL7zTzbLnuP9MvuZrKNGwEaBYgjQoaZH3vQBnNLXRNJYd4vCPF1cFXoMLN3b",
+      "captureFinishSignature": "4UocDRdwvN54Ph2HeGnCt99nUT7Fc6Amtd6DdiKeEcAWfJTkKYu2o1AmUXSsiz7wtgWjRDrJ6ifEG8nyrQHGhbSe",
+      "captureEvidence": {
+        "schema": "controlled-capture-v1",
+        "readSlot": 1569,
+        "registry": {
+          "slot": 1569,
+          "supply": "35",
+          "positions": [
+            {
+              "state": "FROZEN",
+              "address": "6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY",
+              "balance": "10",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            },
+            {
+              "state": "FROZEN",
+              "address": "BdfNTBypfKoqvAgqnfWerUgZtxTadXv66TtBR5cGJY1v",
+              "balance": "0",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUkw9EKgMYBVZvnPHLP1wUgB20xKQsrCPpo+2VGyNXFbuQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "4J6bUuTxps8whkFEiTqWVAoP3kAyqncZeXtvFhrJT3ax",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            },
+            {
+              "state": "FROZEN",
+              "address": "CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF",
+              "balance": "20",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            },
+            {
+              "state": "FROZEN",
+              "address": "G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT",
+              "balance": "5",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            }
+          ],
+          "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+          "totalBalance": "35",
+          "positivePositions": [
+            {
+              "state": "FROZEN",
+              "address": "6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY",
+              "balance": "10",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            },
+            {
+              "state": "FROZEN",
+              "address": "CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF",
+              "balance": "20",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            },
+            {
+              "state": "FROZEN",
+              "address": "G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT",
+              "balance": "5",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            }
+          ]
+        },
+        "startedAt": "1791795804",
+        "startedSlot": "1568",
+        "registrySha256": "140909a118afd452d08de95eb8cc8b0785cd971b01bc984816e981ccac73e1e9",
+        "registryCanonicalJson": "{\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"slot\":1569,\"supply\":\"35\",\"totalBalance\":\"35\",\"positions\":[{\"address\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"balance\":\"10\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"},{\"address\":\"BdfNTBypfKoqvAgqnfWerUgZtxTadXv66TtBR5cGJY1v\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"4J6bUuTxps8whkFEiTqWVAoP3kAyqncZeXtvFhrJT3ax\",\"balance\":\"0\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUkw9EKgMYBVZvnPHLP1wUgB20xKQsrCPpo+2VGyNXFbuQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"},{\"address\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"balance\":\"20\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"},{\"address\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"balance\":\"5\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"}],\"positivePositions\":[{\"address\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"balance\":\"10\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"},{\"address\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"balance\":\"20\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"},{\"address\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"balance\":\"5\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"}]}",
+        "controlledPolicyAddress": "Eaysis9MiS2tTk3Gr2BiCjkFsZeKmJJsgPWYVNx3ZKpx",
+        "controlledCaptureAddress": "CqU9jBxa5BWYTCguQCREcCSCv8Yv9jtXhPmKKpdqF24m"
+      },
+      "registryMutationBeyondWindowRejected": true,
+      "unitReservations": [
+        {
+          "entitlementId": "06f5ccd9-5b79-44f2-a6ab-5235feffc37a",
+          "investorId": "3c52508c-98b0-49d0-a32c-80650c76933f",
+          "signature": "9JYDDrqnkwyPxAk3WcZvhW2MHZJicZGF9vP4cBLfvdmiu9mPxZMikYkbXxGrXLY4L5L38SvtABAayNKGmK85XP8",
+          "unitReservationAddress": "6ZLeWvJEYSJom8dop2pTuqqFY475rCZ63gttW3JW4skp",
+          "tokensToRedeem": "4",
+          "allocations": [
+            "4"
+          ],
+          "holdingAddresses": [
+            "G5NDHPNbxXLyfKo6Gx18GNbXxZeGZFbmf5XPeaeJ54LA"
+          ]
+        },
+        {
+          "entitlementId": "921ffa6b-c0d9-46cb-91ba-cac8c8a5c711",
+          "investorId": "c1f5fa26-ff0e-4d4b-865b-df7012985058",
+          "signature": "2LD5HLdgbVKa19JBn4CNbC87MRVZsRa2zNgJnMLDarXciApvHau1sj45X37cxDQTTf7ZE5yB4dr13ExJe6p9MdYu",
+          "unitReservationAddress": "9C129SQ81875S6BYFrjZNVtpEHzmgZmCRrZHWce5Cuyv",
+          "tokensToRedeem": "2",
+          "allocations": [
+            "2"
+          ],
+          "holdingAddresses": [
+            "3h2PienzpJYW9D3iFpY3XZmQswZkhDNwvHjghfrkqfT5"
+          ]
+        },
+        {
+          "entitlementId": "e58e971a-679a-4546-b9ed-af3e75acea4f",
+          "investorId": "cd48cbbf-1d26-4239-81b7-1e7b3c60ba63",
+          "signature": "qiZ4wfDXyJG7RgDNxtvPCH2zYvQEvtEuq43svhL19Mn4755qQc4AuszabWHvSo4Ni4FQsnE9PWF2kU3nmAm1UBN",
+          "unitReservationAddress": "AiAfZ8waoCmcwPTt7Z1HSmsoUhSp67VQd1pRbJpJF1Ca",
+          "tokensToRedeem": "1",
+          "allocations": [
+            "1"
+          ],
+          "holdingAddresses": [
+            "BcCuA2xZMKwAkZicUDQUKx9W5U1FGGRe4VNgnRtrdJsJ"
+          ]
+        }
+      ],
+      "plannedRecordAt": "2026-10-12T09:03:10.000Z",
+      "effectiveSlot": "1568",
+      "effectiveBlockTime": "2026-10-12T09:03:24.000Z",
+      "amountMinor": "7000000000",
+      "supplyBefore": "35",
+      "supplyAfter": "28",
+      "fundingSignature": "2Kwea9BUiihe3eyYyhDyMbndpzTSRWeZvSXEEeL1Lks1FW2KuAAMgDVxEW9wEgrMtmfJJJtGgWiQJbcojrKPpk4F",
+      "approvalSignature": "hrd7Nfu94ishKkwTCCkRT7SXLc5zm7F3uJUXKUbqZLcWysDZknznN68tcxfeUV7bUzNrr9AjjteQuL94Pm7A74u",
+      "payments": [
+        {
+          "entitlementId": "06f5ccd9-5b79-44f2-a6ab-5235feffc37a",
+          "signature": "Li37S89VAr6BMPYPSNNETKsckX4cuNfqK3yzuRJCEK2ThohmMb2nzzqyebqSZebreu9uqKm5cw5jzXDqL4MtHJF"
+        },
+        {
+          "entitlementId": "921ffa6b-c0d9-46cb-91ba-cac8c8a5c711",
+          "signature": "57qHsU6oBc52YiBWK4aTcZSsNXJzETi3h7o1Ptb3WMKAs3qqsfux6yYTPfyNaXYBcLwQ3kHFqWh1oWhXSsVFFYAD"
+        },
+        {
+          "entitlementId": "e58e971a-679a-4546-b9ed-af3e75acea4f",
+          "signature": "53jwv8Ud6tYa4YWbLVDkUDYQ3ZHn57jxGnNzWhsrWZ5FtGX7Deuf31yMfSjrch2CJo82FDnSvqCcoaK8Rmk7iJ9o"
+        }
+      ],
+      "actionReceipt": "H2AmxbCxtXsC5UbnV87CsH9jF2JK1cMkKZ79MwP2CooH",
+      "receiptHash": "03dec87a73b10fb4ed3debe9456f872c5fc984f34ffa41e3510f356765e6934d",
+      "finalizedSignature": "hE6rSQhrfRsGCCAsg49KmZCQ5A3CxPWYvPj1Yk4t8JpZhTtAJMgFANXZ3y1CwXD19YoQKUCnMSWgfRoavZ55Y1D",
+      "canonicalJson": "{\"schemaVersion\":\"redemption-controlled-action-receipt-v1\",\"actionId\":\"7cc5abf7-a0a8-4064-b464-5a05cc78de44\",\"instrumentId\":\"25fdfc36-0bf7-4698-8d72-df86fd0ef749\",\"tokenPolicy\":\"CONTROLLED_FROZEN_V2\",\"controlledRegistry\":{\"captureAddress\":\"CqU9jBxa5BWYTCguQCREcCSCv8Yv9jtXhPmKKpdqF24m\",\"captureFinishSignature\":\"4UocDRdwvN54Ph2HeGnCt99nUT7Fc6Amtd6DdiKeEcAWfJTkKYu2o1AmUXSsiz7wtgWjRDrJ6ifEG8nyrQHGhbSe\",\"captureEvidence\":{\"schema\":\"controlled-capture-v1\",\"readSlot\":1569,\"registry\":{\"slot\":1569,\"supply\":\"35\",\"positions\":[{\"state\":\"FROZEN\",\"address\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"balance\":\"10\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null},{\"state\":\"FROZEN\",\"address\":\"BdfNTBypfKoqvAgqnfWerUgZtxTadXv66TtBR5cGJY1v\",\"balance\":\"0\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUkw9EKgMYBVZvnPHLP1wUgB20xKQsrCPpo+2VGyNXFbuQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"4J6bUuTxps8whkFEiTqWVAoP3kAyqncZeXtvFhrJT3ax\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null},{\"state\":\"FROZEN\",\"address\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"balance\":\"20\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null},{\"state\":\"FROZEN\",\"address\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"balance\":\"5\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"totalBalance\":\"35\",\"positivePositions\":[{\"state\":\"FROZEN\",\"address\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"balance\":\"10\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null},{\"state\":\"FROZEN\",\"address\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"balance\":\"20\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null},{\"state\":\"FROZEN\",\"address\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"balance\":\"5\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null}]},\"startedAt\":\"1791795804\",\"startedSlot\":\"1568\",\"registrySha256\":\"140909a118afd452d08de95eb8cc8b0785cd971b01bc984816e981ccac73e1e9\",\"registryCanonicalJson\":\"{\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"slot\\\":1569,\\\"supply\\\":\\\"35\\\",\\\"totalBalance\\\":\\\"35\\\",\\\"positions\\\":[{\\\"address\\\":\\\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\\\",\\\"balance\\\":\\\"10\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"},{\\\"address\\\":\\\"BdfNTBypfKoqvAgqnfWerUgZtxTadXv66TtBR5cGJY1v\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"4J6bUuTxps8whkFEiTqWVAoP3kAyqncZeXtvFhrJT3ax\\\",\\\"balance\\\":\\\"0\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUkw9EKgMYBVZvnPHLP1wUgB20xKQsrCPpo+2VGyNXFbuQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"},{\\\"address\\\":\\\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\\\",\\\"balance\\\":\\\"20\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"},{\\\"address\\\":\\\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\\\",\\\"balance\\\":\\\"5\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"}],\\\"positivePositions\\\":[{\\\"address\\\":\\\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\\\",\\\"balance\\\":\\\"10\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"},{\\\"address\\\":\\\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\\\",\\\"balance\\\":\\\"20\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"},{\\\"address\\\":\\\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\\\",\\\"balance\\\":\\\"5\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"}]}\",\"controlledPolicyAddress\":\"Eaysis9MiS2tTk3Gr2BiCjkFsZeKmJJsgPWYVNx3ZKpx\",\"controlledCaptureAddress\":\"CqU9jBxa5BWYTCguQCREcCSCv8Yv9jtXhPmKKpdqF24m\"},\"assignedUnitPolicy\":\"SNAPSHOT_SOURCE_BASE58_ASC_GREEDY\",\"untouchedZeroSources\":\"IMMUTABLE_COMMITMENT_ONLY\"},\"ticker\":\"KASEV2\",\"actionType\":\"EARLY_REDEMPTION\",\"programId\":\"6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo\",\"network\":\"SOLANA_LOCALNET\",\"genesisHash\":\"HETv4uDMjHRvazJaDxBAKgqLV8pu52jWo9y72sjbvQGk\",\"bondMint\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"source\":{\"type\":\"MANUAL\",\"reference\":\"KASE-DEMO-TEST-ONLY\",\"document\":null},\"approval\":{\"actorId\":\"e27b65c3-313f-4513-8620-9d5b9fefcb9f\",\"approvedAt\":\"2026-10-12T09:06:11.000Z\",\"note\":\"Separate approver, immutable full reserve\",\"signature\":\"hrd7Nfu94ishKkwTCCkRT7SXLc5zm7F3uJUXKUbqZLcWysDZknznN68tcxfeUV7bUzNrr9AjjteQuL94Pm7A74u\"},\"snapshot\":{\"hash\":\"817a71814a096fdb5ca9542edf72af9294346d3ae24a1151c593730b4538a79d\",\"slot\":\"1568\",\"plannedRecordAt\":\"2026-10-12T09:03:10.000Z\",\"effectiveBlockTime\":\"2026-10-12T09:03:24.000Z\",\"mintSupply\":\"35\"},\"executeAt\":\"2026-10-12T09:03:30.000Z\",\"totalAmountMinor\":\"7000000000\",\"totalTokensRedeemed\":\"7\",\"finalSupply\":\"28\",\"reconciliation\":\"MATCHED\",\"entitlements\":[{\"investorId\":\"3c52508c-98b0-49d0-a32c-80650c76933f\",\"entitlementId\":\"06f5ccd9-5b79-44f2-a6ab-5235feffc37a\",\"amountMinor\":\"4000000000\",\"tokensRedeemed\":\"4\",\"status\":\"REDEEMED\",\"settlement\":{\"receiver\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"signature\":\"Li37S89VAr6BMPYPSNNETKsckX4cuNfqK3yzuRJCEK2ThohmMb2nzzqyebqSZebreu9uqKm5cw5jzXDqL4MtHJF\",\"receiptAddress\":\"8a9Mc8f9nsvip5U4m7EwQqbm8gkgC3w3maftYGfkeps7\",\"sourceHash\":\"44a87c2b48f083f5452ebf70625aa522ccaa4a1e845e08c4ee2bee96dea1ec7c\",\"unitReservation\":{\"consumed\":true,\"holdings\":[{\"address\":\"G5NDHPNbxXLyfKo6Gx18GNbXxZeGZFbmf5XPeaeJ54LA\",\"tokenAccount\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"reservedTokens\":\"0\"}],\"sourceHash\":\"44a87c2b48f083f5452ebf70625aa522ccaa4a1e845e08c4ee2bee96dea1ec7c\",\"allocations\":[\"4\"],\"holdingAddresses\":[\"G5NDHPNbxXLyfKo6Gx18GNbXxZeGZFbmf5XPeaeJ54LA\"],\"unitReservationAddress\":\"6ZLeWvJEYSJom8dop2pTuqqFY475rCZ63gttW3JW4skp\",\"controlledPolicyAddress\":\"Eaysis9MiS2tTk3Gr2BiCjkFsZeKmJJsgPWYVNx3ZKpx\",\"controlledCaptureAddress\":\"CqU9jBxa5BWYTCguQCREcCSCv8Yv9jtXhPmKKpdqF24m\"},\"freezePolicy\":\"ATOMIC_THAW_BURN_REFREEZE\",\"tokenAccounts\":[{\"address\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"burnAmount\":\"4\",\"balanceBefore\":\"20\",\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"balanceAtSnapshot\":\"20\",\"expectedBalanceAfter\":\"16\"}],\"supplyBefore\":\"35\",\"supplyAfter\":\"31\",\"executedAt\":\"1791795986\",\"finalizedSlot\":2000,\"cashLeg\":\"CONFIRMED\",\"assetLeg\":\"CONFIRMED\",\"reconciliation\":\"MATCHED\"}},{\"investorId\":\"c1f5fa26-ff0e-4d4b-865b-df7012985058\",\"entitlementId\":\"921ffa6b-c0d9-46cb-91ba-cac8c8a5c711\",\"amountMinor\":\"2000000000\",\"tokensRedeemed\":\"2\",\"status\":\"REDEEMED\",\"settlement\":{\"receiver\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"signature\":\"57qHsU6oBc52YiBWK4aTcZSsNXJzETi3h7o1Ptb3WMKAs3qqsfux6yYTPfyNaXYBcLwQ3kHFqWh1oWhXSsVFFYAD\",\"receiptAddress\":\"BUq52xEXRqhbC62vnPAd7BTB94ufLoFdW4hUtjLFwpyz\",\"sourceHash\":\"40a44de670765abb1c6242eeac2ffbe33cd18f7c7ec8b63aca7d8cff6348e779\",\"unitReservation\":{\"consumed\":true,\"holdings\":[{\"address\":\"3h2PienzpJYW9D3iFpY3XZmQswZkhDNwvHjghfrkqfT5\",\"tokenAccount\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"reservedTokens\":\"0\"}],\"sourceHash\":\"40a44de670765abb1c6242eeac2ffbe33cd18f7c7ec8b63aca7d8cff6348e779\",\"allocations\":[\"2\"],\"holdingAddresses\":[\"3h2PienzpJYW9D3iFpY3XZmQswZkhDNwvHjghfrkqfT5\"],\"unitReservationAddress\":\"9C129SQ81875S6BYFrjZNVtpEHzmgZmCRrZHWce5Cuyv\",\"controlledPolicyAddress\":\"Eaysis9MiS2tTk3Gr2BiCjkFsZeKmJJsgPWYVNx3ZKpx\",\"controlledCaptureAddress\":\"CqU9jBxa5BWYTCguQCREcCSCv8Yv9jtXhPmKKpdqF24m\"},\"freezePolicy\":\"ATOMIC_THAW_BURN_REFREEZE\",\"tokenAccounts\":[{\"address\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"burnAmount\":\"2\",\"balanceBefore\":\"10\",\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"balanceAtSnapshot\":\"10\",\"expectedBalanceAfter\":\"8\"}],\"supplyBefore\":\"31\",\"supplyAfter\":\"29\",\"executedAt\":\"1791796001\",\"finalizedSlot\":2035,\"cashLeg\":\"CONFIRMED\",\"assetLeg\":\"CONFIRMED\",\"reconciliation\":\"MATCHED\"}},{\"investorId\":\"cd48cbbf-1d26-4239-81b7-1e7b3c60ba63\",\"entitlementId\":\"e58e971a-679a-4546-b9ed-af3e75acea4f\",\"amountMinor\":\"1000000000\",\"tokensRedeemed\":\"1\",\"status\":\"REDEEMED\",\"settlement\":{\"receiver\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"signature\":\"53jwv8Ud6tYa4YWbLVDkUDYQ3ZHn57jxGnNzWhsrWZ5FtGX7Deuf31yMfSjrch2CJo82FDnSvqCcoaK8Rmk7iJ9o\",\"receiptAddress\":\"2yTS9zqkfxZyYUEGkrB4oj3EABR3Gn8xkWzR8HHiqqmj\",\"sourceHash\":\"dca28f998a2bc3609d91ac22319f1859d313b7e726db6fedb5fce8390e290304\",\"unitReservation\":{\"consumed\":true,\"holdings\":[{\"address\":\"BcCuA2xZMKwAkZicUDQUKx9W5U1FGGRe4VNgnRtrdJsJ\",\"tokenAccount\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"reservedTokens\":\"0\"}],\"sourceHash\":\"dca28f998a2bc3609d91ac22319f1859d313b7e726db6fedb5fce8390e290304\",\"allocations\":[\"1\"],\"holdingAddresses\":[\"BcCuA2xZMKwAkZicUDQUKx9W5U1FGGRe4VNgnRtrdJsJ\"],\"unitReservationAddress\":\"AiAfZ8waoCmcwPTt7Z1HSmsoUhSp67VQd1pRbJpJF1Ca\",\"controlledPolicyAddress\":\"Eaysis9MiS2tTk3Gr2BiCjkFsZeKmJJsgPWYVNx3ZKpx\",\"controlledCaptureAddress\":\"CqU9jBxa5BWYTCguQCREcCSCv8Yv9jtXhPmKKpdqF24m\"},\"freezePolicy\":\"ATOMIC_THAW_BURN_REFREEZE\",\"tokenAccounts\":[{\"address\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"burnAmount\":\"1\",\"balanceBefore\":\"5\",\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"balanceAtSnapshot\":\"5\",\"expectedBalanceAfter\":\"4\"}],\"supplyBefore\":\"29\",\"supplyAfter\":\"28\",\"executedAt\":\"1791796015\",\"finalizedSlot\":2069,\"cashLeg\":\"CONFIRMED\",\"assetLeg\":\"CONFIRMED\",\"reconciliation\":\"MATCHED\"}}]}"
+    },
+    {
+      "type": "EARLY_REDEMPTION",
+      "scenario": "EXACT_EARLY_REDEMPTION",
+      "actionId": "0c58b6fb-111c-4e5f-b498-083b1a8d065d",
+      "snapshotHash": "55df90e15284f7b47347a3ca36cff2d894e92d9959417d0bbb884818289369c2",
+      "scheduleSignature": "3hjtN3UVpBVNn8o3qc7SmywzyfCzBZHHKXZjoPErpV16YJ7V1bW4VT5cJAWoebK1wdxj74zyhkk7CZR8tj1T6PC3",
+      "snapshotSignature": "3GWJJvNoQ6u2i2N87uqcZAbH1kZVQMjFVcomSceS4kKkqM6iodvQutYAcHXecoaQSMhoZHndANeim1LusK8FSzBQ",
+      "captureBeginSignature": "3aHCfu4BPSvR7gQR4AqTF2MeyNbhg5wmrj8QfJ2tu3ZajeVGzDXznNj1gPioK19uYMpwk529mNLigDp8TJNXXTiY",
+      "captureFinishSignature": "Tzz2qVr8NE4oS5rYfsaL6v6EwBDK8MVfZJA75xM48SGW3CoZWxUTiwVSoXp1HZnZH3szNrReseGY6GumhFgBiaJ",
+      "captureEvidence": {
+        "schema": "controlled-capture-v1",
+        "readSlot": 2386,
+        "registry": {
+          "slot": 2386,
+          "supply": "28",
+          "positions": [
+            {
+              "state": "FROZEN",
+              "address": "6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY",
+              "balance": "8",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            },
+            {
+              "state": "FROZEN",
+              "address": "BdfNTBypfKoqvAgqnfWerUgZtxTadXv66TtBR5cGJY1v",
+              "balance": "0",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUkw9EKgMYBVZvnPHLP1wUgB20xKQsrCPpo+2VGyNXFbuQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "4J6bUuTxps8whkFEiTqWVAoP3kAyqncZeXtvFhrJT3ax",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            },
+            {
+              "state": "FROZEN",
+              "address": "CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF",
+              "balance": "16",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            },
+            {
+              "state": "FROZEN",
+              "address": "G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT",
+              "balance": "4",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            }
+          ],
+          "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+          "totalBalance": "28",
+          "positivePositions": [
+            {
+              "state": "FROZEN",
+              "address": "6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY",
+              "balance": "8",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            },
+            {
+              "state": "FROZEN",
+              "address": "CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF",
+              "balance": "16",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            },
+            {
+              "state": "FROZEN",
+              "address": "G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT",
+              "balance": "4",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            }
+          ]
+        },
+        "startedAt": "1791796149",
+        "startedSlot": "2385",
+        "registrySha256": "15798861878f27a3667cd6ce2f821eb554fb98a82049f670bb7c51c65901ff6e",
+        "registryCanonicalJson": "{\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"slot\":2386,\"supply\":\"28\",\"totalBalance\":\"28\",\"positions\":[{\"address\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"balance\":\"8\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"},{\"address\":\"BdfNTBypfKoqvAgqnfWerUgZtxTadXv66TtBR5cGJY1v\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"4J6bUuTxps8whkFEiTqWVAoP3kAyqncZeXtvFhrJT3ax\",\"balance\":\"0\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUkw9EKgMYBVZvnPHLP1wUgB20xKQsrCPpo+2VGyNXFbuQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"},{\"address\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"balance\":\"16\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"},{\"address\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"balance\":\"4\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"}],\"positivePositions\":[{\"address\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"balance\":\"8\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"},{\"address\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"balance\":\"16\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"},{\"address\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"balance\":\"4\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"}]}",
+        "controlledPolicyAddress": "Eaysis9MiS2tTk3Gr2BiCjkFsZeKmJJsgPWYVNx3ZKpx",
+        "controlledCaptureAddress": "2J8wcZbxhA48t6iYLLMzcwH4mSBUWirUCgufjn6un8gn"
+      },
+      "registryMutationBeyondWindowRejected": true,
+      "unitReservations": [
+        {
+          "entitlementId": "1331e5a9-33d0-4b3f-ac4d-0e6997f4b556",
+          "investorId": "3c52508c-98b0-49d0-a32c-80650c76933f",
+          "signature": "2v8jYuxC9986gkBbapkTqkrNngYksXDCUVupoj46LqPZFFEJPSFn6ZAFF7U1KT4sRHEPJ5bYJi3fh17ddhTv5uC7",
+          "unitReservationAddress": "Ei9yEAdb7oQmmjWSFzuTwahgGBovQ3GP8ZHC1FrMGiYd",
+          "tokensToRedeem": "5",
+          "allocations": [
+            "5"
+          ],
+          "holdingAddresses": [
+            "G5NDHPNbxXLyfKo6Gx18GNbXxZeGZFbmf5XPeaeJ54LA"
+          ]
+        },
+        {
+          "entitlementId": "5e832b3a-68d5-4be8-8ef9-6ec608dda07e",
+          "investorId": "c1f5fa26-ff0e-4d4b-865b-df7012985058",
+          "signature": "2hnnxqR5SrBbqoh27UMKpTGU6BhkDPNaGqyPnDSvE5DdwHNDmywD1rcvb3YScuk9fYwSr3eZfDHWrVrQF54PBXXn",
+          "unitReservationAddress": "C2sVsSM63r3Ves3164v1Suob8ee2dyxkpACSiEoZmBU6",
+          "tokensToRedeem": "2",
+          "allocations": [
+            "2"
+          ],
+          "holdingAddresses": [
+            "3h2PienzpJYW9D3iFpY3XZmQswZkhDNwvHjghfrkqfT5"
+          ]
+        },
+        {
+          "entitlementId": "48e62b1f-1156-45fc-8373-31f5f85d182b",
+          "investorId": "cd48cbbf-1d26-4239-81b7-1e7b3c60ba63",
+          "signature": "5uF9R3eAjZ916tYLoiTCpKkiFTjc9P3PPjU6VhiGbmDzRQ5LA4y1trbJvuWg4fbYyaE2BQSeumFFX3u2G6bLgUJU",
+          "unitReservationAddress": "7jTW7ReiwDyTDbLKE26uxiHF9d4MGA9WjuspzXqFEotG",
+          "tokensToRedeem": "1",
+          "allocations": [
+            "1"
+          ],
+          "holdingAddresses": [
+            "BcCuA2xZMKwAkZicUDQUKx9W5U1FGGRe4VNgnRtrdJsJ"
+          ]
+        }
+      ],
+      "allocationPolicy": "exact-target-largest-remainder-v2",
+      "targetTokens": "8",
+      "targetAddress": "Gob6CPqX2SshWKmkKGhqEq6o78giGfgY3mv4XrfyJBp8",
+      "allocations": [
+        {
+          "investorId": "3c52508c-98b0-49d0-a32c-80650c76933f",
+          "snapshotBalance": "16",
+          "tokensToRedeem": "5",
+          "amountMinor": "5000000000"
+        },
+        {
+          "investorId": "c1f5fa26-ff0e-4d4b-865b-df7012985058",
+          "snapshotBalance": "8",
+          "tokensToRedeem": "2",
+          "amountMinor": "2000000000"
+        },
+        {
+          "investorId": "cd48cbbf-1d26-4239-81b7-1e7b3c60ba63",
+          "snapshotBalance": "4",
+          "tokensToRedeem": "1",
+          "amountMinor": "1000000000"
+        }
+      ],
+      "plannedRecordAt": "2026-10-12T09:08:55.000Z",
+      "effectiveSlot": "2385",
+      "effectiveBlockTime": "2026-10-12T09:09:09.000Z",
+      "amountMinor": "8000000000",
+      "supplyBefore": "28",
+      "supplyAfter": "20",
+      "fundingSignature": "4JufNBRjuTRmXb7ws9t3iTRfygozx91NnaA613x2pXa9ADcKeWrZJJgprBobnw7RarPjqaJZ2G1n6emWvNUCLAZw",
+      "approvalSignature": "5FGDkKTnU4ekTpdhfZymsnJnchUVQcYTDWhESoyhu31PbhoBhq1NxPVXmF8uZgF3pYFCM7eDqVfHMudBjvvH28GR",
+      "payments": [
+        {
+          "entitlementId": "1331e5a9-33d0-4b3f-ac4d-0e6997f4b556",
+          "signature": "4P1aWq7jtSjpTr2717ddWtcqnTFzdyuMaoF1GWH9eeii81zLtdxPQby17bUF1rqbv8rgTGv3946trcNW6DZeoqZ8"
+        },
+        {
+          "entitlementId": "5e832b3a-68d5-4be8-8ef9-6ec608dda07e",
+          "signature": "32ZKSKhQh8XSYC1uhg6TnLsb4AXPrS4LBbkiuSy6fypd6fn7QxdkECpVAGuLgCRGKLtEqh7pbDoTwo3DHPjmpgy7"
+        },
+        {
+          "entitlementId": "48e62b1f-1156-45fc-8373-31f5f85d182b",
+          "signature": "3zFQ14M5TgpEMbmgW6WK1ZdTPiRBGkmCeLdTTXmE37RXv1jvmvmFaHgFz5BExXrv19ppmGhe6UVpDzmV4i4RCVUg"
+        }
+      ],
+      "actionReceipt": "Ht3no1VpZGwCNDu9nrkyo667JRQpgJoiChQrbUh6q6Y6",
+      "receiptHash": "69d9fbf091aada34f7ec7de6fc5526efbea4bd989aca72f012f21df53473b83f",
+      "finalizedSignature": "ZWxLk7TYbSusJSdh8uiepFrpuk7W4xaywgrjv5TRWnpNwsFxmP1iNfMWMBp7kEdVb73gA5aqxUmibCLdhyJsEFZ",
+      "canonicalJson": "{\"schemaVersion\":\"redemption-controlled-action-receipt-v1\",\"actionId\":\"0c58b6fb-111c-4e5f-b498-083b1a8d065d\",\"instrumentId\":\"25fdfc36-0bf7-4698-8d72-df86fd0ef749\",\"tokenPolicy\":\"CONTROLLED_FROZEN_V2\",\"controlledRegistry\":{\"captureAddress\":\"2J8wcZbxhA48t6iYLLMzcwH4mSBUWirUCgufjn6un8gn\",\"captureFinishSignature\":\"Tzz2qVr8NE4oS5rYfsaL6v6EwBDK8MVfZJA75xM48SGW3CoZWxUTiwVSoXp1HZnZH3szNrReseGY6GumhFgBiaJ\",\"captureEvidence\":{\"schema\":\"controlled-capture-v1\",\"readSlot\":2386,\"registry\":{\"slot\":2386,\"supply\":\"28\",\"positions\":[{\"state\":\"FROZEN\",\"address\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"balance\":\"8\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null},{\"state\":\"FROZEN\",\"address\":\"BdfNTBypfKoqvAgqnfWerUgZtxTadXv66TtBR5cGJY1v\",\"balance\":\"0\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUkw9EKgMYBVZvnPHLP1wUgB20xKQsrCPpo+2VGyNXFbuQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"4J6bUuTxps8whkFEiTqWVAoP3kAyqncZeXtvFhrJT3ax\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null},{\"state\":\"FROZEN\",\"address\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"balance\":\"16\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null},{\"state\":\"FROZEN\",\"address\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"balance\":\"4\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"totalBalance\":\"28\",\"positivePositions\":[{\"state\":\"FROZEN\",\"address\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"balance\":\"8\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null},{\"state\":\"FROZEN\",\"address\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"balance\":\"16\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null},{\"state\":\"FROZEN\",\"address\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"balance\":\"4\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null}]},\"startedAt\":\"1791796149\",\"startedSlot\":\"2385\",\"registrySha256\":\"15798861878f27a3667cd6ce2f821eb554fb98a82049f670bb7c51c65901ff6e\",\"registryCanonicalJson\":\"{\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"slot\\\":2386,\\\"supply\\\":\\\"28\\\",\\\"totalBalance\\\":\\\"28\\\",\\\"positions\\\":[{\\\"address\\\":\\\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\\\",\\\"balance\\\":\\\"8\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"},{\\\"address\\\":\\\"BdfNTBypfKoqvAgqnfWerUgZtxTadXv66TtBR5cGJY1v\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"4J6bUuTxps8whkFEiTqWVAoP3kAyqncZeXtvFhrJT3ax\\\",\\\"balance\\\":\\\"0\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUkw9EKgMYBVZvnPHLP1wUgB20xKQsrCPpo+2VGyNXFbuQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"},{\\\"address\\\":\\\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\\\",\\\"balance\\\":\\\"16\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"},{\\\"address\\\":\\\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\\\",\\\"balance\\\":\\\"4\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"}],\\\"positivePositions\\\":[{\\\"address\\\":\\\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\\\",\\\"balance\\\":\\\"8\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"},{\\\"address\\\":\\\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\\\",\\\"balance\\\":\\\"16\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"},{\\\"address\\\":\\\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\\\",\\\"balance\\\":\\\"4\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"}]}\",\"controlledPolicyAddress\":\"Eaysis9MiS2tTk3Gr2BiCjkFsZeKmJJsgPWYVNx3ZKpx\",\"controlledCaptureAddress\":\"2J8wcZbxhA48t6iYLLMzcwH4mSBUWirUCgufjn6un8gn\"},\"assignedUnitPolicy\":\"SNAPSHOT_SOURCE_BASE58_ASC_GREEDY\",\"untouchedZeroSources\":\"IMMUTABLE_COMMITMENT_ONLY\"},\"allocation\":{\"policy\":\"exact-target-largest-remainder-v2\",\"targetTokens\":\"8\",\"totalBalance\":\"28\",\"tieBreak\":\"SNAPSHOT_OWNER_BASE58_ASC\"},\"ticker\":\"KASEV2\",\"actionType\":\"EARLY_REDEMPTION\",\"programId\":\"6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo\",\"network\":\"SOLANA_LOCALNET\",\"genesisHash\":\"HETv4uDMjHRvazJaDxBAKgqLV8pu52jWo9y72sjbvQGk\",\"bondMint\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"source\":{\"type\":\"MANUAL\",\"reference\":\"KASE-DEMO-TEST-ONLY\",\"document\":null},\"approval\":{\"actorId\":\"e27b65c3-313f-4513-8620-9d5b9fefcb9f\",\"approvedAt\":\"2026-10-12T09:11:56.000Z\",\"note\":\"Separate approver, immutable full reserve\",\"signature\":\"5FGDkKTnU4ekTpdhfZymsnJnchUVQcYTDWhESoyhu31PbhoBhq1NxPVXmF8uZgF3pYFCM7eDqVfHMudBjvvH28GR\"},\"snapshot\":{\"hash\":\"55df90e15284f7b47347a3ca36cff2d894e92d9959417d0bbb884818289369c2\",\"slot\":\"2385\",\"plannedRecordAt\":\"2026-10-12T09:08:55.000Z\",\"effectiveBlockTime\":\"2026-10-12T09:09:09.000Z\",\"mintSupply\":\"28\"},\"executeAt\":\"2026-10-12T09:09:15.000Z\",\"totalAmountMinor\":\"8000000000\",\"totalTokensRedeemed\":\"8\",\"finalSupply\":\"20\",\"reconciliation\":\"MATCHED\",\"entitlements\":[{\"investorId\":\"3c52508c-98b0-49d0-a32c-80650c76933f\",\"entitlementId\":\"1331e5a9-33d0-4b3f-ac4d-0e6997f4b556\",\"amountMinor\":\"5000000000\",\"tokensRedeemed\":\"5\",\"status\":\"REDEEMED\",\"allocation\":{\"tieAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"roundingRemainder\":\"16\",\"denominator\":\"28\",\"remainingTokens\":\"11\"},\"settlement\":{\"receiver\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"signature\":\"4P1aWq7jtSjpTr2717ddWtcqnTFzdyuMaoF1GWH9eeii81zLtdxPQby17bUF1rqbv8rgTGv3946trcNW6DZeoqZ8\",\"receiptAddress\":\"65z6tKaqhDkJsZ49wjDy1xBipxt6aC9vZNeN2SB1RFGM\",\"sourceHash\":\"b76e615a0304a4a0a4e676b6b90ecafc169d6de665fe76c9ee46fa863a36c32a\",\"unitReservation\":{\"consumed\":true,\"holdings\":[{\"address\":\"G5NDHPNbxXLyfKo6Gx18GNbXxZeGZFbmf5XPeaeJ54LA\",\"tokenAccount\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"reservedTokens\":\"0\"}],\"sourceHash\":\"b76e615a0304a4a0a4e676b6b90ecafc169d6de665fe76c9ee46fa863a36c32a\",\"allocations\":[\"5\"],\"holdingAddresses\":[\"G5NDHPNbxXLyfKo6Gx18GNbXxZeGZFbmf5XPeaeJ54LA\"],\"unitReservationAddress\":\"Ei9yEAdb7oQmmjWSFzuTwahgGBovQ3GP8ZHC1FrMGiYd\",\"controlledPolicyAddress\":\"Eaysis9MiS2tTk3Gr2BiCjkFsZeKmJJsgPWYVNx3ZKpx\",\"controlledCaptureAddress\":\"2J8wcZbxhA48t6iYLLMzcwH4mSBUWirUCgufjn6un8gn\"},\"freezePolicy\":\"ATOMIC_THAW_BURN_REFREEZE\",\"tokenAccounts\":[{\"address\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"burnAmount\":\"5\",\"balanceBefore\":\"16\",\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"balanceAtSnapshot\":\"16\",\"expectedBalanceAfter\":\"11\"}],\"supplyBefore\":\"28\",\"supplyAfter\":\"23\",\"executedAt\":\"1791796330\",\"finalizedSlot\":2816,\"cashLeg\":\"CONFIRMED\",\"assetLeg\":\"CONFIRMED\",\"reconciliation\":\"MATCHED\"}},{\"investorId\":\"c1f5fa26-ff0e-4d4b-865b-df7012985058\",\"entitlementId\":\"5e832b3a-68d5-4be8-8ef9-6ec608dda07e\",\"amountMinor\":\"2000000000\",\"tokensRedeemed\":\"2\",\"status\":\"REDEEMED\",\"allocation\":{\"tieAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"roundingRemainder\":\"8\",\"denominator\":\"28\",\"remainingTokens\":\"6\"},\"settlement\":{\"receiver\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"signature\":\"32ZKSKhQh8XSYC1uhg6TnLsb4AXPrS4LBbkiuSy6fypd6fn7QxdkECpVAGuLgCRGKLtEqh7pbDoTwo3DHPjmpgy7\",\"receiptAddress\":\"BhT1odYLwa956219faM1LDHdyR6CmB2w321vhhXCgRV4\",\"sourceHash\":\"787195471853be63ec9490664e26c0c5b3bafc1954cf7e9fc37ae2bab6cb8e2c\",\"unitReservation\":{\"consumed\":true,\"holdings\":[{\"address\":\"3h2PienzpJYW9D3iFpY3XZmQswZkhDNwvHjghfrkqfT5\",\"tokenAccount\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"reservedTokens\":\"0\"}],\"sourceHash\":\"787195471853be63ec9490664e26c0c5b3bafc1954cf7e9fc37ae2bab6cb8e2c\",\"allocations\":[\"2\"],\"holdingAddresses\":[\"3h2PienzpJYW9D3iFpY3XZmQswZkhDNwvHjghfrkqfT5\"],\"unitReservationAddress\":\"C2sVsSM63r3Ves3164v1Suob8ee2dyxkpACSiEoZmBU6\",\"controlledPolicyAddress\":\"Eaysis9MiS2tTk3Gr2BiCjkFsZeKmJJsgPWYVNx3ZKpx\",\"controlledCaptureAddress\":\"2J8wcZbxhA48t6iYLLMzcwH4mSBUWirUCgufjn6un8gn\"},\"freezePolicy\":\"ATOMIC_THAW_BURN_REFREEZE\",\"tokenAccounts\":[{\"address\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"burnAmount\":\"2\",\"balanceBefore\":\"8\",\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"balanceAtSnapshot\":\"8\",\"expectedBalanceAfter\":\"6\"}],\"supplyBefore\":\"23\",\"supplyAfter\":\"21\",\"executedAt\":\"1791796344\",\"finalizedSlot\":2849,\"cashLeg\":\"CONFIRMED\",\"assetLeg\":\"CONFIRMED\",\"reconciliation\":\"MATCHED\"}},{\"investorId\":\"cd48cbbf-1d26-4239-81b7-1e7b3c60ba63\",\"entitlementId\":\"48e62b1f-1156-45fc-8373-31f5f85d182b\",\"amountMinor\":\"1000000000\",\"tokensRedeemed\":\"1\",\"status\":\"REDEEMED\",\"allocation\":{\"tieAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"roundingRemainder\":\"4\",\"denominator\":\"28\",\"remainingTokens\":\"3\"},\"settlement\":{\"receiver\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"signature\":\"3zFQ14M5TgpEMbmgW6WK1ZdTPiRBGkmCeLdTTXmE37RXv1jvmvmFaHgFz5BExXrv19ppmGhe6UVpDzmV4i4RCVUg\",\"receiptAddress\":\"98d7WopLV1YAFtpV7diQc3TFxcuqUePevUvtoMx31qNd\",\"sourceHash\":\"b4e92872f112e74701ab60bc03d511dfae1f0f76e4813e7edb1ae9f659d86abf\",\"unitReservation\":{\"consumed\":true,\"holdings\":[{\"address\":\"BcCuA2xZMKwAkZicUDQUKx9W5U1FGGRe4VNgnRtrdJsJ\",\"tokenAccount\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"reservedTokens\":\"0\"}],\"sourceHash\":\"b4e92872f112e74701ab60bc03d511dfae1f0f76e4813e7edb1ae9f659d86abf\",\"allocations\":[\"1\"],\"holdingAddresses\":[\"BcCuA2xZMKwAkZicUDQUKx9W5U1FGGRe4VNgnRtrdJsJ\"],\"unitReservationAddress\":\"7jTW7ReiwDyTDbLKE26uxiHF9d4MGA9WjuspzXqFEotG\",\"controlledPolicyAddress\":\"Eaysis9MiS2tTk3Gr2BiCjkFsZeKmJJsgPWYVNx3ZKpx\",\"controlledCaptureAddress\":\"2J8wcZbxhA48t6iYLLMzcwH4mSBUWirUCgufjn6un8gn\"},\"freezePolicy\":\"ATOMIC_THAW_BURN_REFREEZE\",\"tokenAccounts\":[{\"address\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"burnAmount\":\"1\",\"balanceBefore\":\"4\",\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"balanceAtSnapshot\":\"4\",\"expectedBalanceAfter\":\"3\"}],\"supplyBefore\":\"21\",\"supplyAfter\":\"20\",\"executedAt\":\"1791796359\",\"finalizedSlot\":2883,\"cashLeg\":\"CONFIRMED\",\"assetLeg\":\"CONFIRMED\",\"reconciliation\":\"MATCHED\"}}]}"
+    },
+    {
+      "type": "BOND_REDEMPTION",
+      "scenario": "BOND_REDEMPTION",
+      "actionId": "1ccf9400-47f3-44f7-bc18-6b2f0dde34ff",
+      "snapshotHash": "85dd36649a68fda3c25bbc9ead2c8f61e3aec62555e7def4dae9afc49d135d46",
+      "scheduleSignature": "39mUd2ET8FXBy5RMCsPzfugxR1Etn7GJADX5c4uuaJdf6R3MGMNwCSSBeEvmtw5TpejbJ8fr81r6kdTbDv5LwxJS",
+      "snapshotSignature": "5knYnV5bQrypd2365hFaoCLujXjgZr9KZ17s4McMWWkg1iwU9zafUAcHpBqLZq3UtrGL4SPJA9aTERuEhWyxwpry",
+      "captureBeginSignature": "5xhn5voEbsGZ1VZxtr5adHEMeXgR8rXocuzmPCwyzL9Q6Y9fsbwhAsszaUxJN3aic6KhCF93k1Rsa6683jctrnVi",
+      "captureFinishSignature": "2dgxz9Dd6wRnuhbU2PafHi486fRqhjKTje9pUFi2KxT3Pu55t36tvgStuUcYW9NzU2mjFY8oE1cfFQwPd7GBn41G",
+      "captureEvidence": {
+        "schema": "controlled-capture-v1",
+        "readSlot": 3198,
+        "registry": {
+          "slot": 3198,
+          "supply": "20",
+          "positions": [
+            {
+              "state": "FROZEN",
+              "address": "6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY",
+              "balance": "6",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            },
+            {
+              "state": "FROZEN",
+              "address": "BdfNTBypfKoqvAgqnfWerUgZtxTadXv66TtBR5cGJY1v",
+              "balance": "0",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUkw9EKgMYBVZvnPHLP1wUgB20xKQsrCPpo+2VGyNXFbuQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "4J6bUuTxps8whkFEiTqWVAoP3kAyqncZeXtvFhrJT3ax",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            },
+            {
+              "state": "FROZEN",
+              "address": "CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF",
+              "balance": "11",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGAsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            },
+            {
+              "state": "FROZEN",
+              "address": "G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT",
+              "balance": "3",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            }
+          ],
+          "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+          "totalBalance": "20",
+          "positivePositions": [
+            {
+              "state": "FROZEN",
+              "address": "6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY",
+              "balance": "6",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            },
+            {
+              "state": "FROZEN",
+              "address": "CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF",
+              "balance": "11",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGAsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            },
+            {
+              "state": "FROZEN",
+              "address": "G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT",
+              "balance": "3",
+              "delegate": null,
+              "dataBase64": "UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=",
+              "extensions": [
+                {
+                  "type": 7,
+                  "dataHex": ""
+                }
+              ],
+              "mintAddress": "6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k",
+              "nativeReserve": null,
+              "walletAddress": "CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m",
+              "closeAuthority": null,
+              "immutableOwner": true,
+              "cpiGuardEnabled": null,
+              "delegatedAmount": "0",
+              "tokenProgramOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+              "incomingMemoRequired": null
+            }
+          ]
+        },
+        "startedAt": "1791796491",
+        "startedSlot": "3197",
+        "registrySha256": "9d911a8b22ead2003865dabff662c5a6d0acb61a2b0bdb21130a9c21ac312e87",
+        "registryCanonicalJson": "{\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"slot\":3198,\"supply\":\"20\",\"totalBalance\":\"20\",\"positions\":[{\"address\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"balance\":\"6\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"},{\"address\":\"BdfNTBypfKoqvAgqnfWerUgZtxTadXv66TtBR5cGJY1v\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"4J6bUuTxps8whkFEiTqWVAoP3kAyqncZeXtvFhrJT3ax\",\"balance\":\"0\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUkw9EKgMYBVZvnPHLP1wUgB20xKQsrCPpo+2VGyNXFbuQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"},{\"address\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"balance\":\"11\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGAsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"},{\"address\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"balance\":\"3\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"}],\"positivePositions\":[{\"address\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"balance\":\"6\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"},{\"address\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"balance\":\"11\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGAsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"},{\"address\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"balance\":\"3\",\"state\":\"FROZEN\",\"delegate\":null,\"delegatedAmount\":\"0\",\"nativeReserve\":null,\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"incomingMemoRequired\":null,\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\"}]}",
+        "controlledPolicyAddress": "Eaysis9MiS2tTk3Gr2BiCjkFsZeKmJJsgPWYVNx3ZKpx",
+        "controlledCaptureAddress": "9TkykNGvkHJzeMVrif6TsHX1E4FuYZbKTiKCcANgkJ9C"
+      },
+      "registryMutationBeyondWindowRejected": true,
+      "unitReservations": [
+        {
+          "entitlementId": "c4a5b25e-6350-4667-aaac-0c872065f6d5",
+          "investorId": "3c52508c-98b0-49d0-a32c-80650c76933f",
+          "signature": "2v7j8kfrmGQQq68KuMnLV32BEueNGdLUaLrGfS4gcyVu9Ly2S1zTihR6LjiJaekYV9phKPrZ3QabVDCe7pwsipiU",
+          "unitReservationAddress": "BeTLFSuUafRz4kUr4Gm1EsXsj7uodCjtPhEPnyWedKX6",
+          "tokensToRedeem": "11",
+          "allocations": [
+            "11"
+          ],
+          "holdingAddresses": [
+            "G5NDHPNbxXLyfKo6Gx18GNbXxZeGZFbmf5XPeaeJ54LA"
+          ]
+        },
+        {
+          "entitlementId": "aa294cb6-a240-4c15-b954-91990dabffb7",
+          "investorId": "c1f5fa26-ff0e-4d4b-865b-df7012985058",
+          "signature": "28tvNb3G12mp3oJVYxjs8YzRWKr8U2nT2YLaHZtwxmh4bGzwX8qaAygw1mX3DhANMUggAm8ot2jxdkjXif7w9PVt",
+          "unitReservationAddress": "HDSFGburK84UHz4XDeAztt6EifHaVCx8ok2QRMHbBgHB",
+          "tokensToRedeem": "6",
+          "allocations": [
+            "6"
+          ],
+          "holdingAddresses": [
+            "3h2PienzpJYW9D3iFpY3XZmQswZkhDNwvHjghfrkqfT5"
+          ]
+        },
+        {
+          "entitlementId": "ddaa0995-6d38-44c9-85d3-df97c94844ca",
+          "investorId": "cd48cbbf-1d26-4239-81b7-1e7b3c60ba63",
+          "signature": "4cYnfLwsM4J48U9ucL2vKb4dQFMtjVGYPXXLCQtoegx9vhCvsarn1Pzpy4YhAQFrH7WTFQggindJixpz7Hjrx446",
+          "unitReservationAddress": "DkwwbUe9u69aD86FDFn2NBQTee9MxBRj4MtoKaB39Mwz",
+          "tokensToRedeem": "3",
+          "allocations": [
+            "3"
+          ],
+          "holdingAddresses": [
+            "BcCuA2xZMKwAkZicUDQUKx9W5U1FGGRe4VNgnRtrdJsJ"
+          ]
+        }
+      ],
+      "plannedRecordAt": "2026-10-12T09:14:38.000Z",
+      "effectiveSlot": "3197",
+      "effectiveBlockTime": "2026-10-12T09:14:51.000Z",
+      "amountMinor": "21000000000",
+      "supplyBefore": "20",
+      "supplyAfter": "0",
+      "fundingSignature": "5mf2jWyubHuHjd3reycfbYp5jbzDiuPEqWTP6i2FdJND58pEPb4WRhGZwGpTwTMNJExeB64q6oLCzGhprUrDoK8L",
+      "approvalSignature": "64VqvAy25BJjZnxLGwApukyTznFfSJGGEVQZ5MM6DbFB8UMuhyZs7kLzsd1ctzMUr6hSe8oqWghuoi97qqsyfUxL",
+      "payments": [
+        {
+          "entitlementId": "c4a5b25e-6350-4667-aaac-0c872065f6d5",
+          "signature": "46MrcF56bub6Xc6kmvEmXnhmCH9kcWDkXHwuhnb4i7M4hQW7v4QDBZ8pmnaxVLw6wcUjsRCYcGUYNbDRVtkdE1hA"
+        },
+        {
+          "entitlementId": "aa294cb6-a240-4c15-b954-91990dabffb7",
+          "signature": "5ML9B2BsvcgWg7EcfqcLonj2o6qGBTb7ZJbHNVre7cZF5n68cirHVbdaauLCCSC4XULbmw5KbJuNCTQ83xiw6iHN"
+        },
+        {
+          "entitlementId": "ddaa0995-6d38-44c9-85d3-df97c94844ca",
+          "signature": "3QM4m33nHLE3GpVHg9CNHzXiSdezLGmMFJFipcuPJkLMyp2qZdueNsRutPYzC8cofNtakq8QPhvgr5oJvxhovwcZ"
+        }
+      ],
+      "actionReceipt": "4e1gUjk8SjGRWy6m1HqycuF1n7GfuvfqRu1wquFLKaRg",
+      "receiptHash": "9a9721df0c4f2bc50c2c78a1904a763c72de7001634b80bb76aed2378b412a61",
+      "finalizedSignature": "VtDtPKitg9GErUjc9MbN99Dm7nqFEY4gJdKTaSe4bJqoH2i9Vh2N9HceNui29AE3GJHhUGahM6pDRRWu2PEdRdN",
+      "canonicalJson": "{\"schemaVersion\":\"redemption-controlled-action-receipt-v1\",\"actionId\":\"1ccf9400-47f3-44f7-bc18-6b2f0dde34ff\",\"instrumentId\":\"25fdfc36-0bf7-4698-8d72-df86fd0ef749\",\"tokenPolicy\":\"CONTROLLED_FROZEN_V2\",\"controlledRegistry\":{\"captureAddress\":\"9TkykNGvkHJzeMVrif6TsHX1E4FuYZbKTiKCcANgkJ9C\",\"captureFinishSignature\":\"2dgxz9Dd6wRnuhbU2PafHi486fRqhjKTje9pUFi2KxT3Pu55t36tvgStuUcYW9NzU2mjFY8oE1cfFQwPd7GBn41G\",\"captureEvidence\":{\"schema\":\"controlled-capture-v1\",\"readSlot\":3198,\"registry\":{\"slot\":3198,\"supply\":\"20\",\"positions\":[{\"state\":\"FROZEN\",\"address\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"balance\":\"6\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null},{\"state\":\"FROZEN\",\"address\":\"BdfNTBypfKoqvAgqnfWerUgZtxTadXv66TtBR5cGJY1v\",\"balance\":\"0\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUkw9EKgMYBVZvnPHLP1wUgB20xKQsrCPpo+2VGyNXFbuQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"4J6bUuTxps8whkFEiTqWVAoP3kAyqncZeXtvFhrJT3ax\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null},{\"state\":\"FROZEN\",\"address\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"balance\":\"11\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGAsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null},{\"state\":\"FROZEN\",\"address\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"balance\":\"3\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"totalBalance\":\"20\",\"positivePositions\":[{\"state\":\"FROZEN\",\"address\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"balance\":\"6\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null},{\"state\":\"FROZEN\",\"address\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"balance\":\"11\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGAsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null},{\"state\":\"FROZEN\",\"address\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"balance\":\"3\",\"delegate\":null,\"dataBase64\":\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\",\"extensions\":[{\"type\":7,\"dataHex\":\"\"}],\"mintAddress\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"nativeReserve\":null,\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"closeAuthority\":null,\"immutableOwner\":true,\"cpiGuardEnabled\":null,\"delegatedAmount\":\"0\",\"tokenProgramOwner\":\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\",\"incomingMemoRequired\":null}]},\"startedAt\":\"1791796491\",\"startedSlot\":\"3197\",\"registrySha256\":\"9d911a8b22ead2003865dabff662c5a6d0acb61a2b0bdb21130a9c21ac312e87\",\"registryCanonicalJson\":\"{\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"slot\\\":3198,\\\"supply\\\":\\\"20\\\",\\\"totalBalance\\\":\\\"20\\\",\\\"positions\\\":[{\\\"address\\\":\\\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\\\",\\\"balance\\\":\\\"6\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"},{\\\"address\\\":\\\"BdfNTBypfKoqvAgqnfWerUgZtxTadXv66TtBR5cGJY1v\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"4J6bUuTxps8whkFEiTqWVAoP3kAyqncZeXtvFhrJT3ax\\\",\\\"balance\\\":\\\"0\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUkw9EKgMYBVZvnPHLP1wUgB20xKQsrCPpo+2VGyNXFbuQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"},{\\\"address\\\":\\\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\\\",\\\"balance\\\":\\\"11\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGAsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"},{\\\"address\\\":\\\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\\\",\\\"balance\\\":\\\"3\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"}],\\\"positivePositions\\\":[{\\\"address\\\":\\\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\\\",\\\"balance\\\":\\\"6\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUlOk3Opem5Mp3XcIyUklge/vhpVoGza8Vn67yitrxxEZQYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"},{\\\"address\\\":\\\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\\\",\\\"balance\\\":\\\"11\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUls0IP04CC/4VQ5mW7nvDjUypNvrBlx4XZwS3EPOLBgGAsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"},{\\\"address\\\":\\\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\\\",\\\"tokenProgramOwner\\\":\\\"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb\\\",\\\"mintAddress\\\":\\\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\\\",\\\"walletAddress\\\":\\\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\\\",\\\"balance\\\":\\\"3\\\",\\\"state\\\":\\\"FROZEN\\\",\\\"delegate\\\":null,\\\"delegatedAmount\\\":\\\"0\\\",\\\"nativeReserve\\\":null,\\\"closeAuthority\\\":null,\\\"immutableOwner\\\":true,\\\"cpiGuardEnabled\\\":null,\\\"incomingMemoRequired\\\":null,\\\"extensions\\\":[{\\\"type\\\":7,\\\"dataHex\\\":\\\"\\\"}],\\\"dataBase64\\\":\\\"UdRLhVyUiFg7r1dDjpOly6SH3zODWLIu3U64MeSUPUmvnky7BMGqLRDihd3vh5Zm2pz6AaXwtxiMvcyAcgWaOgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAA=\\\"}]}\",\"controlledPolicyAddress\":\"Eaysis9MiS2tTk3Gr2BiCjkFsZeKmJJsgPWYVNx3ZKpx\",\"controlledCaptureAddress\":\"9TkykNGvkHJzeMVrif6TsHX1E4FuYZbKTiKCcANgkJ9C\"},\"assignedUnitPolicy\":\"SNAPSHOT_SOURCE_BASE58_ASC_GREEDY\",\"untouchedZeroSources\":\"IMMUTABLE_COMMITMENT_ONLY\"},\"ticker\":\"KASEV2\",\"actionType\":\"BOND_REDEMPTION\",\"programId\":\"6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo\",\"network\":\"SOLANA_LOCALNET\",\"genesisHash\":\"HETv4uDMjHRvazJaDxBAKgqLV8pu52jWo9y72sjbvQGk\",\"bondMint\":\"6WRn9BuzqfJ2N2mME6rseYUXgJrxFDAxGF2EAHmC6S6k\",\"source\":{\"type\":\"MANUAL\",\"reference\":\"KASE-DEMO-TEST-ONLY\",\"document\":null},\"approval\":{\"actorId\":\"e27b65c3-313f-4513-8620-9d5b9fefcb9f\",\"approvedAt\":\"2026-10-12T09:17:40.000Z\",\"note\":\"Separate approver, immutable full reserve\",\"signature\":\"64VqvAy25BJjZnxLGwApukyTznFfSJGGEVQZ5MM6DbFB8UMuhyZs7kLzsd1ctzMUr6hSe8oqWghuoi97qqsyfUxL\"},\"snapshot\":{\"hash\":\"85dd36649a68fda3c25bbc9ead2c8f61e3aec62555e7def4dae9afc49d135d46\",\"slot\":\"3197\",\"plannedRecordAt\":\"2026-10-12T09:14:38.000Z\",\"effectiveBlockTime\":\"2026-10-12T09:14:51.000Z\",\"mintSupply\":\"20\"},\"executeAt\":\"2026-10-12T09:15:32.000Z\",\"totalAmountMinor\":\"21000000000\",\"totalTokensRedeemed\":\"20\",\"finalSupply\":\"0\",\"reconciliation\":\"MATCHED\",\"entitlements\":[{\"investorId\":\"3c52508c-98b0-49d0-a32c-80650c76933f\",\"entitlementId\":\"c4a5b25e-6350-4667-aaac-0c872065f6d5\",\"amountMinor\":\"11550000000\",\"tokensRedeemed\":\"11\",\"status\":\"REDEEMED\",\"settlement\":{\"receiver\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"signature\":\"46MrcF56bub6Xc6kmvEmXnhmCH9kcWDkXHwuhnb4i7M4hQW7v4QDBZ8pmnaxVLw6wcUjsRCYcGUYNbDRVtkdE1hA\",\"receiptAddress\":\"AWh5HbnTyFdCsiKTswWSsWqKr7Gi8LGtNXQfoVSWtXok\",\"sourceHash\":\"2446cf971d4e6ac73f08ad48d5ac14ea8aa22f6308b0fc5917e35cb18a7c5c97\",\"unitReservation\":{\"consumed\":true,\"holdings\":[{\"address\":\"G5NDHPNbxXLyfKo6Gx18GNbXxZeGZFbmf5XPeaeJ54LA\",\"tokenAccount\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"reservedTokens\":\"0\"}],\"sourceHash\":\"2446cf971d4e6ac73f08ad48d5ac14ea8aa22f6308b0fc5917e35cb18a7c5c97\",\"allocations\":[\"11\"],\"holdingAddresses\":[\"G5NDHPNbxXLyfKo6Gx18GNbXxZeGZFbmf5XPeaeJ54LA\"],\"unitReservationAddress\":\"BeTLFSuUafRz4kUr4Gm1EsXsj7uodCjtPhEPnyWedKX6\",\"controlledPolicyAddress\":\"Eaysis9MiS2tTk3Gr2BiCjkFsZeKmJJsgPWYVNx3ZKpx\",\"controlledCaptureAddress\":\"9TkykNGvkHJzeMVrif6TsHX1E4FuYZbKTiKCcANgkJ9C\"},\"freezePolicy\":\"ATOMIC_THAW_BURN_REFREEZE\",\"tokenAccounts\":[{\"address\":\"CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF\",\"burnAmount\":\"11\",\"balanceBefore\":\"11\",\"walletAddress\":\"8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb\",\"balanceAtSnapshot\":\"11\",\"expectedBalanceAfter\":\"0\"}],\"supplyBefore\":\"20\",\"supplyAfter\":\"9\",\"executedAt\":\"1791796674\",\"finalizedSlot\":3630,\"cashLeg\":\"CONFIRMED\",\"assetLeg\":\"CONFIRMED\",\"reconciliation\":\"MATCHED\"}},{\"investorId\":\"c1f5fa26-ff0e-4d4b-865b-df7012985058\",\"entitlementId\":\"aa294cb6-a240-4c15-b954-91990dabffb7\",\"amountMinor\":\"6300000000\",\"tokensRedeemed\":\"6\",\"status\":\"REDEEMED\",\"settlement\":{\"receiver\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"signature\":\"5ML9B2BsvcgWg7EcfqcLonj2o6qGBTb7ZJbHNVre7cZF5n68cirHVbdaauLCCSC4XULbmw5KbJuNCTQ83xiw6iHN\",\"receiptAddress\":\"EsPoXBW5kTnFQsnT9n2TB5iPXyPhUq5fRLraNoX6dytk\",\"sourceHash\":\"3e22757fe679b8202dee8dacbb4f8915757d2848c16afe63a447d82f106d8c40\",\"unitReservation\":{\"consumed\":true,\"holdings\":[{\"address\":\"3h2PienzpJYW9D3iFpY3XZmQswZkhDNwvHjghfrkqfT5\",\"tokenAccount\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"reservedTokens\":\"0\"}],\"sourceHash\":\"3e22757fe679b8202dee8dacbb4f8915757d2848c16afe63a447d82f106d8c40\",\"allocations\":[\"6\"],\"holdingAddresses\":[\"3h2PienzpJYW9D3iFpY3XZmQswZkhDNwvHjghfrkqfT5\"],\"unitReservationAddress\":\"HDSFGburK84UHz4XDeAztt6EifHaVCx8ok2QRMHbBgHB\",\"controlledPolicyAddress\":\"Eaysis9MiS2tTk3Gr2BiCjkFsZeKmJJsgPWYVNx3ZKpx\",\"controlledCaptureAddress\":\"9TkykNGvkHJzeMVrif6TsHX1E4FuYZbKTiKCcANgkJ9C\"},\"freezePolicy\":\"ATOMIC_THAW_BURN_REFREEZE\",\"tokenAccounts\":[{\"address\":\"6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY\",\"burnAmount\":\"6\",\"balanceBefore\":\"6\",\"walletAddress\":\"6HjD3CJcfFj1ZRV59NxBEWkYtNi3uQeQB4UySFXB6EsN\",\"balanceAtSnapshot\":\"6\",\"expectedBalanceAfter\":\"0\"}],\"supplyBefore\":\"9\",\"supplyAfter\":\"3\",\"executedAt\":\"1791796702\",\"finalizedSlot\":3697,\"cashLeg\":\"CONFIRMED\",\"assetLeg\":\"CONFIRMED\",\"reconciliation\":\"MATCHED\"}},{\"investorId\":\"cd48cbbf-1d26-4239-81b7-1e7b3c60ba63\",\"entitlementId\":\"ddaa0995-6d38-44c9-85d3-df97c94844ca\",\"amountMinor\":\"3150000000\",\"tokensRedeemed\":\"3\",\"status\":\"REDEEMED\",\"settlement\":{\"receiver\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"signature\":\"3QM4m33nHLE3GpVHg9CNHzXiSdezLGmMFJFipcuPJkLMyp2qZdueNsRutPYzC8cofNtakq8QPhvgr5oJvxhovwcZ\",\"receiptAddress\":\"GxCgY5vwSrSbMo6Gk2JcFnif5779LEFQyC4P8XBU4rFj\",\"sourceHash\":\"9e7913b2efe72e66fca660b69c9ec17f4d263db918b40552a470ff5e1956aef1\",\"unitReservation\":{\"consumed\":true,\"holdings\":[{\"address\":\"BcCuA2xZMKwAkZicUDQUKx9W5U1FGGRe4VNgnRtrdJsJ\",\"tokenAccount\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"reservedTokens\":\"0\"}],\"sourceHash\":\"9e7913b2efe72e66fca660b69c9ec17f4d263db918b40552a470ff5e1956aef1\",\"allocations\":[\"3\"],\"holdingAddresses\":[\"BcCuA2xZMKwAkZicUDQUKx9W5U1FGGRe4VNgnRtrdJsJ\"],\"unitReservationAddress\":\"DkwwbUe9u69aD86FDFn2NBQTee9MxBRj4MtoKaB39Mwz\",\"controlledPolicyAddress\":\"Eaysis9MiS2tTk3Gr2BiCjkFsZeKmJJsgPWYVNx3ZKpx\",\"controlledCaptureAddress\":\"9TkykNGvkHJzeMVrif6TsHX1E4FuYZbKTiKCcANgkJ9C\"},\"freezePolicy\":\"ATOMIC_THAW_BURN_REFREEZE\",\"tokenAccounts\":[{\"address\":\"G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT\",\"burnAmount\":\"3\",\"balanceBefore\":\"3\",\"walletAddress\":\"CpYMCKC8ztULc4QuTun2G78vixmQrY2uQDi52fzBiM8m\",\"balanceAtSnapshot\":\"3\",\"expectedBalanceAfter\":\"0\"}],\"supplyBefore\":\"3\",\"supplyAfter\":\"0\",\"executedAt\":\"1791796717\",\"finalizedSlot\":3732,\"cashLeg\":\"CONFIRMED\",\"assetLeg\":\"CONFIRMED\",\"reconciliation\":\"MATCHED\"}}]}"
+    }
+  ],
+  "transfers": [],
+  "tokenPolicy": "CONTROLLED_FROZEN_V2",
+  "issuance": [
+    {
+      "phase": "MINT_SETUP",
+      "signature": "qxV8kvhyKWPRxHCDARgRsn267oEdzUuhbFSdMMVxv57sciZZ61qb3SM3tePYymBLR1wydcSbhJm8U4n5oNk2zaE",
+      "operationId": "b571ffaa-964d-4377-b9b7-d432d4dd92bb",
+      "instrumentAddress": "8x3zEN76cfHh9D7vgmReDe11n9nJcry8voaRhmGsrHGv",
+      "controlledPolicyAddress": "Eaysis9MiS2tTk3Gr2BiCjkFsZeKmJJsgPWYVNx3ZKpx"
+    },
+    {
+      "phase": "INITIALIZE",
+      "signature": "wdjr6u6xgq24BV4e6U1X4TuDfFqDRFJv4scTAt71dUM37xTodyjcjzWPZEsiqFG4rEaumrJcfAbVSU7NcVRfcNp",
+      "operationId": "014c41a3-f4b6-49e1-b81d-c9fd2fffae6f",
+      "instrumentAddress": "8x3zEN76cfHh9D7vgmReDe11n9nJcry8voaRhmGsrHGv",
+      "controlledPolicyAddress": "Eaysis9MiS2tTk3Gr2BiCjkFsZeKmJJsgPWYVNx3ZKpx"
+    },
+    {
+      "phase": "DISTRIBUTION",
+      "signature": "3BcPVwTTXw2XCG1o55HKhbYPSk9rL8YtRvxLqgNs3MyD4xT3tGCDEcHx9mNpoh8gPE3RTAMctptikP9u5gK35qaA",
+      "operationId": "fe72fbc4-fd21-4b63-8dee-ae41a7f13ac3",
+      "instrumentAddress": "8x3zEN76cfHh9D7vgmReDe11n9nJcry8voaRhmGsrHGv",
+      "controlledPolicyAddress": "Eaysis9MiS2tTk3Gr2BiCjkFsZeKmJJsgPWYVNx3ZKpx"
+    },
+    {
+      "phase": "ACTIVATE",
+      "signature": "66i6SL75DwJjTsv666NRkJJoxP7cN2CbRmV5RrDMKt4KmwhiFLEJ59zP23XhEdSitrmTVXRoJr5kZTcERNCsdpjG",
+      "operationId": "39dce551-0ac3-4162-873d-d2def091adf9",
+      "instrumentAddress": "8x3zEN76cfHh9D7vgmReDe11n9nJcry8voaRhmGsrHGv",
+      "controlledPolicyAddress": "Eaysis9MiS2tTk3Gr2BiCjkFsZeKmJJsgPWYVNx3ZKpx"
+    }
+  ],
+  "startedAt": "2026-10-12T08:55:16.785Z",
+  "programSha256": "772d8217c6395bbcd854f60f743139d756a15e7a0b7bb03396a586dc4b7b407b",
+  "idlSha256": "4d50cb17cd0c0e0d3740e4b0ec42a71e2bdb62001fc9b654093024d33f5d046f",
+  "sourceFingerprints": {
+    "scripts/test-kase-demo.mjs": "996bc916fa6706c7d8978310de51c048aa67474de9e9d57edb618bbe541cda39",
+    "scripts/test-controlled-workflow.mjs": "cc2d0dd35d53b461e8877daddbfb031f58cd9179f81eeada92178f5191c75955",
+    "scripts/test-controlled-workflow.ps1": "65b042a70df0bb4836ea5a55cc72e8c1b90885e06b752796d8c81f7658afd1ca",
+    "scripts/test-initialize-instrument.sh": "d26b8ed826d50792001f4804af7bec5bc5622c47789f9e2b4f74505c94e860aa",
+    "tools/solana-integration/test-initialize-instrument.mjs": "13c730197149bfc61147f0b9d4c7f894df59a6399c968ab2fd4d9504a7b3147a",
+    "tools/solana-integration/test-zero-rounded-coupon.mjs": "8831f752efcb844026934166d49b8c88ab582baf97a7d52929ff48e7df495a8d",
+    "apps/api/src/instrument-deployment.ts": "3ee7468a55c3129fd48480084a6e1c4d8fcea236080c26d528d89b1ad268b8ab",
+    "apps/api/src/instrument-registry.ts": "61e8a6084df5d9988822849b711bbc26386b754b28f06a98f53b96e3bebd56a2",
+    "apps/api/src/controlled-policy.ts": "839ffa8dca617786cb0edc4025337918fab358dbfc6efa53f333bd1967fe11fa",
+    "prisma/schema.prisma": "c9068c254e5b8a65c91cb7e28e885f9a608252bcb08e280644ff0af03b559da1",
+    "prisma/migrations/20261012010000_controlled_registry_policy/migration.sql": "9ef269f875572f5a9c6be05a0914993f193f19f4fd5230133ff8c19ddf6eca25",
+    "apps/api/src/controlled-capture.ts": "d481d6e91e876f3d047213dc6af508706282dd4e5c9c5539a059b8c0d9ade55d",
+    "apps/api/src/controlled-snapshot.ts": "510fe1f3b44a3aef4ad710d452e55219c6e4a44957282780756294810f29c739",
+    "apps/api/src/onchain-entitlements.ts": "183311a21ecd3e8089b320982c46699112879bdf3492a78986dab4971c18dccd",
+    "apps/api/src/snapshot-persistence.ts": "be9962c16d378f355959fafb3cea733c28d0b4261be9519fecd4478c61921e3f",
+    "apps/api/src/coupon-execution.ts": "ce67847586176b3be1304e7aa468643c8f8317136ed77e2d4c1af9b34061c3fb",
+    "apps/api/src/coupon-receipt.ts": "c6d759b64c1df2a38bc965065bdc27d127ebcc8e52897b73cc31412ab1eeae5c",
+    "apps/api/src/controlled-settlement.ts": "106840738f3c38682fce44d435a0acddad5ee3701e3a2b9a784ddad88bbe2ac9",
+    "apps/api/src/redemption-receipt.ts": "5b8545c845b982d328fdeb50ab22e7318e3407f1350167d0ddcf098c5f2fa576",
+    "apps/api/src/action-approval.ts": "8b4ffed7d8618f9bf8b82c2a9ac689b9101c2b0bc594ae720410c67b2a7067ff",
+    "apps/api/src/entitlements.ts": "0583b50a1d2b96b097c79fea7a1c670721a4bd8436deb26b13959158e5591e72",
+    "apps/api/src/redemption-execution.ts": "8984b183e37e7a95e11038ac84b11920d28984fc3d06e62b8171deb171e9af3d",
+    "packages/solana-client/dist/controlled-registry.js": "98f2e9e63f0b099ea9b30c9747b032e6b60ef5a33169b1a11f05c1a77b836623",
+    "apps/web/.test-dist/instrument-deployment-workflow.js": "aef3beba860dc83f07cbd22645f857c750a2c04665baead13121e6e35bc995ce",
+    "apps/web/.test-dist/controlled-capture-workflow.js": "05772ef3f527331fcaf478440c6c12b8d799670c969cb491fbb0f74d1e4c285d",
+    "apps/web/.test-dist/onchain-entitlement-workflow.js": "f86f1e64ba63d53c1c6b23651f423f4f368e4c6acaab847569a7696c0de397b8",
+    "apps/web/.test-dist/redemption-calculation-workflow.js": "18ded9c54997bcede593e59ded5c4f5dd3cbb566df69b60701c153a811887df1",
+    "apps/web/.test-dist/coupon-execution-workflow.js": "b108daf799ec5d5d5f5b8727aa1cfd80d9dcd5913c5163006bb3a4d586c1690d",
+    "apps/web/.test-dist/redemption-execution-workflow.js": "4715176684fa298af0e0a772bce2da969fe930127d6af66da552221bd9332403"
+  },
+  "timing": {
+    "validatorTicksPerSlot": 64,
+    "instrumentMaturityDelaySeconds": 1200,
+    "originalSignatureConfirmationDeadlineSeconds": 90
+  },
+  "exclusions": [
+    "LEGACY_ZERO_MIXED_COUPON_PRELUDE"
+  ],
+  "genesisHash": "HETv4uDMjHRvazJaDxBAKgqLV8pu52jWo9y72sjbvQGk",
+  "settlementMint": "9VqWSyMp3Ht7ABveZx9vBN85wU7JWxLBn5jRFj3E492Y",
+  "postBurnClosureRecovery": {
+    "sourceAddress": "CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF",
+    "walletAddress": "8KmSit2cWixZUrhvVX4whHZAkmJkcVDY5C1ac9Ss7skb",
+    "closureSignature": "457NbVgSrXBB6F4W5C3bC2EKLxh4WXatAruyCDgyU4qsYUa3Wi7c9vfTga1Bn89c4vKHBTgfFabykYgqUmyaqrqs",
+    "paymentSignature": "46MrcF56bub6Xc6kmvEmXnhmCH9kcWDkXHwuhnb4i7M4hQW7v4QDBZ8pmnaxVLw6wcUjsRCYcGUYNbDRVtkdE1hA",
+    "operationId": "9c42167f-ab0c-4ed4-bb29-61217297ff35",
+    "getRecoveryVerified": true,
+    "confirmedOriginalSignature": "46MrcF56bub6Xc6kmvEmXnhmCH9kcWDkXHwuhnb4i7M4hQW7v4QDBZ8pmnaxVLw6wcUjsRCYcGUYNbDRVtkdE1hA",
+    "sourceAbsentAfterConfirm": true
+  },
+  "historicalReceiptDownloads": [
+    {
+      "actionId": "7cc5abf7-a0a8-4064-b464-5a05cc78de44",
+      "scenario": "EARLY_REDEMPTION",
+      "receiptHash": "03dec87a73b10fb4ed3debe9456f872c5fc984f34ffa41e3510f356765e6934d",
+      "currentTokenSupply": "0",
+      "originalCanonicalBytesMatched": true,
+      "browserVerified": true
+    },
+    {
+      "actionId": "0c58b6fb-111c-4e5f-b498-083b1a8d065d",
+      "scenario": "EXACT_EARLY_REDEMPTION",
+      "receiptHash": "69d9fbf091aada34f7ec7de6fc5526efbea4bd989aca72f012f21df53473b83f",
+      "currentTokenSupply": "0",
+      "originalCanonicalBytesMatched": true,
+      "browserVerified": true
+    }
+  ],
+  "completedAt": "2026-10-12T09:19:06.723Z"
+}

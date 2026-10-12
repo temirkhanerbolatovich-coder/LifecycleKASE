@@ -24,7 +24,8 @@ test("instrument registry requires a session and keeps auditors read-only", asyn
   const controller = new InstrumentController(database, { consumeMutation() {} } as unknown as AuthRateLimitService);
   try {
     await assert.rejects(controller.list({}, response), status(401));
-    assert.deepEqual(await controller.list(request, response), { items: [], nextCursor: null });
+    assert.deepEqual(await controller.list(request, response), { items: [], nextCursor: null,
+      controlledRegistryEnabled: false, controlledProgramId: null, controlledNetworkGenesisHash: null });
     await assert.rejects(controller.create({}, request, response, "http://localhost:3000"), status(403));
     role = "ISSUER_OPERATOR";
     await assert.rejects(controller.list(request, response), status(403));

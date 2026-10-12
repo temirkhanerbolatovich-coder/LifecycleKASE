@@ -7,6 +7,8 @@ import {
   type SolanaRpc,
   type WalletMapping
 } from "@lifecycle-kase/solana-client";
+import { isControlledInstrument } from "./controlled-capture.js";
+import { collectLockedControlledSnapshot } from "./controlled-snapshot.js";
 
 export class SnapshotPreparationError extends Error {
   constructor(public readonly code: string, message: string) {
@@ -23,6 +25,7 @@ export type SnapshotCandidateOptions = {
   walletNetwork: string;
   graceSeconds: number;
   now: Date;
+  controlledRegistryEnabled?: boolean;
 };
 
 /** Transient stale-read checks; these facts are never added to canonical snapshot-v2. */
@@ -94,7 +97,7 @@ export async function prepareSnapshotCandidate(
   if (sinceRecordMs < 0) {
     throw new SnapshotPreparationError("RECORD_DATE_NOT_REACHED", "Snapshot record-date window has not opened");
   }
-  if (sinceRecordMs > options.graceSeconds * 1000) {
+  if (!isControlledInstrument(action.instrument) && sinceRecordMs > options.graceSeconds * 1000) {
     throw new SnapshotPreparationError("SNAPSHOT_WINDOW_MISSED", "Snapshot is outside its record-date window");
   }
   const genesisHash = await rpc.request("getGenesisHash", []);
@@ -102,11 +105,13 @@ export async function prepareSnapshotCandidate(
     throw new SnapshotPreparationError("WRONG_SOLANA_NETWORK", "RPC genesis hash does not match configuration");
   }
 
-  const capture = await collectToken2022Holders(rpc, action.instrument.mintAddress);
+  const locked = isControlledInstrument(action.instrument) ? await collectLockedControlledSnapshot(rpc, action.instrument, actionId,
+    { ...options, programId: action.instrument.programId! }) : null;
+  const capture = locked?.capture ?? await collectToken2022Holders(rpc, action.instrument.mintAddress);
   if (capture.supply !== action.instrument.circulatingSupply) {
     throw new SnapshotPreparationError("INSTRUMENT_SUPPLY_STALE", "Instrument supply differs from finalized mint supply");
   }
-  const blockTimeSeconds = await rpc.request("getBlockTime", [capture.slot]);
+  const blockTimeSeconds = locked ? locked.blockTime.getTime() / 1000 : await rpc.request("getBlockTime", [capture.slot]);
   if (!Number.isSafeInteger(blockTimeSeconds) || (blockTimeSeconds as number) < 0) {
     throw new SnapshotPreparationError("BLOCK_TIME_UNAVAILABLE", "Finalized slot block time is unavailable");
   }
@@ -119,6 +124,9 @@ export async function prepareSnapshotCandidate(
       "SNAPSHOT_SLOT_OUTSIDE_WINDOW",
       "Finalized capture slot is outside the elapsed record-date window"
     );
+  }
+  if (locked && blockTime.getTime() > action.recordAt.getTime() + options.graceSeconds * 1000) {
+    throw new SnapshotPreparationError("SNAPSHOT_SLOT_OUTSIDE_WINDOW", "Controlled capture began outside the configured record-date window");
   }
   const walletRows = await database.wallet.findMany({
     where: { address: { in: capture.wallets.map((wallet) => wallet.address) } },
@@ -190,6 +198,7 @@ export async function prepareSnapshotCandidate(
   });
   return {
     ...candidate,
+    captureEvidence: locked?.captureEvidence ?? null,
     registryFacts,
     captureSlot: capture.slot,
     actionVersion: action.version,

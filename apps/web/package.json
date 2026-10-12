@@ -10,6 +10,7 @@
     "test": "tsc -p tsconfig.test.json && node --test .test-dist/*.test.js"
   },
   "dependencies": {
+    "@solana/addresses": "8.4.0",
     "@solana/wallet-standard-features": "^1.5.0",
     "@wallet-standard/app": "^1.1.1",
     "@wallet-standard/base": "^1.1.1",

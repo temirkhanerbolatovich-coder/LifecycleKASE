@@ -2,27 +2,35 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { Prisma, type PrismaClient, type BlockchainTransaction } from "@prisma/client";
 import { reconcileSettlementLegs } from "@lifecycle-kase/domain";
-import { ACTION_RECEIPT_BYTES, REDEMPTION_RECEIPT_BYTES, buildRedemptionExecution, buildRedemptionFinalization,
+import { ACTION_RECEIPT_BYTES, REDEMPTION_RECEIPT_BYTES, buildControlledRedemptionExecution, buildControlledRedemptionCompletion, buildRedemptionExecution, buildRedemptionFinalization,
   decodeActionReceipt, decodeActionReserve, decodeApprovalPolicy, decodeConfirmedCorporateAction, decodeConfirmedEntitlement,
   decodeRedemptionReceipt, decodeRedemptionSources, decodeRedemptionProgress, decodeFundingTreasury, decodeReserveMint, deriveActionApprovalAddresses,
   fundingMessageBase64, fundingTreasuryIndex, redemptionSourceHash, serializeUnsignedInstructionsTransaction, verifyFinalizedTransaction, SYSTEM_PROGRAM_ID,
   TOKEN_2022_PROGRAM_ID, type SolanaRpc } from "@lifecycle-kase/solana-client";
 import { actionInput, workflowDatabaseError } from "./corporate-action-registry.js";
 import { requireRedemptionExecutionCalculation, type EntitlementActor } from "./entitlements.js";
-import { verifyConfirmedInstrument, verifyMint, type InstrumentDeploymentOptions } from "./instrument-deployment.js";
+import { verifyConfirmedInstrument, verifyControlledMint, verifyMint, type InstrumentDeploymentOptions } from "./instrument-deployment.js";
+import { requireControlledRegistry } from "./controlled-policy.js";
+import { controlledBurnAllocations, controlledCaptureState, controlledReservationState, frozenControlledSource } from "./controlled-settlement.js";
 import { reserveTokenDelta } from "./action-approval.js";
 import { redemptionReceiptDraft } from "./redemption-receipt.js";
 import { assertCouponReceiptIntegrity } from "./coupon-receipt.js";
 import { redemptionBurnAllocation, redemptionRetiresInstrument, redemptionTokenSources, requireRedemptionSupply } from "./redemption-sources.js";
 import { uuidBytes } from "./snapshot-registration.js";
+import { onchainActionVersion, redemptionAllocationPolicy, verifyExactRedemptionTarget } from "./redemption-policy.js";
 import { ACTIVE_TRANSACTION_STATUSES, requireAttemptSigner, requireWorkflowNetwork, resumeWorkflowAttempt, rpcNumber, rpcObject,
   submitWorkflowTransaction, TransactionWorkflowError, verifyWorkflowFinalization, workflowBlockhash, workflowProgramAccount, WORKFLOW_UUID } from "./transaction-workflow.js";
 
-export type RedemptionExecutionOptions = InstrumentDeploymentOptions & { enabled: boolean };
+export type RedemptionExecutionOptions = InstrumentDeploymentOptions & { enabled: boolean; controlledRegistryEnabled?: boolean };
 const active = { in: [...ACTIVE_TRANSACTION_STATUSES] };
 const operations = { PAY: "REDEMPTION_PAYMENT", FINALIZE: "REDEMPTION_FINALIZE" } as const;
 type Source = Awaited<ReturnType<typeof requireRedemptionExecutionCalculation>>;
 type Phase = keyof typeof operations;
+/** Keep zero-rounding sources in the review without trusting their current account bytes. */
+export function controlledZeroBurnAccounts(sources: Parameters<typeof redemptionBurnAllocation>[0]) {
+  return controlledBurnAllocations(sources, 0n).map(value => ({ address: value.address, walletAddress: value.wallet,
+    balanceAtSnapshot: value.balanceAtSnapshot.toString(), burnAmount: "0", balanceBefore: null, expectedBalanceAfter: null, sourceUntouched: true }));
+}
 export function redemptionExecutionEnabled(environment: NodeJS.ProcessEnv = process.env) {
   const value = environment.REDEMPTION_EXECUTION_ENABLED ?? "false";
   if (!["true", "false"].includes(value) || value === "true" && environment.ACTION_APPROVAL_RESERVE_ENABLED !== "true") {
@@ -35,6 +43,7 @@ function checkOptions(options: RedemptionExecutionOptions) {
 }
 async function source(database: PrismaClient | Prisma.TransactionClient, id: string, options: RedemptionExecutionOptions, receiverId?: string) {
   const action = await requireRedemptionExecutionCalculation(database, id, receiverId);
+  requireControlledRegistry(action.instrument, options);
   if (!action.instrument.mintAddress || !["ACTIVE", "PAUSED", "REDEEMED"].includes(action.instrument.status)) throw new TransactionWorkflowError("REDEMPTION_NOT_READY", "Redemption requires an initialized bond instrument");
   if (action.instrument.network !== "SOLANA_LOCALNET" || action.instrument.programId !== options.programId ||
       action.snapshot!.networkGenesisHash !== options.expectedGenesisHash) throw new TransactionWorkflowError("WRONG_SOLANA_NETWORK", "Calculation belongs to another program or genesis", 503);
@@ -54,19 +63,23 @@ async function tokenAccount(rpc: SolanaRpc, key: string, mint: string, owner: st
   }
   return decodeFundingTreasury(Buffer.from(data[0], "base64"), mint, owner);
 }
-async function bondMintSupply(rpc: SolanaRpc, mint: string, authority: string, slot = 0) {
+async function bondMintSupply(rpc: SolanaRpc, mint: string, authority: string, slot = 0, controlled = false) {
   const data = Buffer.from(await workflowProgramAccount(rpc, mint, TOKEN_2022_PROGRAM_ID, slot), "base64");
   if (data.length < 82) throw new TransactionWorkflowError("REDEMPTION_ACCOUNT_MISMATCH", "Bond mint layout is invalid");
   const supply = data.readBigUInt64LE(36);
-  verifyMint(data, { decimals: 0, supply, permanentDelegate: authority });
+  if (controlled) verifyControlledMint(data, { supply, instrumentAuthority: authority });
+  else verifyMint(data, { decimals: 0, supply, permanentDelegate: authority });
   return supply;
 }
 async function executionPlan(action: Source, row: Source["entitlements"][number], mint: string, options: RedemptionExecutionOptions, idempotencyHash: string) {
   const tokenAccounts = redemptionTokenSources(action.snapshot!.investors, row.snapshotInvestorId);
-  const plan = await buildRedemptionExecution({ programId: options.programId, instrumentId: uuidBytes(action.instrumentId), actionId: uuidBytes(action.id),
+  const plan = await (requireControlledRegistry(action.instrument, options) ? buildControlledRedemptionExecution : buildRedemptionExecution)({ programId: options.programId, instrumentId: uuidBytes(action.instrumentId), actionId: uuidBytes(action.id),
     corporateActionAuthority: action.instrument.corporateActionAuthority, investorId: uuidBytes(row.investorId), bondMint: action.instrument.mintAddress!,
     settlementMint: mint, settlementWallet: row.settlementWalletAddress, idempotencyHash, tokenAccounts });
-  return { ...plan, sourceHash: redemptionSourceHash(plan.actionAddress, plan.entitlementAddress, Buffer.from(action.snapshot!.snapshotHash).toString("hex"), tokenAccounts) };
+  const controlledPlan = requireControlledRegistry(action.instrument, options) ? plan as Awaited<ReturnType<typeof buildControlledRedemptionExecution>> : null;
+  return { ...plan, ...(controlledPlan ? { unitReservationAddress: controlledPlan.unitReservationAddress, controlledPolicyAddress: controlledPlan.controlledPolicyAddress,
+    holdingAddresses: controlledPlan.holdingAddresses } : {}),
+    sourceHash: redemptionSourceHash(plan.actionAddress, plan.entitlementAddress, Buffer.from(action.snapshot!.snapshotHash).toString("hex"), tokenAccounts) };
 }
 async function sourceState(rpc: SolanaRpc, action: Source, row: Source["entitlements"][number], plan: Awaited<ReturnType<typeof executionPlan>>, options: RedemptionExecutionOptions, slot = 0) {
   const committed = decodeRedemptionSources(await workflowProgramAccount(rpc, plan.sourceAddress, options.programId, slot));
@@ -79,10 +92,14 @@ async function sourceState(rpc: SolanaRpc, action: Source, row: Source["entitlem
   }
   return committed;
 }
-async function burnAccountState(rpc: SolanaRpc, action: Source, row: Source["entitlements"][number]) {
+async function burnAccountState(rpc: SolanaRpc, action: Source, row: Source["entitlements"][number], options: RedemptionExecutionOptions) {
+  const controlled = requireControlledRegistry(action.instrument, options);
   const allocations = redemptionBurnAllocation(redemptionTokenSources(action.snapshot!.investors, row.snapshotInvestorId), row.tokensToRedeem);
   return Promise.all(allocations.map(async value => {
-    const balance = await tokenAccount(rpc, value.address, action.instrument.mintAddress!, value.wallet);
+    if (controlled && value.burnAmount === 0n) return { address: value.address, walletAddress: value.wallet, balanceAtSnapshot: value.balanceAtSnapshot.toString(),
+      burnAmount: "0", balanceBefore: null, expectedBalanceAfter: null, sourceUntouched: true };
+    const balance = controlled ? await frozenControlledSource(rpc, value.address, action.instrument.mintAddress!, value.wallet, value.burnAmount) :
+      await tokenAccount(rpc, value.address, action.instrument.mintAddress!, value.wallet);
     if (balance === null || balance < value.burnAmount) throw new TransactionWorkflowError("REDEMPTION_BALANCE_CHANGED", "A snapshot token account cannot cover its committed burn; resolve the transfer before execution");
     return { address: value.address, walletAddress: value.wallet, balanceAtSnapshot: value.balanceAtSnapshot.toString(), burnAmount: value.burnAmount.toString(),
       balanceBefore: balance.toString(), expectedBalanceAfter: (balance - value.burnAmount).toString() };
@@ -92,10 +109,42 @@ async function burnAccountState(rpc: SolanaRpc, action: Source, row: Source["ent
 export function requireReviewedBurnAccounts(current: Awaited<ReturnType<typeof burnAccountState>>, saved: unknown) {
   if (!isDeepStrictEqual(current, saved)) throw new TransactionWorkflowError("REDEMPTION_BALANCE_CHANGED", "Snapshot source balances changed after review; prepare a fresh unsigned attempt");
 }
+
+/** A signed pending burn must recover from its saved review, including after its emptied token account closes. */
+async function pendingBurnAccounts(operation: BlockchainTransaction, action: Source, row: Source["entitlements"][number],
+  mint: string, options: RedemptionExecutionOptions) {
+  requireAttemptSigner(operation, action.instrument.corporateActionAuthority, options.expectedGenesisHash);
+  const payload = rpcObject(operation.preparedPayload);
+  const plan = await executionPlan(action, row, mint, options, String(payload["idempotencyHash"]));
+  const expectedWire = serializeUnsignedInstructionsTransaction({ instructions: plan.instructions, feePayer: action.instrument.corporateActionAuthority,
+    recentBlockhash: operation.recentBlockhash!, lastValidBlockHeight: Number(operation.lastValidBlockHeight) });
+  if (!operation.signature || operation.instrumentId !== action.instrumentId || operation.corporateActionId !== action.id || operation.entitlementId !== row.id ||
+      payload["phase"] !== "PAY" || payload["actionVersion"] !== action.version || payload["entitlementVersion"] !== row.version ||
+      payload["snapshotHash"] !== Buffer.from(action.snapshot!.snapshotHash).toString("hex") || payload["sourceHash"] !== plan.sourceHash ||
+      payload["redemptionSourcesAddress"] !== plan.sourceAddress || payload["entitlementAddress"] !== row.onchainPda || row.onchainPda !== plan.entitlementAddress ||
+      payload["tokenMint"] !== action.instrument.mintAddress || payload["settlementMint"] !== mint || payload["settlementWallet"] !== row.settlementWalletAddress ||
+      payload["amountMinor"] !== row.amountMinor.toString() || payload["tokensToRedeem"] !== row.tokensToRedeem.toString() ||
+      operation.preparedTransactionBase64 !== expectedWire || !Array.isArray(payload["tokenAccounts"])) {
+    throw new TransactionWorkflowError("PREPARED_ATTEMPT_INVALID", "Pending redemption review differs from its immutable row, sources or exact saved wire");
+  }
+  const controlled = requireControlledRegistry(action.instrument, options);
+  const allocations = redemptionBurnAllocation(redemptionTokenSources(action.snapshot!.investors, row.snapshotInvestorId), row.tokensToRedeem);
+  const saved = payload["tokenAccounts"];
+  if (saved.length !== allocations.length || allocations.some((source, index) => {
+    const item = rpcObject(saved[index]);
+    if (item["address"] !== source.address || item["walletAddress"] !== source.wallet || item["balanceAtSnapshot"] !== source.balanceAtSnapshot.toString() || item["burnAmount"] !== source.burnAmount.toString()) return true;
+    if (controlled && source.burnAmount === 0n) return item["sourceUntouched"] !== true || item["balanceBefore"] !== null || item["expectedBalanceAfter"] !== null;
+    return typeof item["balanceBefore"] !== "string" || !/^(0|[1-9][0-9]*)$/.test(item["balanceBefore"]) || BigInt(item["balanceBefore"]) < source.burnAmount ||
+      item["expectedBalanceAfter"] !== (BigInt(item["balanceBefore"]) - source.burnAmount).toString();
+  })) throw new TransactionWorkflowError("PREPARED_ATTEMPT_INVALID", "Pending redemption source review differs from its assigned burn");
+  return saved;
+}
 /** Read finalized transaction history, never present account balances, as the burn evidence. */
 export function verifyRedemptionBurnHistory(meta: Record<string, unknown>, wire: string, mint: string,
-  sources: Parameters<typeof redemptionBurnAllocation>[0], tokensToRedeem: bigint) {
+  sources: Parameters<typeof redemptionBurnAllocation>[0], tokensToRedeem: bigint, controlled = false) {
   return redemptionBurnAllocation(sources, tokensToRedeem).map(value => {
+    if (controlled && value.burnAmount === 0n) return { address: value.address, walletAddress: value.wallet, balanceAtSnapshot: value.balanceAtSnapshot.toString(),
+      burnAmount: "0", balanceBefore: null, expectedBalanceAfter: null, sourceUntouched: true };
     const delta = reserveTokenDelta(meta, fundingTreasuryIndex(wire, value.address), mint, value.wallet, 0, true);
     if (delta.before - delta.after !== value.burnAmount) throw new TransactionWorkflowError("REDEMPTION_BALANCE_PROOF", "A committed source account does not prove the exact atomic bond burn");
     return { address: value.address, walletAddress: value.wallet, balanceAtSnapshot: value.balanceAtSnapshot.toString(), burnAmount: value.burnAmount.toString(),
@@ -108,6 +157,8 @@ async function chainState(rpc: SolanaRpc, action: Source, mint: string, options:
   verifyConfirmedInstrument(await workflowProgramAccount(rpc, addresses.instrumentAddress, options.programId, slot),
     { ...action.instrument, settlementAsset: { mintAddress: mint } }, expectedInstrumentStatus as "ACTIVE" | "PAUSED" | "REDEEMED");
   const chain = decodeConfirmedCorporateAction(await workflowProgramAccount(rpc, addresses.actionAddress, options.programId, slot));
+  if (chain.version !== onchainActionVersion(action)) throw new TransactionWorkflowError("REDEMPTION_ACCOUNT_MISMATCH", "Redemption action version differs from its policy");
+  await verifyExactRedemptionTarget(rpc, action, addresses.actionAddress, options.programId, slot);
   const hash = Buffer.from(action.snapshot!.snapshotHash).toString("hex");
   if (chain.instrumentAddress !== addresses.instrumentAddress || !Buffer.from(chain.actionId).equals(Buffer.from(uuidBytes(action.id))) ||
       chain.type !== action.type || !["APPROVED", "PROCESSING", "FINALIZED"].includes(chain.status) || chain.snapshotHash !== hash ||
@@ -137,7 +188,8 @@ async function chainState(rpc: SolanaRpc, action: Source, mint: string, options:
       progress.processedEntitlements !== chain.processedEntitlements || progress.tokensRedeemed > progress.snapshotSupply) {
     throw new TransactionWorkflowError("REDEMPTION_ACCOUNT_MISMATCH", "Redemption progress differs from the action commitment");
   }
-  return { ...addresses, chain, hash, policy, reserve, vaultBalance, progress, progressAddress: plan.progressAddress, instrumentAuthority: plan.instrumentAuthority };
+  const controlled = await controlledCaptureState(rpc, action, options, chain.status === "FINALIZED" ? "COMPLETED" : "FINISHED", slot);
+  return { ...addresses, chain, hash, policy, reserve, vaultBalance, progress, controlled, progressAddress: plan.progressAddress, instrumentAuthority: plan.instrumentAuthority };
 }
 function prepared(op: BlockchainTransaction, resumed: boolean) {
   return { ...rpcObject(op.preparedPayload), operationId: op.id, requiredSigner: op.requiredSigner, networkGenesisHash: op.networkGenesisHash,
@@ -148,20 +200,27 @@ export async function getRedemptionExecution(database: PrismaClient, rpc: Solana
   if (!options.enabled) return { enabled: false };
   checkOptions(options);
   const { action, mint } = await source(database, id, options);
+  const exact = onchainActionVersion(action) === 2;
   const pending = await database.blockchainTransaction.findFirst({ where: { corporateActionId: id, operationType: { in: Object.values(operations) }, status: active }, orderBy: { createdAt: "desc" } });
   const identity = { programId: options.programId, instrumentId: uuidBytes(action.instrumentId), actionId: uuidBytes(id), corporateActionAuthority: action.instrument.corporateActionAuthority };
   const snapshotHash = Buffer.from(action.snapshot!.snapshotHash).toString("hex");
   const finalization = await buildRedemptionFinalization({ ...identity, bondMint: action.instrument.mintAddress!, investorIds: action.entitlements.map(row => uuidBytes(row.investorId)), receiptHash: snapshotHash });
   await requireWorkflowNetwork(rpc, options.expectedGenesisHash);
-  const currentTokenSupply = await bondMintSupply(rpc, action.instrument.mintAddress!, finalization.instrumentAuthority);
+  const currentTokenSupply = await bondMintSupply(rpc, action.instrument.mintAddress!, finalization.instrumentAuthority, 0, requireControlledRegistry(action.instrument, options));
   const items = await Promise.all(action.entitlements.map(async row => {
     const addresses = await executionPlan(action, row, mint, options, snapshotHash);
     const prior = row.status === "REDEEMED" ? await database.blockchainTransaction.findFirst({ where: { entitlementId: row.id, operationType: operations.PAY, status: "FINALIZED" } }) : null;
     let tokenAccounts: unknown[] = [];
     let burnAvailable = true;
     if (prior) { const payload = rpcObject(prior.preparedPayload); tokenAccounts = (payload["confirmedTokenAccounts"] ?? payload["tokenAccounts"]) as unknown[]; }
+    else if (pending?.signature && pending.entitlementId === row.id && row.status === "READY") {
+      const saved = await pendingBurnAccounts(pending, action, row, mint, options);
+      tokenAccounts = saved.map(value => ({ ...rpcObject(value), balanceBefore: null, expectedBalanceAfter: null }));
+      burnAvailable = false;
+    }
+    else if (row.tokensToRedeem === 0n && requireControlledRegistry(action.instrument, options)) tokenAccounts = controlledZeroBurnAccounts(redemptionTokenSources(action.snapshot!.investors, row.snapshotInvestorId));
     else if (row.tokensToRedeem > 0n) {
-      try { tokenAccounts = await burnAccountState(rpc, action, row); }
+      try { tokenAccounts = await burnAccountState(rpc, action, row, options); }
       catch (error) {
         if (!(error instanceof TransactionWorkflowError) || error.code !== "REDEMPTION_BALANCE_CHANGED") throw error;
         burnAvailable = false;
@@ -171,13 +230,22 @@ export async function getRedemptionExecution(database: PrismaClient, rpc: Solana
       }
     }
     return { id: row.id, investorId: row.investorId, displayName: action.snapshot!.investors.find(investor => investor.id === row.snapshotInvestorId)?.investor.displayName ?? row.investorId,
+      ...(exact ? { exactAllocation: {
+        balanceAtRecordDate: action.snapshot!.investors.find(investor => investor.id === row.snapshotInvestorId)!.balance.toString(),
+        tieAddress: redemptionTokenSources(action.snapshot!.investors, row.snapshotInvestorId).map(source => source.wallet).sort()[0]!
+      } } : {}),
       status: row.status, amountMinor: row.amountMinor.toString(), receiver: row.settlementWalletAddress, signature: row.settlementSignature,
       tokensToRedeem: row.tokensToRedeem.toString(), burnSignature: row.burnSignature, burnAvailable, tokenAccounts,
       sourceHash: addresses.sourceHash, redemptionSourcesAddress: addresses.sourceAddress, redemptionProgressAddress: addresses.progressAddress,
+      ...("unitReservationAddress" in addresses ? { unitReservationAddress: addresses.unitReservationAddress,
+        controlledPolicyAddress: addresses.controlledPolicyAddress, holdingAddresses: addresses.holdingAddresses } : {}),
       entitlementAddress: addresses.entitlementAddress, entitlementReceiptAddress: addresses.redemptionReceiptAddress,
       redemptionReceiptAddress: addresses.redemptionReceiptAddress, recipientAddress: addresses.recipientAddress };
   }));
   return { enabled: true, actionId: id, actionVersion: action.version, status: action.status, requiredSigner: action.instrument.corporateActionAuthority,
+    tokenPolicy: action.instrument.tokenPolicy ?? "LEGACY_UNRESTRICTED_V1",
+    redemptionAllocationPolicy: redemptionAllocationPolicy(action), redemptionTargetTokens: action.redemptionTargetTokens?.toString() ?? null,
+    ...(exact ? { snapshotSupply: action.snapshot!.mintSupply.toString(), totalBalance: action.snapshot!.totalBalance.toString() } : {}),
     programId: options.programId, networkGenesisHash: options.expectedGenesisHash, settlementMint: mint, actionType: action.type,
     tokenMint: action.instrument.mintAddress, currentTokenSupply: currentTokenSupply.toString(),
     instrumentAuthorityAddress: finalization.instrumentAuthority, redemptionProgressAddress: finalization.progressAddress,
@@ -220,10 +288,13 @@ export async function prepareRedemptionExecution(database: PrismaClient, rpc: So
   const draft = selected.phase === "FINALIZE" ? await redemptionReceiptDraft(database, id) : null;
   const plan = row ? await executionPlan(action, row, mint, options, idempotencyHash) :
     await buildRedemptionFinalization({ ...identity, bondMint: action.instrument.mintAddress!, investorIds: action.entitlements.map(value => uuidBytes(value.investorId)), receiptHash: draft!.hash });
-  const supplyBefore = await bondMintSupply(rpc, action.instrument.mintAddress!, plan.instrumentAuthority);
+  const supplyBefore = await bondMintSupply(rpc, action.instrument.mintAddress!, plan.instrumentAuthority, 0, requireControlledRegistry(action.instrument, options));
   const supplyAfter = requireRedemptionSupply(state.progress.snapshotSupply, state.progress.tokensRedeemed, supplyBefore, row?.tokensToRedeem ?? 0n);
   if (supplyBefore !== action.instrument.circulatingSupply) throw new TransactionWorkflowError("RECONCILIATION_REQUIRED", "Stored circulating supply differs from the committed mint before execution");
-  const tokenAccounts = row ? await burnAccountState(rpc, action, row) : [];
+  const tokenAccounts = row ? await burnAccountState(rpc, action, row, options) : [];
+  const controlled = requireControlledRegistry(action.instrument, options);
+  const reservation = row && controlled ? await controlledReservationState(rpc, action, row, options, false) : null;
+  if (!row && controlled) for (const entitlement of action.entitlements) await controlledReservationState(rpc, action, entitlement, options, entitlement.tokensToRedeem > 0n);
   if (row) {
     await sourceState(rpc, action, row, plan as Awaited<ReturnType<typeof executionPlan>>, options);
     const slot = rpcNumber(await rpc.request("getSlot", [{ commitment: "finalized" }]));
@@ -231,11 +302,12 @@ export async function prepareRedemptionExecution(database: PrismaClient, rpc: So
     if (time < Number(state.chain.executeAt)) throw new TransactionWorkflowError("REDEMPTION_NOT_DUE", "The finalized chain clock has not reached the execution date");
     if (state.vaultBalance < row.amountMinor) throw new TransactionWorkflowError("REDEMPTION_RESERVE_REQUIRED", "The action reserve cannot cover this redemption");
     const wireRow = decodeConfirmedEntitlement(await workflowProgramAccount(rpc, row.onchainPda!, options.programId));
-    if (wireRow.actionAddress !== state.actionAddress || wireRow.snapshotHash !== state.hash || wireRow.status !== "READY" || wireRow.executedAt !== null ||
+    if (wireRow.version !== onchainActionVersion(action) || wireRow.actionAddress !== state.actionAddress || wireRow.snapshotHash !== state.hash || wireRow.status !== "READY" || wireRow.executedAt !== null ||
         wireRow.settlementWallet !== row.settlementWalletAddress || wireRow.paymentAmountMinor !== row.amountMinor || wireRow.tokensToRedeem !== row.tokensToRedeem) throw new TransactionWorkflowError("REDEMPTION_ACCOUNT_MISMATCH", "Unpaid entitlement differs from the approved calculation");
   }
   const blockhash = await workflowBlockhash(rpc);
-  const wire = serializeUnsignedInstructionsTransaction({ instructions: plan.instructions, feePayer: actor.walletAddress, ...blockhash });
+  const completion = !row && controlled ? await buildControlledRedemptionCompletion(identity) : null;
+  const wire = serializeUnsignedInstructionsTransaction({ instructions: [...plan.instructions, ...(completion ? completion.instructions : [])], feePayer: actor.walletAddress, ...blockhash });
   const fee = BigInt(rpcNumber(rpcObject(await rpc.request("getFeeForMessage", [fundingMessageBase64(wire), { commitment: "finalized" }]))["value"]));
   let rent = BigInt(rpcNumber(await rpc.request("getMinimumBalanceForRentExemption", [row ? REDEMPTION_RECEIPT_BYTES : ACTION_RECEIPT_BYTES])));
   if ("recipientAddress" in plan && await tokenAccount(rpc, plan.recipientAddress, mint, row!.settlementWalletAddress) === null) rent += BigInt(rpcNumber(await rpc.request("getMinimumBalanceForRentExemption", [170])));
@@ -243,9 +315,14 @@ export async function prepareRedemptionExecution(database: PrismaClient, rpc: So
   const requiredLamports = fee + rent + state.policy.networkReserveLamports;
   if (payer["owner"] !== SYSTEM_PROGRAM_ID || payer["executable"] !== false || BigInt(rpcNumber(payer["lamports"])) < requiredLamports) throw new TransactionWorkflowError("NETWORK_BUDGET_REQUIRED", "Payer needs SOL for rent, fees and its retained reserve");
   const payload = { phase: selected.phase, idempotencyKey: selected.key, idempotencyHash, corporateActionId: id, actionVersion: action.version,
+    tokenPolicy: action.instrument.tokenPolicy ?? "LEGACY_UNRESTRICTED_V1",
+    ...(state.controlled ? { controlledPolicyAddress: state.controlled.controlledPolicyAddress, controlledCaptureAddress: state.controlled.controlledCaptureAddress } : {}),
+    ...(reservation ? { unitReservationAddress: reservation.unitReservationAddress, holdingAddresses: reservation.holdingAddresses, assignedAllocations: reservation.allocations, reviewedReservation: reservation } : {}),
+    ...(completion ? { completesControlledRedemption: true } : {}),
     entitlementId: selected.entitlementId, entitlementVersion: row?.version ?? null, programId: options.programId, cluster: "localnet", snapshotHash: state.hash,
     settlementMint: mint, settlementWallet: row?.settlementWalletAddress ?? null, amountMinor: (row?.amountMinor ?? action.totalEntitlementMinor).toString(),
     actionType: action.type, instrumentAddress: state.instrumentAddress, approvalPolicyAddress: state.approvalPolicyAddress,
+    redemptionAllocationPolicy: redemptionAllocationPolicy(action), redemptionTargetTokens: action.redemptionTargetTokens?.toString() ?? null,
     tokenMint: action.instrument.mintAddress!, instrumentAuthorityAddress: plan.instrumentAuthority, redemptionProgressAddress: plan.progressAddress,
     supplyBefore: supplyBefore.toString(), supplyAfter: supplyAfter.toString(), tokenAccounts,
     ...("recipientAddress" in plan ? { recipientAddress: plan.recipientAddress, entitlementAddress: plan.entitlementAddress,
@@ -298,15 +375,17 @@ export async function submitRedemptionExecution(database: PrismaClient, rpc: Sol
       const draft = await redemptionReceiptDraft(database, id);
       assertCouponReceiptIntegrity(await database.actionReceipt.findUniqueOrThrow({ where: { corporateActionId: id } }), draft);
       if (draft.hash !== payload["receiptHash"]) throw new TransactionWorkflowError("RECEIPT_INTEGRITY", "Receipt changed after preparation");
+      if (requireControlledRegistry(action.instrument, options)) for (const row of action.entitlements) await controlledReservationState(rpc, action, row, options, row.tokensToRedeem > 0n);
     }
     const state = await chainState(rpc, action, mint, options);
-    const supply = await bondMintSupply(rpc, action.instrument.mintAddress!, state.instrumentAuthority);
+    const supply = await bondMintSupply(rpc, action.instrument.mintAddress!, state.instrumentAuthority, 0, requireControlledRegistry(action.instrument, options));
     requireRedemptionSupply(state.progress.snapshotSupply, state.progress.tokensRedeemed, supply);
     if (supply.toString() !== payload["supplyBefore"]) throw new TransactionWorkflowError("REDEMPTION_SUPPLY_CHANGED", "Mint supply changed after preparation");
     if (op.entitlementId) {
       const row = action.entitlements.find(value => value.id === op.entitlementId)!;
       await sourceState(rpc, action, row, await executionPlan(action, row, mint, options, String(payload["idempotencyHash"])), options);
-      const balances = await burnAccountState(rpc, action, row);
+      await controlledReservationState(rpc, action, row, options, false);
+      const balances = await burnAccountState(rpc, action, row, options);
       requireReviewedBurnAccounts(balances, payload["tokenAccounts"]);
     }
   }
@@ -327,6 +406,7 @@ export async function confirmRedemptionExecution(database: PrismaClient, rpc: So
   const state = await chainState(rpc, action, mint, options, slot, retires ? "REDEEMED" : action.instrument.status);
   let executedAt: bigint | null = null;
   let confirmedTokenAccounts: Prisma.InputJsonObject[] | null = null;
+  let confirmedReservation: Awaited<ReturnType<typeof controlledReservationState>> = null;
   if (op.entitlementId) {
     const row = action.entitlements.find(value => value.id === op.entitlementId)!;
     const receipt = decodeRedemptionReceipt(await workflowProgramAccount(rpc, String(payload["redemptionReceiptAddress"]), options.programId, slot));
@@ -336,7 +416,7 @@ export async function confirmRedemptionExecution(database: PrismaClient, rpc: So
         receipt.actionAddress !== state.actionAddress || receipt.entitlementAddress !== row.onchainPda || receipt.snapshotHash !== state.hash ||
         receipt.settlementMint !== mint || receipt.settlementWallet !== row.settlementWalletAddress || receipt.amountMinor !== row.amountMinor ||
         receipt.idempotencyHash !== payload["idempotencyHash"] || receipt.executedAt < state.chain.executeAt ||
-        entitlement.actionAddress !== state.actionAddress || entitlement.snapshotHash !== state.hash || entitlement.settlementWallet !== row.settlementWalletAddress ||
+        entitlement.version !== onchainActionVersion(action) || entitlement.actionAddress !== state.actionAddress || entitlement.snapshotHash !== state.hash || entitlement.settlementWallet !== row.settlementWalletAddress ||
         entitlement.status !== "REDEEMED" || entitlement.executedAt !== receipt.executedAt || entitlement.paymentAmountMinor !== row.amountMinor ||
         entitlement.tokensToRedeem !== row.tokensToRedeem || receipt.bondMint !== action.instrument.mintAddress || receipt.tokensRedeemed !== row.tokensToRedeem ||
         receipt.sourceHash !== payload["sourceHash"] || receipt.mintSupplyBefore.toString() !== payload["supplyBefore"] ||
@@ -359,9 +439,11 @@ export async function confirmRedemptionExecution(database: PrismaClient, rpc: So
     const receiver = reserveTokenDelta(meta, fundingTreasuryIndex(op.preparedTransactionBase64!, String(payload["recipientAddress"])), mint, row.settlementWalletAddress);
     if (vault.before - vault.after !== row.amountMinor || receiver.after - receiver.before !== row.amountMinor) throw new TransactionWorkflowError("REDEMPTION_BALANCE_PROOF", "Transaction token deltas differ from the redemption amount");
     confirmedTokenAccounts = verifyRedemptionBurnHistory(meta, op.preparedTransactionBase64!, action.instrument.mintAddress!,
-      redemptionTokenSources(action.snapshot!.investors, row.snapshotInvestorId), row.tokensToRedeem);
+      redemptionTokenSources(action.snapshot!.investors, row.snapshotInvestorId), row.tokensToRedeem, requireControlledRegistry(action.instrument, options));
+    confirmedReservation = await controlledReservationState(rpc, action, row, options, true, slot);
     executedAt = receipt.executedAt;
   } else {
+    if (requireControlledRegistry(action.instrument, options)) for (const row of action.entitlements) await controlledReservationState(rpc, action, row, options, row.tokensToRedeem > 0n, slot);
     const draft = await redemptionReceiptDraft(database, id);
     const receipt = decodeActionReceipt(await workflowProgramAccount(rpc, String(payload["actionReceiptAddress"]), options.programId, slot));
     if (draft.hash !== payload["receiptHash"] || receipt.receiptHash !== draft.hash || receipt.actionAddress !== state.actionAddress ||
@@ -381,7 +463,7 @@ export async function confirmRedemptionExecution(database: PrismaClient, rpc: So
       const changed = await tx.blockchainTransaction.updateMany({ where: { id: op.id, status: active, OR: [{ signature: null }, { signature }] },
         data: { signature, status: "FINALIZED", submittedAt: op.submittedAt ?? now, finalizedAt: now, lastErrorCode: null,
           preparedPayload: { ...payload as Prisma.InputJsonObject, finalizedSlot: slot, executedAt: executedAt!.toString(),
-            ...(confirmedTokenAccounts ? { confirmedTokenAccounts } : {}) } } });
+            ...(confirmedTokenAccounts ? { confirmedTokenAccounts } : {}), ...(confirmedReservation ? { confirmedReservation } : {}) } } });
       if (changed.count !== 1) throw new TransactionWorkflowError("TRANSACTION_CONFLICT", "Redemption attempt changed concurrently");
       if (op.entitlementId) {
         const row = current.action.entitlements.find(value => value.id === op.entitlementId)!;

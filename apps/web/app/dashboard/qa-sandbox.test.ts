@@ -3,6 +3,7 @@ import test from "node:test";
 import { createQaSandbox, QA_ACTION_IDS, QA_FRESH_INSTRUMENT_ID, QA_APPROVER, type QaActionStep } from "./qa-sandbox";
 import { OperatorApiError } from "./operator-api";
 import { encodeBase58 } from "./snapshot-workflow";
+import { validatedCouponSummary, validatedExactRedemptionSummary, type EntitlementsView } from "./entitlement-workflow";
 
 const post = (body: object): RequestInit => ({ method: "POST", body: JSON.stringify(body) });
 const rejected = (code: string) => (error: unknown) => error instanceof OperatorApiError && error.code === code;
@@ -95,6 +96,88 @@ async function settle(model: ReturnType<typeof createQaSandbox>, actionId: strin
 async function snapshot(model: ReturnType<typeof createQaSandbox>, actionId: string) {
   await model.advanceAction(actionId, "SCHEDULE"); await model.advanceAction(actionId, "SNAPSHOT"); await model.advanceAction(actionId, "CALCULATE");
 }
+
+test("QA coupon summary exposes exact gross accrual without making simulated funds or chain evidence", async () => {
+  const model = createQaSandbox(); const initial = model.exportState();
+  for (const actionId of Object.values(QA_ACTION_IDS)) {
+    assert.equal((await model.request(`/api/v1/corporate-actions/${actionId}/entitlements`))["couponSummary"], null);
+  }
+  const actionId = QA_ACTION_IDS.coupon;
+  await snapshot(model, actionId);
+  const before = model.exportState();
+  const response = await model.request(`/api/v1/corporate-actions/${actionId}/entitlements`);
+  assert.deepEqual(response["couponSummary"], { roundedTotalMinor: "1750000000", theoreticalTotal: { numerator: "35000000000000", denominator: "20000" },
+    roundingResidual: { numerator: "0", denominator: "20000" }, roundingPolicy: "FLOOR_PER_INVESTOR", residualDestination: "TREASURY", taxTreatment: "NOT_IMPLEMENTED" });
+  assert.equal(validatedCouponSummary(response as unknown as EntitlementsView)!.roundedTotalMinor, "1750000000");
+  assert.deepEqual(model.exportState(), before);
+  assert.deepEqual(before.receivedCashMinor, initial.receivedCashMinor);
+  assert.ok(before.transactions.every(row => row.signature === null && row.status === "QA_SIMULATED"));
+  const redemptionModel = createQaSandbox();
+  await snapshot(redemptionModel, QA_ACTION_IDS.partial);
+  assert.equal((await redemptionModel.request(`/api/v1/corporate-actions/${QA_ACTION_IDS.partial}/entitlements`))["couponSummary"], null);
+});
+
+test("QA exact-target fixture uses immutable snapshot owners and reconciles 35 bonds to target 7 with no chain proof", async () => {
+  const model = createQaSandbox();
+  const draft = await model.request(`/api/v1/corporate-actions/${QA_ACTION_IDS.partial}`);
+  assert.equal(draft["redemptionAllocationPolicy"], "exact-target-largest-remainder-v2");
+  assert.equal(draft["redemptionTargetTokens"], "7"); assert.equal(draft["redemptionPercentageBps"], null);
+  await snapshot(model, QA_ACTION_IDS.partial);
+  const before = model.exportState();
+  const response = await model.request(`/api/v1/corporate-actions/${QA_ACTION_IDS.partial}/entitlements`) as unknown as EntitlementsView;
+  assert.deepEqual(validatedExactRedemptionSummary(response), {
+    policy: "exact-target-largest-remainder-v2", targetTokens: "7", allocatedTokens: "7", totalBalance: "35", remainingTokens: "28", tieBreak: "SNAPSHOT_OWNER_BASE58_ASC"
+  });
+  assert.deepEqual(response.items.map(row => [row.balanceAtRecordDate, row.tokensToRedeem, row.calculationInputs.remainingTokens]), [["10", "2", "8"], ["20", "4", "16"], ["5", "1", "4"]]);
+  assert.deepEqual(model.exportState(), before);
+  assert.equal(response.onchainRegistrationEnabled, false); assert.equal(response.onchainCalculationFinalized, false);
+  assert.ok(before.transactions.every(row => row.signature === null && row.simulation));
+});
+
+test("QA v2 exact target distributes a residual token, settles only the winner and rejects changed draft targets or overdraw atomically", async () => {
+  const model = createQaSandbox(); const actionId = crypto.randomUUID();
+  const body = { requestId: actionId, instrumentId: QA_FRESH_INSTRUMENT_ID, type: "EARLY_REDEMPTION", intent: "Exact target residual regression", sourceType: "MANUAL",
+    recordAt: new Date(Math.floor(Date.now() / 1000) * 1000 + 300000).toISOString(), executeAt: new Date(Math.floor(Date.now() / 1000) * 1000 + 900000).toISOString(),
+    redemptionAllocationPolicy: "exact-target-largest-remainder-v2", redemptionTargetTokens: "1", redemptionPercentageBps: null, redemptionPriceKzt: "1000" };
+  const created = await model.request("/api/v1/corporate-actions", post(body));
+  assert.deepEqual(await model.request("/api/v1/corporate-actions", post(body)), created);
+  await assert.rejects(model.request("/api/v1/corporate-actions", post({ ...body, redemptionTargetTokens: "2" })), rejected("ACTION_CONFLICT"));
+  for (const change of [{ redemptionTargetTokens: "0" }, { redemptionTargetTokens: "1.5" }, { redemptionTargetTokens: 1 },
+    { redemptionPercentageBps: 2000 }, { redemptionAllocationPolicy: "integer-entitlements-v1" }]) {
+    const before = model.exportState();
+    await assert.rejects(model.request("/api/v1/corporate-actions", post({ ...body, requestId: crypto.randomUUID(), ...change })), rejected("INVALID_REQUEST"));
+    assert.deepEqual(model.exportState(), before);
+  }
+  await snapshot(model, actionId);
+  const response = await model.request(`/api/v1/corporate-actions/${actionId}/entitlements`) as unknown as EntitlementsView;
+  assert.deepEqual(response.items.map(row => row.tokensToRedeem), ["0", "1", "0"]);
+  assert.equal(validatedExactRedemptionSummary(response)!.allocatedTokens, "1");
+  for (const step of ["SUBMIT", "FUND", "RESERVE"] as QaActionStep[]) await model.advanceAction(actionId, step);
+  model.setActor("APPROVER"); await model.advanceAction(actionId, "APPROVE"); model.setActor("ISSUER");
+  await model.advanceAction(actionId, "PAY"); await model.advanceAction(actionId, "FINALIZE");
+  const final = model.exportState().actions.find(row => row.id === actionId)!;
+  assert.equal(final.entitlements.filter(row => row.status === "REDEEMED").length, 1);
+  assert.equal(final.receipt!["tokensRedeemed"], "1"); assert.equal(final.receipt!["finalSupply"], "34");
+  assert.equal(final.receipt!["onChain"], false); assert.equal(final.reservedMinor, "0");
+  assert.equal(final.receipt!["snapshotSupply"], "35"); assert.equal(final.receipt!["totalBalance"], "35");
+  assert.deepEqual(final.receipt!["snapshot"], { hash: final.snapshot!.snapshotHash, mintSupply: "35" });
+  assert.deepEqual(final.receipt!["allocation"], { policy: "exact-target-largest-remainder-v2", targetTokens: "1",
+    totalBalance: "35", tieBreak: "SNAPSHOT_OWNER_BASE58_ASC" });
+  const receiptItems = final.receipt!["items"] as Array<{ investorId: string; tokensToRedeem: string;
+    exactAllocation: { balanceAtRecordDate: string; tieAddress: string } }>;
+  assert.equal(receiptItems.filter(item => item.tokensToRedeem === "0").length, 2);
+  for (const item of receiptItems) assert.deepEqual(item.exactAllocation, {
+    balanceAtRecordDate: final.holderBalances[item.investorId],
+    tieAddress: final.holderSources[item.investorId]!.map(source => source.walletAddress).sort()[0]
+  });
+
+  const tooLargeId = crypto.randomUUID();
+  await model.request("/api/v1/corporate-actions", post({ ...body, requestId: tooLargeId, redemptionTargetTokens: "35" }));
+  await model.advanceAction(tooLargeId, "SCHEDULE"); await model.advanceAction(tooLargeId, "SNAPSHOT");
+  const before = model.exportState();
+  await assert.rejects(model.advanceAction(tooLargeId, "CALCULATE"), /targetTokens must not exceed totalBalance/);
+  assert.deepEqual(model.exportState(), before);
+});
 
 test("isolated complete three-action simulation uses accepted integer formulas and atomic burn", async () => {
   const model = createQaSandbox();

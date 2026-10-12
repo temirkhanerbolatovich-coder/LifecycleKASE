@@ -35,6 +35,16 @@ test("protected snapshot mutations return the rate-limit contract", async () => 
     );
     assert.equal(headers.get("Retry-After"), "17");
     assert.match(headers.get("X-Correlation-ID") ?? "", /^[0-9a-f-]{36}$/);
+    await assert.rejects(controller.captureOperation("00000000-0000-4000-8000-000000000001", "prepare", { phase: "BEGIN" },
+      { ip: "203.0.113.7" }, { setHeader(name, value) { headers.set(name, value); } }, "https://lifecyclekase.example"),
+      (error: unknown) => error instanceof HttpException && error.getStatus() === 429 &&
+        (error.getResponse() as { code?: string }).code === "AUTH_RATE_LIMITED");
+    assert.equal(headers.get("Retry-After"), "17");
+    await assert.rejects(controller.captureOperation("00000000-0000-4000-8000-000000000001", "prepare", { phase: "BEGIN" },
+      { ip: "203.0.113.7" }, { setHeader() {} }, "https://foreign.example"),
+      (error: unknown) => error instanceof HttpException && error.getStatus() === 403);
+    await assert.rejects(controller.capture("00000000-0000-4000-8000-000000000001", {}, { setHeader() {} }),
+      (error: unknown) => error instanceof HttpException && error.getStatus() === 401);
   } finally {
     if (previous.enabled === undefined) delete process.env.AUTH_ENABLED;
     else process.env.AUTH_ENABLED = previous.enabled;

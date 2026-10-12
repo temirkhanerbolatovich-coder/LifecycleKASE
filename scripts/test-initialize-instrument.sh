@@ -117,8 +117,13 @@ else
 fi
 validator_demo_args=()
 if [[ "${KASE_DEMO_ACCEPTANCE:-false}" == true ]]; then
-    # Faster local finality keeps the accelerated demo repeatable; normal regression keeps default timing.
-    validator_demo_args+=(--ticks-per-slot 8)
+    if [[ "${KASE_CONTROLLED_WORKFLOW:-false}" == true ]]; then
+        # API/browser review spans several RPC reads; preserve the normal blockhash lifetime.
+        validator_demo_args+=(--ticks-per-slot 64)
+    else
+        # The legacy four-action demo retains its shorter disposable finality timing.
+        validator_demo_args+=(--ticks-per-slot 8)
+    fi
 fi
 solana-test-validator "${validator_demo_args[@]}" \
     --ledger "$run_path/ledger" \

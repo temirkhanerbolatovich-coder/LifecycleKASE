@@ -4,6 +4,7 @@ import test from "node:test";
 import { buildEntitlementRegistration, buildCalculationFinalization, buildCalculationReset, decodeConfirmedEntitlement,
   deriveEntitlementAddress } from "./entitlement-registration.js";
 import { decodePublicKey } from "./base58.js";
+import { deriveExactRedemptionTargetAddress } from "./corporate-action.js";
 
 const PROGRAM = "6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo";
 const KEY = "5Nn5WtR1dzVamAJYAheUBucFu6wUuJLbCUr2VwTTJzMM";
@@ -27,6 +28,26 @@ test("registration pins snapshot, recipient and integer amounts with the require
   assert.equal(bytes.length, 113);
   assert.deepEqual(plan.instruction.accounts.map(a => [a.isSigner, a.isWritable]),
     [[true, true], [false, false], [false, true], [false, true], [false, false]]);
+});
+
+test("v2 registration binds the immutable target without changing entitlement term encoding", async () => {
+  const exact = { ...identity, ...terms, allocationPolicy: "exact-target-largest-remainder-v2" as const,
+    paymentAmountMinor: 2_000_000_000n, tokensToRedeem: 2n };
+  const plan = await buildEntitlementRegistration(exact);
+  const legacy = await buildEntitlementRegistration({ ...exact, allocationPolicy: "integer-entitlements-v1" });
+  assert.equal(plan.targetAddress, await deriveExactRedemptionTargetAddress(PROGRAM, plan.actionAddress));
+  assert.deepEqual(Buffer.from(plan.instruction.data).subarray(0, 8),
+    createHash("sha256").update("global:register_entitlement_v2").digest().subarray(0, 8));
+  assert.deepEqual(Buffer.from(plan.instruction.data).subarray(8), Buffer.from(legacy.instruction.data).subarray(8));
+  assert.deepEqual(plan.instruction.accounts.map(a => [a.address, a.isSigner, a.isWritable]),
+    [[KEY, true, true], [plan.instrumentAddress, false, false], [plan.actionAddress, false, true],
+      [plan.targetAddress, false, false], [plan.entitlementAddress, false, true],
+      ["11111111111111111111111111111111", false, false]]);
+  await assert.rejects(buildEntitlementRegistration({ ...exact, eligible: false, paymentAmountMinor: 0n, tokensToRedeem: 0n }));
+  await assert.rejects(buildEntitlementRegistration({ ...exact, tokensToRedeem: 11n }));
+  await assert.rejects(buildEntitlementRegistration({ ...exact, allocationPolicy: "UNKNOWN" } as never));
+  const zero = await buildEntitlementRegistration({ ...exact, paymentAmountMinor: 0n, tokensToRedeem: 0n });
+  assert.equal(Buffer.from(zero.instruction.data).readBigUInt64LE(105), 0n);
 });
 
 test("entitlement identity is stable per investor and isolated per action", async () => {
@@ -78,6 +99,24 @@ test("reset supplies the exact registered set as writable close targets", async 
   }
 });
 
+test("v2 finalization includes target then complete redemption coverage; reset retains its original ABI", async () => {
+  const exact = { ...identity, allocationPolicy: "exact-target-largest-remainder-v2" as const,
+    investorIds: [investorId, new Uint8Array(16).fill(3)], redemption: true };
+  const plan = await buildCalculationFinalization(exact);
+  assert.equal(plan.targetAddress, await deriveExactRedemptionTargetAddress(PROGRAM, plan.actionAddress));
+  assert.deepEqual(plan.instruction.accounts.slice(3).map(a => [a.address, a.isSigner, a.isWritable]),
+    [[plan.targetAddress, false, false], [plan.progressAddress, false, false],
+      ...plan.entitlementAddresses.flatMap((a, index) => [[a, false, false], [plan.sourceAddresses[index], false, false]])]);
+  assert.deepEqual(Buffer.from(plan.instruction.data), createHash("sha256").update("global:finalize_calculation_v2").digest().subarray(0, 8));
+  const reset = await buildCalculationReset(exact);
+  const legacyReset = await buildCalculationReset({ ...exact, allocationPolicy: "integer-entitlements-v1" });
+  assert.deepEqual(reset, legacyReset);
+  assert.equal(reset.instruction.accounts.some(a => a.address === plan.targetAddress), false);
+  await assert.rejects(buildCalculationFinalization({ ...exact, redemption: false }));
+  await assert.rejects(buildCalculationReset({ ...exact, redemption: false }));
+  await assert.rejects(buildCalculationFinalization({ ...exact, allocationPolicy: "UNKNOWN" } as never));
+});
+
 test("decoder reads a finalized immutable entitlement and rejects malformed accounts", async () => {
   const plan = await buildEntitlementRegistration({ ...identity, ...terms });
   const data = Buffer.alloc(155); let offset = 0;
@@ -93,5 +132,7 @@ test("decoder reads a finalized immutable entitlement and rejects malformed acco
   assert.equal(decoded.balanceAtSnapshot, 10n); assert.equal(decoded.paymentAmountMinor, 500_000_000n);
   assert.equal(decoded.tokensToRedeem, 0n); assert.equal(decoded.status, "READY"); assert.equal(decoded.executedAt, null); assert.equal(decoded.bump, 254);
   assert.throws(() => decodeConfirmedEntitlement(data.subarray(0, offset - 1).toString("base64")));
-  const changed = Buffer.from(data); changed[8] = 2; assert.throws(() => decodeConfirmedEntitlement(changed.toString("base64")));
+  const v2 = Buffer.from(data); v2[8] = 2;
+  assert.equal(decodeConfirmedEntitlement(v2.toString("base64")).version, 2);
+  const changed = Buffer.from(data); changed[8] = 3; assert.throws(() => decodeConfirmedEntitlement(changed.toString("base64")));
 });

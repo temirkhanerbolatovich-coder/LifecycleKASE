@@ -2,7 +2,7 @@
 import { useLocale, useLocalizedTextState } from "./locale-context";
 import { useEffect, useRef, useState } from "react";
 import type { Wallet } from "@wallet-standard/base";
-import { preparedCouponExecution, couponReviewChanged, type CouponExecutionPlan, type CouponExecutionView } from "./coupon-execution-workflow";
+import { finalizedCouponReceipt, preparedCouponExecution, couponReviewChanged, type CouponExecutionPlan, type CouponExecutionView } from "./coupon-execution-workflow";
 import { resumedDeploymentSignature } from "./snapshot-workflow";
 import { signAndSubmitPrepared, supportsPreparedTransaction } from "./wallet-transaction";
 import { waitForFinalizedCheck } from "./finalized-check";
@@ -64,9 +64,10 @@ export function CouponExecutionPanel({ actionId, administrator, wallet, walletAd
     setMessage(plan.phase === "PAY" ? "Выплата подтверждена. Сумма и квитанция сверены с сетью." : "Все выплаты сверены. Итоговый документ закреплён в Solana.");
   }
   async function downloadReceipt() {
+    if (!view) return;
     const result = await request(`/api/v1/corporate-actions/${actionId}/receipt`);
-    if (result["status"] !== "FINALIZED" || typeof result["canonicalJson"] !== "string") throw new Error("Итоговый документ ещё не подтверждён.");
-    const url = URL.createObjectURL(new Blob([result["canonicalJson"]], { type: "application/json;charset=utf-8" }));
+    const json = await finalizedCouponReceipt(result, view);
+    const url = URL.createObjectURL(new Blob([json], { type: "application/json;charset=utf-8" }));
     const anchor = document.createElement("a"); anchor.href = url; anchor.download = `coupon-${actionId}.json`; anchor.click(); URL.revokeObjectURL(url);
     setMessage("Итоговый документ JSON скачан.");
   }

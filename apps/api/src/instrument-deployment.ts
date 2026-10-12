@@ -1,6 +1,11 @@
 import type { PrismaClient } from "@prisma/client";
 import {
   BOND_MINT_SIZE,
+  CONTROLLED_BOND_MINT_SIZE,
+  buildControlledMintSetup, buildControlledInstrumentInitialization, buildControlledInstrumentActivation,
+  buildControlledHoldingRegistration, buildControlledTransfer, createAssociatedTokenAccountIdempotent,
+  decodeControlledTokenPosition, decodeControlledPolicy, decodeControlledHolding,
+  deriveControlledPolicyAddress, deriveControlledHoldingAddress,
   buildInstrumentActivation,
   buildInstrumentDistribution,
   buildInstrumentInitialization,
@@ -19,6 +24,8 @@ import {
 
 import type { InstrumentActor } from "./instrument-registry.js";
 import { uuidBytes } from "./snapshot-registration.js";
+import { CONTROLLED_TOKEN_POLICY, controlledRegistryEnabled, requireControlledRegistry } from "./controlled-policy.js";
+export { controlledRegistryEnabled, requireControlledRegistry } from "./controlled-policy.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SIGNATURE = /^[1-9A-HJ-NP-Za-km-z]{64,88}$/;
@@ -35,6 +42,7 @@ type StoredMintSetupAttempt = {
   recentBlockhash: string | null;
   lastValidBlockHeight: bigint | null;
   preparedPayload?: unknown;
+  instrument?: { issuerAuthority: string; tokenPolicy?: string } | null;
 };
 
 type DistributionAllocation = {
@@ -61,6 +69,37 @@ const OPERATION_TYPE_BY_PHASE: Record<InstrumentDeploymentPhase, string> = {
   ACTIVATE: "INSTRUMENT_ACTIVATE"
 };
 
+type DeploymentInstrument = NonNullable<Awaited<ReturnType<typeof readDeploymentInstrument>>>;
+
+async function readDeploymentInstrument(database: PrismaClient, instrumentId: string) {
+  return database.instrument.findUnique({ where: { id: instrumentId }, include: { settlementAsset: true } });
+}
+
+async function controlledMetadata(instrument: DeploymentInstrument, options: InstrumentDeploymentOptions) {
+  if (!requireControlledRegistry(instrument, options)) return {};
+  const plan = await buildControlledMintSetup({ programId: options.programId, instrumentId: uuidBytes(instrument.id),
+    administrator: instrument.issuerAuthority, bondRentLamports: 1n, settlementRentLamports: 1n, totalSupply: instrument.totalSupply });
+  return { tokenPolicy: CONTROLLED_TOKEN_POLICY, programId: options.programId, instrumentId: instrument.id,
+    bondMint: plan.bondMint, settlementMint: plan.settlementMint, treasuryTokenAccount: plan.treasuryTokenAccount,
+    instrumentAddress: plan.instrumentAddress, controlledPolicyAddress: await deriveControlledPolicyAddress(options.programId, plan.instrumentAddress),
+    terms: { issuerAuthority: instrument.issuerAuthority, complianceAuthority: instrument.complianceAuthority,
+      corporateActionAuthority: instrument.corporateActionAuthority, faceValueMinor: instrument.faceValueMinor.toString(),
+      couponRateBps: instrument.couponRateBps, paymentsPerYear: instrument.paymentsPerYear,
+      issueAt: instrument.issueAt.toISOString(), maturityAt: instrument.maturityAt.toISOString(), totalSupply: instrument.totalSupply.toString() } };
+}
+
+function resumeControlledMetadata(attempt: StoredMintSetupAttempt, options: InstrumentDeploymentOptions) {
+  if (attempt.instrument) requireControlledRegistry(attempt.instrument, options);
+  const payload = attempt.preparedPayload;
+  if (payload && typeof payload === "object" && !Array.isArray(payload) && "tokenPolicy" in payload) {
+    const value = payload as Record<string, unknown>;
+    requireControlledRegistry({ tokenPolicy: String(value["tokenPolicy"]) }, options);
+    if (value["programId"] !== options.programId) throw new InstrumentDeploymentError("DEPLOYMENT_ATTEMPT_INVALID", "Stored controlled program identity is invalid");
+    return value;
+  }
+  return {};
+}
+
 export class InstrumentDeploymentError extends Error {
   constructor(public readonly code: string, message: string, public readonly status = 409) {
     super(message); this.name = "InstrumentDeploymentError";
@@ -73,6 +112,7 @@ export type InstrumentDeploymentOptions = {
   rpcTimeoutMs: number;
   expectedGenesisHash: string;
   programId: string;
+  controlledRegistryEnabled?: boolean;
 };
 
 function positiveInteger(value: string | undefined, fallback: number, name: string): number {
@@ -96,7 +136,9 @@ export function instrumentDeploymentOptions(environment: NodeJS.ProcessEnv = pro
   if (environment.WALLET_NETWORK !== undefined && environment.WALLET_NETWORK !== expectedNetwork) {
     throw new InstrumentDeploymentError("INSTRUMENT_CONFIGURATION_INVALID", `WALLET_NETWORK must be ${expectedNetwork}`, 503);
   }
-  return { cluster, rpcEndpoint, expectedGenesisHash, programId,
+  const enabled = controlledRegistryEnabled(environment);
+  if (enabled) requireControlledRegistry({ tokenPolicy: CONTROLLED_TOKEN_POLICY }, { cluster, programId, controlledRegistryEnabled: enabled });
+  return { cluster, rpcEndpoint, expectedGenesisHash, programId, ...(enabled ? { controlledRegistryEnabled: true } : {}),
     rpcTimeoutMs: positiveInteger(environment.SOLANA_RPC_TIMEOUT_MS, 15_000, "SOLANA_RPC_TIMEOUT_MS") };
 }
 
@@ -132,6 +174,7 @@ export async function submitInstrumentDeployment(
       operation.operationType !== OPERATION_TYPE_BY_PHASE[phase]) {
     throw new InstrumentDeploymentError("DEPLOYMENT_ATTEMPT_NOT_FOUND", "Deployment attempt was not found", 404);
   }
+  requireControlledRegistry(instrument, options);
   if (actor.walletAddress !== instrument.issuerAuthority || operation.requiredSigner !== actor.walletAddress) {
     throw new InstrumentDeploymentError("WALLET_MISMATCH", "Session wallet does not match the prepared signer", 403);
   }
@@ -233,7 +276,7 @@ async function recordUnavailableTransaction(database: PrismaClient, rpc: SolanaR
     : "Transaction bytes are unavailable; reconcile RPC history and on-chain state before any new submission");
 }
 
-function preparedResponse(existing: StoredMintSetupAttempt, cluster: "localnet" | "devnet") {
+function preparedResponse(existing: StoredMintSetupAttempt, cluster: "localnet" | "devnet", options?: InstrumentDeploymentOptions) {
   if (!existing.preparedTransactionBase64 || !existing.requiredSigner || !existing.networkGenesisHash ||
       !existing.recentBlockhash || existing.lastValidBlockHeight === null) {
     throw new InstrumentDeploymentError("DEPLOYMENT_ATTEMPT_INVALID", "Stored mint setup attempt is incomplete");
@@ -243,7 +286,8 @@ function preparedResponse(existing: StoredMintSetupAttempt, cluster: "localnet" 
     requiredSigner: existing.requiredSigner, networkGenesisHash: existing.networkGenesisHash,
     recentBlockhash: existing.recentBlockhash, lastValidBlockHeight: Number(existing.lastValidBlockHeight),
     serializedTransactionBase64: existing.preparedTransactionBase64,
-    transactionFormat: "SOLANA_V0_WIRE_TRANSACTION_BASE64" as const, resumed: true };
+    transactionFormat: "SOLANA_V0_WIRE_TRANSACTION_BASE64" as const,
+    ...(options ? resumeControlledMetadata(existing, options) : {}), resumed: true };
 }
 
 async function activeAttemptCanResume(
@@ -320,7 +364,7 @@ function distributionPayload(value: unknown): DistributionPayload {
   return { bondMint, treasuryTokenAccount, allocations: rows };
 }
 
-function preparedDistributionResponse(existing: StoredMintSetupAttempt, cluster: "localnet" | "devnet") {
+function preparedDistributionResponse(existing: StoredMintSetupAttempt, cluster: "localnet" | "devnet", options?: InstrumentDeploymentOptions) {
   if (!existing.preparedTransactionBase64 || !existing.requiredSigner || !existing.networkGenesisHash ||
       !existing.recentBlockhash || existing.lastValidBlockHeight === null) {
     throw new InstrumentDeploymentError("DEPLOYMENT_ATTEMPT_INVALID", "Stored distribution attempt is incomplete");
@@ -331,7 +375,8 @@ function preparedDistributionResponse(existing: StoredMintSetupAttempt, cluster:
     requiredSigner: existing.requiredSigner, networkGenesisHash: existing.networkGenesisHash,
     recentBlockhash: existing.recentBlockhash, lastValidBlockHeight: Number(existing.lastValidBlockHeight),
     serializedTransactionBase64: existing.preparedTransactionBase64,
-    transactionFormat: "SOLANA_V0_WIRE_TRANSACTION_BASE64" as const, ...payload, resumed: true };
+    transactionFormat: "SOLANA_V0_WIRE_TRANSACTION_BASE64" as const, ...payload,
+    ...(options ? resumeControlledMetadata(existing, options) : {}), resumed: true };
 }
 
 function requestedDistribution(value: unknown): { walletAddress: string; amount: bigint }[] {
@@ -361,34 +406,43 @@ async function planFor(database: PrismaClient, rpc: SolanaRpc, instrumentId: str
   const instrument = await database.instrument.findUnique({ where: { id: instrumentId }, include: { settlementAsset: true } });
   if (!instrument) throw new InstrumentDeploymentError("INSTRUMENT_NOT_FOUND", "Instrument was not found", 404);
   if (instrument.issuerAuthority !== actor.walletAddress) throw new InstrumentDeploymentError("WALLET_MISMATCH", "Session wallet is not the instrument issuer", 403);
+  const controlled = requireControlledRegistry(instrument, options);
   if (instrument.status !== "DRAFT" || instrument.mintAddress || instrument.settlementAsset.mintAddress) {
     throw new InstrumentDeploymentError("MINT_SETUP_NOT_AVAILABLE", "Mint setup is available only for an untouched DRAFT instrument");
   }
   if (instrument.totalSupply !== 35n || instrument.circulatingSupply !== 0n) throw new InstrumentDeploymentError("INSTRUMENT_STATE_MISMATCH", "Canonical draft supply is invalid");
   const genesis = await rpc.request("getGenesisHash", []);
   if (genesis !== options.expectedGenesisHash) throw new InstrumentDeploymentError("WRONG_SOLANA_NETWORK", "RPC genesis hash does not match configuration", 503);
-  const rent = await Promise.all([BOND_MINT_SIZE, SETTLEMENT_MINT_SIZE].map(async size =>
+  const rent = await Promise.all([controlled ? CONTROLLED_BOND_MINT_SIZE : BOND_MINT_SIZE, SETTLEMENT_MINT_SIZE].map(async size =>
     BigInt(safeNumber(await rpc.request("getMinimumBalanceForRentExemption", [size, { commitment: "finalized" }])))));
-  const plan = await buildInstrumentMintSetup({ programId: options.programId, instrumentId: uuidBytes(instrument.id),
+  const plan = await (controlled ? buildControlledMintSetup : buildInstrumentMintSetup)({ programId: options.programId, instrumentId: uuidBytes(instrument.id),
     administrator: actor.walletAddress, bondRentLamports: rent[0]!, settlementRentLamports: rent[1]!, totalSupply: instrument.totalSupply });
   const accounts = await Promise.all([plan.bondMint, plan.settlementMint, plan.treasuryTokenAccount].map(address =>
     rpc.request("getAccountInfo", [address, { commitment: "finalized", encoding: "base64" }])));
   if (accounts.some(value => object(value)["value"] !== null)) throw new InstrumentDeploymentError("MINT_ADDRESS_OCCUPIED", "A deterministic mint or treasury address is already occupied");
-  return { instrument, plan };
+  return { instrument, plan, rent };
 }
 
 export async function prepareInstrumentMintSetup(database: PrismaClient, rpc: SolanaRpc, instrumentId: string,
   actor: InstrumentActor, options: InstrumentDeploymentOptions) {
   const existing = await database.blockchainTransaction.findFirst({ where: { instrumentId, operationType: "INSTRUMENT_MINT_SETUP",
-    status: { in: [...CONFIRMABLE] } }, orderBy: { createdAt: "desc" } });
+    status: { in: [...CONFIRMABLE] } }, orderBy: { createdAt: "desc" }, include: { instrument: true } });
   if (existing) {
+    if (existing.instrument) requireControlledRegistry(existing.instrument, options);
+    if (existing.requiredSigner !== actor.walletAddress) throw new InstrumentDeploymentError("WALLET_MISMATCH", "Session wallet does not match prepared signer", 403);
     if (!existing.preparedTransactionBase64 || !existing.requiredSigner || !existing.networkGenesisHash ||
         !existing.recentBlockhash || existing.lastValidBlockHeight === null) throw new InstrumentDeploymentError("DEPLOYMENT_ATTEMPT_INVALID", "Stored mint setup attempt is incomplete");
     if (await activeAttemptCanResume(database, rpc, existing, options.expectedGenesisHash)) {
-      return preparedResponse(existing, options.cluster);
+      return preparedResponse(existing, options.cluster, options);
     }
   }
-  const { plan } = await planFor(database, rpc, instrumentId, actor, options);
+  const { instrument, plan, rent } = await planFor(database, rpc, instrumentId, actor, options);
+  const metadata = requireControlledRegistry(instrument, options) ? {
+    ...await controlledMetadata(instrument, options), bondMint: plan.bondMint, settlementMint: plan.settlementMint,
+    treasuryTokenAccount: plan.treasuryTokenAccount, instrumentAddress: plan.instrumentAddress,
+    controlledPolicyAddress: await deriveControlledPolicyAddress(options.programId, plan.instrumentAddress),
+    rent: { bondRentLamports: rent[0]!.toString(), settlementRentLamports: rent[1]!.toString() }
+  } : {};
   const latest = object(await rpc.request("getLatestBlockhash", [{ commitment: "finalized" }]));
   const value = object(latest["value"]);
   const recentBlockhash = value["blockhash"];
@@ -401,7 +455,8 @@ export async function prepareInstrumentMintSetup(database: PrismaClient, rpc: So
     operation = await database.$transaction(async transaction => {
       const row = await transaction.blockchainTransaction.create({ data: { instrumentId, operationType: "INSTRUMENT_MINT_SETUP",
         status: "PREPARED", recentBlockhash, lastValidBlockHeight: BigInt(lastValidBlockHeight), requiredSigner: actor.walletAddress,
-        networkGenesisHash: options.expectedGenesisHash, preparedTransactionBase64: serializedTransactionBase64 } });
+        networkGenesisHash: options.expectedGenesisHash, preparedTransactionBase64: serializedTransactionBase64,
+        ...(requireControlledRegistry(instrument, options) ? { preparedPayload: metadata } : {}) } });
       await transaction.auditLog.create({ data: { actorId: actor.id, actorWallet: actor.walletAddress,
         event: "INSTRUMENT_MINT_SETUP_PREPARED", entityType: "BlockchainTransaction", entityId: row.id,
         correlationId: actor.correlationId, blockchainTransactionId: row.id,
@@ -413,14 +468,14 @@ export async function prepareInstrumentMintSetup(database: PrismaClient, rpc: So
     const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
     if (code !== "P2002") throw error;
     const concurrent = await database.blockchainTransaction.findFirst({ where: { instrumentId,
-      operationType: "INSTRUMENT_MINT_SETUP", status: { in: [...CONFIRMABLE] } }, orderBy: { createdAt: "desc" } });
+      operationType: "INSTRUMENT_MINT_SETUP", status: { in: [...CONFIRMABLE] } }, orderBy: { createdAt: "desc" }, include: { instrument: true } });
     if (!concurrent) throw error;
-    return preparedResponse(concurrent, options.cluster);
+    return preparedResponse(concurrent, options.cluster, options);
   }
   return { operationId: operation.id, phase: "MINT_SETUP" as const, cluster: options.cluster,
     requiredSigner: actor.walletAddress, networkGenesisHash: options.expectedGenesisHash, recentBlockhash,
     lastValidBlockHeight, serializedTransactionBase64, transactionFormat: "SOLANA_V0_WIRE_TRANSACTION_BASE64" as const,
-    bondMint: plan.bondMint, settlementMint: plan.settlementMint, treasuryTokenAccount: plan.treasuryTokenAccount, resumed: false };
+    bondMint: plan.bondMint, settlementMint: plan.settlementMint, treasuryTokenAccount: plan.treasuryTokenAccount, ...metadata, resumed: false };
 }
 
 function accountData(response: unknown, minimumSlot: number): Buffer {
@@ -451,6 +506,60 @@ export function verifyMint(data: Buffer, input: { decimals: number; supply: bigi
   }
 }
 
+export function verifyControlledMint(data: Buffer, input: { supply: bigint; instrumentAuthority: string; mintAuthority?: string }) {
+  if (data.length !== CONTROLLED_BOND_MINT_SIZE || data.readUInt32LE(0) !== (input.mintAuthority ? 1 : 0) ||
+      (input.mintAuthority && encodePublicKey(data.subarray(4, 36)) !== input.mintAuthority) ||
+      data.readBigUInt64LE(36) !== input.supply || data[44] !== 0 || data[45] !== 1 ||
+      data.readUInt32LE(46) !== 1 || encodePublicKey(data.subarray(50, 82)) !== input.instrumentAuthority ||
+      data[165] !== 1 || data.subarray(82, 165).some(byte => byte !== 0)) {
+    throw new InstrumentDeploymentError("MINT_STATE_MISMATCH", "Controlled mint supply, frozen policy or authorities do not match");
+  }
+  const extensions = new Map<number, Buffer>();
+  for (let offset = 166; offset < data.length;) {
+    if (offset + 4 > data.length) throw new InstrumentDeploymentError("MINT_STATE_MISMATCH", "Controlled mint extensions are invalid");
+    const kind = data.readUInt16LE(offset); const length = data.readUInt16LE(offset + 2); offset += 4;
+    if (extensions.has(kind) || offset + length > data.length) throw new InstrumentDeploymentError("MINT_STATE_MISMATCH", "Controlled mint extensions are invalid");
+    extensions.set(kind, data.subarray(offset, offset + length)); offset += length;
+  }
+  const permanentDelegate = extensions.get(12); const defaultState = extensions.get(6);
+  if (extensions.size !== 2 || permanentDelegate?.length !== 32 || encodePublicKey(permanentDelegate) !== input.instrumentAuthority ||
+      defaultState?.length !== 1 || defaultState[0] !== 2) {
+    throw new InstrumentDeploymentError("MINT_STATE_MISMATCH", "Controlled mint permanent delegate or default frozen state is invalid");
+  }
+}
+
+function controlledTokenState(data: Buffer, tokenAccount: string, input: { mint: string; owner: string; amount: bigint }, code: string) {
+  try {
+    const decoded = decodeControlledTokenPosition({ address: tokenAccount, owner: TOKEN_2022_PROGRAM_ID,
+      executable: false, dataBase64: data.toString("base64") }, input.mint);
+    if (decoded.walletAddress !== input.owner || decoded.balance !== input.amount || decoded.state !== "FROZEN") throw new Error("mismatch");
+  } catch { throw new InstrumentDeploymentError(code, "Controlled token account mint, owner, frozen state or balance does not match"); }
+}
+
+async function verifyControlledRegistryAccounts(rpc: SolanaRpc, instrument: Pick<DeploymentInstrument, "id" | "mintAddress" | "totalSupply">,
+  options: InstrumentDeploymentOptions, minimumSlot: number, holders: readonly { tokenAccount: string; walletAddress: string }[] = []) {
+  const { instrumentAddress, instrumentAuthority } = await deriveInstrumentLifecycleAddresses(options.programId, uuidBytes(instrument.id));
+  const policyAddress = await deriveControlledPolicyAddress(options.programId, instrumentAddress);
+  const holdingAddresses = await Promise.all(holders.map(row => deriveControlledHoldingAddress(options.programId, instrumentAddress, row.tokenAccount)));
+  const responses = await Promise.all([policyAddress, instrument.mintAddress!, ...holdingAddresses].map(address => rpc.request("getAccountInfo",
+    [address, { commitment: "finalized", encoding: "base64", minContextSlot: minimumSlot }])));
+  try {
+    const policy = decodeControlledPolicy({ address: policyAddress, owner: options.programId, executable: false,
+      dataBase64: contextualProgramAccount(responses[0], minimumSlot, options.programId) },
+    { accountAddress: policyAddress, programId: options.programId, instrumentAddress, mintAddress: instrument.mintAddress! });
+    if (policy.captureAction !== "11111111111111111111111111111111" || policy.activeRedemption !== "11111111111111111111111111111111") throw new Error("busy policy");
+    for (let index = 0; index < holders.length; index += 1) {
+      const row = holders[index]!;
+      const holding = decodeControlledHolding({ address: holdingAddresses[index]!, owner: options.programId, executable: false,
+        dataBase64: contextualProgramAccount(responses[index + 2], minimumSlot, options.programId) },
+      { accountAddress: holdingAddresses[index]!, programId: options.programId, instrumentAddress, mintAddress: instrument.mintAddress!,
+        tokenAccount: row.tokenAccount, walletAddress: row.walletAddress });
+      if (holding.reservedTokens !== 0n) throw new Error("reserved issuance holding");
+    }
+  } catch { throw new InstrumentDeploymentError("CONTROLLED_REGISTRY_STATE_MISMATCH", "Controlled policy or holdings do not match issuance"); }
+  verifyControlledMint(accountData(responses[1], minimumSlot), { supply: instrument.totalSupply, instrumentAuthority });
+}
+
 function tokenAccountState(data: Buffer, input: { mint: string; owner: string; amount: bigint }, code: string) {
   if (data.length < 165 || encodePublicKey(data.subarray(0, 32)) !== input.mint ||
       encodePublicKey(data.subarray(32, 64)) !== input.owner || data.readBigUInt64LE(64) !== input.amount) {
@@ -477,22 +586,29 @@ export async function prepareInstrumentDistribution(database: PrismaClient, rpc:
   if (!UUID.test(instrumentId)) throw new InstrumentDeploymentError("INVALID_REQUEST", "Instrument identifier is invalid", 400);
   const requested = requestedDistribution(input);
   const existing = await database.blockchainTransaction.findFirst({ where: { instrumentId, operationType: "INSTRUMENT_DISTRIBUTION",
-    status: { in: [...CONFIRMABLE] } }, orderBy: { createdAt: "desc" } });
+    status: { in: [...CONFIRMABLE] } }, orderBy: { createdAt: "desc" }, include: { instrument: true } });
   if (existing) {
+    if (existing.instrument) requireControlledRegistry(existing.instrument, options);
+    if (existing.requiredSigner !== actor.walletAddress) throw new InstrumentDeploymentError("WALLET_MISMATCH", "Session wallet does not match prepared signer", 403);
     if (await activeAttemptCanResume(database, rpc, existing, options.expectedGenesisHash)) {
-      return preparedDistributionResponse(existing, options.cluster);
+      return preparedDistributionResponse(existing, options.cluster, options);
     }
   }
   const instrument = await database.instrument.findUnique({ where: { id: instrumentId }, include: { settlementAsset: true } });
   if (!instrument) throw new InstrumentDeploymentError("INSTRUMENT_NOT_FOUND", "Instrument was not found", 404);
   if (instrument.issuerAuthority !== actor.walletAddress) throw new InstrumentDeploymentError("WALLET_MISMATCH", "Session wallet is not the instrument issuer", 403);
-  if (instrument.status !== "DRAFT" || !instrument.mintAddress || !instrument.settlementAsset.mintAddress || instrument.circulatingSupply !== 0n) {
+  const controlled = requireControlledRegistry(instrument, options);
+  if (instrument.status !== (controlled ? "DEPLOYING" : "DRAFT") || !instrument.mintAddress || !instrument.settlementAsset.mintAddress || instrument.circulatingSupply !== 0n) {
     throw new InstrumentDeploymentError("DISTRIBUTION_NOT_AVAILABLE", "Distribution requires a confirmed mint setup and zero circulating supply");
   }
   const finalizedSetup = await database.blockchainTransaction.findFirst({ where: {
     instrumentId, operationType: "INSTRUMENT_MINT_SETUP", status: "FINALIZED"
   }, select: { id: true } });
   if (!finalizedSetup) throw new InstrumentDeploymentError("MINT_SETUP_REQUIRED", "A finalized mint setup is required before distribution");
+  if (controlled && !await database.blockchainTransaction.findFirst({ where: { instrumentId,
+    operationType: "INSTRUMENT_INITIALIZE", status: "FINALIZED" }, select: { id: true } })) {
+    throw new InstrumentDeploymentError("INITIALIZE_REQUIRED", "Controlled distribution requires finalized initialization");
+  }
   if (await rpc.request("getGenesisHash", []) !== options.expectedGenesisHash) {
     throw new InstrumentDeploymentError("WRONG_SOLANA_NETWORK", "RPC genesis hash does not match configuration", 503);
   }
@@ -518,28 +634,49 @@ export async function prepareInstrumentDistribution(database: PrismaClient, rpc:
   const treasury = uncontextualizedAccountData(accountResponses[0]);
   if (!treasury) throw new InstrumentDeploymentError("TREASURY_STATE_MISMATCH", "Bond treasury is missing");
   tokenAccountState(treasury, { mint: instrument.mintAddress, owner: actor.walletAddress, amount: instrument.totalSupply }, "TREASURY_STATE_MISMATCH");
+  if (controlled) controlledTokenState(treasury, plan.treasuryTokenAccount,
+    { mint: instrument.mintAddress, owner: actor.walletAddress, amount: instrument.totalSupply }, "TREASURY_STATE_MISMATCH");
   for (let index = 0; index < plan.allocations.length; index += 1) {
     const current = uncontextualizedAccountData(accountResponses[index + 1]);
-    if (current) tokenAccountState(current, { mint: instrument.mintAddress,
-      owner: plan.allocations[index]!.walletAddress, amount: 0n }, "DISTRIBUTION_STATE_MISMATCH");
+    if (current) {
+      tokenAccountState(current, { mint: instrument.mintAddress,
+        owner: plan.allocations[index]!.walletAddress, amount: 0n }, "DISTRIBUTION_STATE_MISMATCH");
+      if (controlled) controlledTokenState(current, plan.allocations[index]!.tokenAccount,
+        { mint: instrument.mintAddress, owner: plan.allocations[index]!.walletAddress, amount: 0n }, "DISTRIBUTION_STATE_MISMATCH");
+    }
+  }
+  const instructions = controlled ? [
+    (await buildControlledHoldingRegistration({ programId: options.programId, instrumentId: uuidBytes(instrument.id),
+      corporateActionAuthority: actor.walletAddress, bondTokenAccount: plan.treasuryTokenAccount })).instruction
+  ] : [...plan.instructions];
+  if (controlled) {
+    for (const allocation of plan.allocations) {
+      instructions.push(createAssociatedTokenAccountIdempotent(actor.walletAddress, allocation.tokenAccount, allocation.walletAddress, instrument.mintAddress));
+      instructions.push((await buildControlledHoldingRegistration({ programId: options.programId, instrumentId: uuidBytes(instrument.id),
+        corporateActionAuthority: actor.walletAddress, bondTokenAccount: allocation.tokenAccount })).instruction);
+      instructions.push((await buildControlledTransfer({ programId: options.programId, instrumentId: uuidBytes(instrument.id),
+        corporateActionAuthority: actor.walletAddress, holder: actor.walletAddress, bondMint: instrument.mintAddress,
+        sourceTokenAccount: plan.treasuryTokenAccount, destinationTokenAccount: allocation.tokenAccount, amount: allocation.amount })).instruction);
+    }
   }
   const latest = object(await rpc.request("getLatestBlockhash", [{ commitment: "finalized" }]));
   const value = object(latest["value"]);
   const recentBlockhash = value["blockhash"];
   const lastValidBlockHeight = safeNumber(value["lastValidBlockHeight"]);
   if (typeof recentBlockhash !== "string") throw new InstrumentDeploymentError("INVALID_RPC_RESPONSE", "Latest blockhash is invalid", 503);
-  const serializedTransactionBase64 = serializeUnsignedInstructionsTransaction({ instructions: plan.instructions,
+  const serializedTransactionBase64 = serializeUnsignedInstructionsTransaction({ instructions,
     feePayer: actor.walletAddress, recentBlockhash, lastValidBlockHeight });
   const payload: DistributionPayload = { bondMint: instrument.mintAddress, treasuryTokenAccount: plan.treasuryTokenAccount,
     allocations: plan.allocations.map((allocation, index) => ({ investorId: selected[index]!.investorId,
       walletAddress: allocation.walletAddress, tokenAccount: allocation.tokenAccount,
       amount: allocation.amount.toString() })) };
+  const metadata = await controlledMetadata(instrument, options);
   let operation: { id: string };
   try {
     operation = await database.$transaction(async transaction => {
       const row = await transaction.blockchainTransaction.create({ data: { instrumentId, operationType: "INSTRUMENT_DISTRIBUTION",
         status: "PREPARED", recentBlockhash, lastValidBlockHeight: BigInt(lastValidBlockHeight), requiredSigner: actor.walletAddress,
-        networkGenesisHash: options.expectedGenesisHash, preparedTransactionBase64: serializedTransactionBase64, preparedPayload: payload } });
+        networkGenesisHash: options.expectedGenesisHash, preparedTransactionBase64: serializedTransactionBase64, preparedPayload: { ...payload, ...metadata } } });
       await transaction.auditLog.create({ data: { actorId: actor.id, actorWallet: actor.walletAddress,
         event: "INSTRUMENT_DISTRIBUTION_PREPARED", entityType: "BlockchainTransaction", entityId: row.id,
         correlationId: actor.correlationId, blockchainTransactionId: row.id,
@@ -551,14 +688,14 @@ export async function prepareInstrumentDistribution(database: PrismaClient, rpc:
     const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
     if (code !== "P2002") throw error;
     const concurrent = await database.blockchainTransaction.findFirst({ where: { instrumentId,
-      operationType: "INSTRUMENT_DISTRIBUTION", status: { in: [...CONFIRMABLE] } }, orderBy: { createdAt: "desc" } });
+      operationType: "INSTRUMENT_DISTRIBUTION", status: { in: [...CONFIRMABLE] } }, orderBy: { createdAt: "desc" }, include: { instrument: true } });
     if (!concurrent) throw error;
-    return preparedDistributionResponse(concurrent, options.cluster);
+    return preparedDistributionResponse(concurrent, options.cluster, options);
   }
   return { operationId: operation.id, phase: "DISTRIBUTION" as const, cluster: options.cluster,
     requiredSigner: actor.walletAddress, networkGenesisHash: options.expectedGenesisHash, recentBlockhash,
     lastValidBlockHeight, serializedTransactionBase64, transactionFormat: "SOLANA_V0_WIRE_TRANSACTION_BASE64" as const,
-    ...payload, resumed: false };
+    ...payload, ...metadata, resumed: false };
 }
 
 export async function confirmInstrumentDistribution(database: PrismaClient, rpc: SolanaRpc, instrumentId: string,
@@ -571,6 +708,7 @@ export async function confirmInstrumentDistribution(database: PrismaClient, rpc:
   if (!operation || !instrument || instrument.id !== instrumentId || operation.operationType !== "INSTRUMENT_DISTRIBUTION") {
     throw new InstrumentDeploymentError("DEPLOYMENT_ATTEMPT_NOT_FOUND", "Distribution attempt was not found", 404);
   }
+  const controlled = requireControlledRegistry(instrument, options);
   if (actor.walletAddress !== instrument.issuerAuthority || operation.requiredSigner !== actor.walletAddress) {
     throw new InstrumentDeploymentError("WALLET_MISMATCH", "Session wallet does not match the prepared signer", 403);
   }
@@ -583,7 +721,7 @@ export async function confirmInstrumentDistribution(database: PrismaClient, rpc:
     throw new InstrumentDeploymentError("DEPLOYMENT_NOT_CONFIRMABLE", "Distribution attempt is not confirmable");
   }
   const payload = distributionPayload(operation.preparedPayload);
-  if (payload.bondMint !== instrument.mintAddress || instrument.status !== "DRAFT" || instrument.circulatingSupply !== 0n) {
+  if (payload.bondMint !== instrument.mintAddress || instrument.status !== (controlled ? "DEPLOYING" : "DRAFT") || instrument.circulatingSupply !== 0n) {
     throw new InstrumentDeploymentError("DISTRIBUTION_STATE_MISMATCH", "Instrument distribution state changed after preparation");
   }
   if (await rpc.request("getGenesisHash", []) !== operation.networkGenesisHash) {
@@ -612,16 +750,22 @@ export async function confirmInstrumentDistribution(database: PrismaClient, rpc:
   const chainAccounts = await Promise.all([payload.treasuryTokenAccount, ...payload.allocations.map(row => row.tokenAccount)].map(address =>
     rpc.request("getAccountInfo", [address, { commitment: "finalized", encoding: "base64", minContextSlot: slot }])));
   tokenAccountState(accountData(chainAccounts[0], slot), { mint: payload.bondMint, owner: actor.walletAddress, amount: 0n }, "TREASURY_STATE_MISMATCH");
+  if (controlled) controlledTokenState(accountData(chainAccounts[0], slot), payload.treasuryTokenAccount,
+    { mint: payload.bondMint, owner: actor.walletAddress, amount: 0n }, "TREASURY_STATE_MISMATCH");
   for (let index = 0; index < payload.allocations.length; index += 1) {
     const allocation = payload.allocations[index]!;
     tokenAccountState(accountData(chainAccounts[index + 1], slot), { mint: payload.bondMint,
       owner: allocation.walletAddress, amount: BigInt(allocation.amount) }, "DISTRIBUTION_STATE_MISMATCH");
+    if (controlled) controlledTokenState(accountData(chainAccounts[index + 1], slot), allocation.tokenAccount,
+      { mint: payload.bondMint, owner: allocation.walletAddress, amount: BigInt(allocation.amount) }, "DISTRIBUTION_STATE_MISMATCH");
   }
+  if (controlled) await verifyControlledRegistryAccounts(rpc, instrument, options, slot,
+    [{ tokenAccount: payload.treasuryTokenAccount, walletAddress: actor.walletAddress }, ...payload.allocations]);
   await database.$transaction(async transaction => {
     const attempt = await transaction.blockchainTransaction.updateMany({ where: { id: operationId,
       status: { in: [...CONFIRMABLE] }, OR: [{ signature: null }, { signature: transactionSignature }] },
       data: { signature: transactionSignature, status: "FINALIZED", submittedAt: now, finalizedAt: now, lastErrorCode: null } });
-    const updated = await transaction.instrument.updateMany({ where: { id: instrument.id, status: "DRAFT", circulatingSupply: 0n,
+    const updated = await transaction.instrument.updateMany({ where: { id: instrument.id, status: controlled ? "DEPLOYING" : "DRAFT", circulatingSupply: 0n,
       mintAddress: payload.bondMint }, data: { circulatingSupply: instrument.totalSupply, version: { increment: 1 } } });
     if (attempt.count !== 1 || updated.count !== 1) throw new InstrumentDeploymentError("DEPLOYMENT_CONFLICT", "Distribution state changed concurrently");
     await transaction.auditLog.create({ data: { actorId: actor.id, actorWallet: actor.walletAddress,
@@ -629,10 +773,10 @@ export async function confirmInstrumentDistribution(database: PrismaClient, rpc:
       correlationId: actor.correlationId, blockchainTransactionId: operationId,
       metadataJson: { signature: transactionSignature, finalizedSlot: slot, bondMint: payload.bondMint,
         treasuryTokenAccount: payload.treasuryTokenAccount, allocations: payload.allocations,
-        circulatingSupply: instrument.totalSupply.toString(), status: "DRAFT", nextPhase: "INITIALIZE" } } });
+        circulatingSupply: instrument.totalSupply.toString(), status: controlled ? "DEPLOYING" : "DRAFT", nextPhase: controlled ? "ACTIVATE" : "INITIALIZE" } } });
   });
   return { operationId, signature: transactionSignature, finalizedSlot: slot, status: "FINALIZED" as const,
-    phase: "DISTRIBUTION" as const, allocations: payload.allocations, nextPhase: "INITIALIZE" as const };
+    phase: "DISTRIBUTION" as const, allocations: payload.allocations, nextPhase: controlled ? "ACTIVATE" as const : "INITIALIZE" as const };
 }
 
 export async function confirmInstrumentMintSetup(database: PrismaClient, rpc: SolanaRpc, instrumentId: string,
@@ -641,6 +785,7 @@ export async function confirmInstrumentMintSetup(database: PrismaClient, rpc: So
   const operation = await database.blockchainTransaction.findUnique({ where: { id: operationId }, include: { instrument: { include: { settlementAsset: true } } } });
   const instrument = operation?.instrument;
   if (!operation || !instrument || instrument.id !== instrumentId || operation.operationType !== "INSTRUMENT_MINT_SETUP") throw new InstrumentDeploymentError("DEPLOYMENT_ATTEMPT_NOT_FOUND", "Mint setup attempt was not found", 404);
+  const controlled = requireControlledRegistry(instrument, options);
   if (actor.walletAddress !== instrument.issuerAuthority || operation.requiredSigner !== actor.walletAddress) throw new InstrumentDeploymentError("WALLET_MISMATCH", "Session wallet does not match the prepared signer", 403);
   if (operation.status === "FINALIZED") {
     if (operation.signature !== transactionSignature) throw new InstrumentDeploymentError("DEPLOYMENT_CONFLICT", "Finalized attempt has another signature");
@@ -664,18 +809,21 @@ export async function confirmInstrumentMintSetup(database: PrismaClient, rpc: So
   try { verifyFinalizedTransaction({ expectedUnsignedTransactionBase64: operation.preparedTransactionBase64,
     finalizedTransactionBase64: tuple[0], requiredSigner: actor.walletAddress, signature: transactionSignature }); }
   catch { throw new InstrumentDeploymentError("TRANSACTION_MISMATCH", "Finalized transaction does not match the prepared mint setup"); }
-  const plan = await buildInstrumentMintSetup({ programId: options.programId, instrumentId: uuidBytes(instrument.id), administrator: actor.walletAddress,
-    bondRentLamports: 0n, settlementRentLamports: 0n, totalSupply: instrument.totalSupply });
+  const plan = await (controlled ? buildControlledMintSetup : buildInstrumentMintSetup)({ programId: options.programId, instrumentId: uuidBytes(instrument.id), administrator: actor.walletAddress,
+    bondRentLamports: controlled ? 1n : 0n, settlementRentLamports: controlled ? 1n : 0n, totalSupply: instrument.totalSupply });
   const [bondData, settlementData, treasuryData] = await Promise.all([plan.bondMint, plan.settlementMint, plan.treasuryTokenAccount].map(address =>
     rpc.request("getAccountInfo", [address, { commitment: "finalized", encoding: "base64", minContextSlot: slot }])));
-  verifyMint(accountData(bondData, slot), { decimals: 0, supply: instrument.totalSupply, permanentDelegate: plan.instrumentAuthority });
+  if (controlled) verifyControlledMint(accountData(bondData, slot), { supply: 0n, instrumentAuthority: plan.instrumentAuthority, mintAuthority: actor.walletAddress });
+  else verifyMint(accountData(bondData, slot), { decimals: 0, supply: instrument.totalSupply, permanentDelegate: plan.instrumentAuthority });
   // KZT-Test must retain the issuer authority so a later settlement can be test-funded.
   verifyMint(accountData(settlementData, slot), { decimals: 6, supply: 0n, mintAuthority: actor.walletAddress });
   const treasury = accountData(treasuryData, slot);
   if (treasury.length < 165 || encodePublicKey(treasury.subarray(0, 32)) !== plan.bondMint ||
-      encodePublicKey(treasury.subarray(32, 64)) !== actor.walletAddress || treasury.readBigUInt64LE(64) !== instrument.totalSupply) {
+      encodePublicKey(treasury.subarray(32, 64)) !== actor.walletAddress || treasury.readBigUInt64LE(64) !== (controlled ? 0n : instrument.totalSupply)) {
     throw new InstrumentDeploymentError("TREASURY_STATE_MISMATCH", "Finalized treasury does not contain the canonical supply");
   }
+  if (controlled) controlledTokenState(treasury, plan.treasuryTokenAccount,
+    { mint: plan.bondMint, owner: actor.walletAddress, amount: 0n }, "TREASURY_STATE_MISMATCH");
   await database.$transaction(async transaction => {
     const attempt = await transaction.blockchainTransaction.updateMany({ where: { id: operationId, status: { in: [...CONFIRMABLE] }, OR: [{ signature: null }, { signature: transactionSignature }] },
       data: { signature: transactionSignature, status: "FINALIZED", submittedAt: now, finalizedAt: now, lastErrorCode: null } });
@@ -687,11 +835,11 @@ export async function confirmInstrumentMintSetup(database: PrismaClient, rpc: So
       event: "INSTRUMENT_MINT_SETUP_FINALIZED", entityType: "Instrument", entityId: instrument.id,
       correlationId: actor.correlationId, blockchainTransactionId: operationId,
       metadataJson: { signature: transactionSignature, finalizedSlot: slot, bondMint: plan.bondMint,
-        settlementMint: plan.settlementMint, treasuryTokenAccount: plan.treasuryTokenAccount, status: "DRAFT", nextPhase: "DISTRIBUTION" } } });
+        settlementMint: plan.settlementMint, treasuryTokenAccount: plan.treasuryTokenAccount, status: "DRAFT", nextPhase: controlled ? "INITIALIZE" : "DISTRIBUTION" } } });
   });
   return { operationId, signature: transactionSignature, finalizedSlot: slot, status: "FINALIZED" as const,
     phase: "MINT_SETUP" as const, bondMint: plan.bondMint, settlementMint: plan.settlementMint,
-    treasuryTokenAccount: plan.treasuryTokenAccount, nextPhase: "DISTRIBUTION" as const };
+    treasuryTokenAccount: plan.treasuryTokenAccount, nextPhase: controlled ? "INITIALIZE" as const : "DISTRIBUTION" as const };
 }
 
 function lifecyclePayload(value: unknown, phase: "INITIALIZE" | "ACTIVATE"): InitializationPayload | ActivationPayload {
@@ -709,7 +857,7 @@ function lifecyclePayload(value: unknown, phase: "INITIALIZE" | "ACTIVATE"): Ini
 }
 
 function preparedLifecycleResponse(existing: StoredMintSetupAttempt, cluster: "localnet" | "devnet",
-  phase: "INITIALIZE" | "ACTIVATE") {
+  phase: "INITIALIZE" | "ACTIVATE", options?: InstrumentDeploymentOptions) {
   if (!existing.preparedTransactionBase64 || !existing.requiredSigner || !existing.networkGenesisHash ||
       !existing.recentBlockhash || existing.lastValidBlockHeight === null) {
     throw new InstrumentDeploymentError("DEPLOYMENT_ATTEMPT_INVALID", `Stored ${phase.toLowerCase()} attempt is incomplete`);
@@ -720,15 +868,17 @@ function preparedLifecycleResponse(existing: StoredMintSetupAttempt, cluster: "l
     networkGenesisHash: existing.networkGenesisHash, recentBlockhash: existing.recentBlockhash,
     lastValidBlockHeight: Number(existing.lastValidBlockHeight),
     serializedTransactionBase64: existing.preparedTransactionBase64,
-    transactionFormat: "SOLANA_V0_WIRE_TRANSACTION_BASE64" as const, ...payload, resumed: true };
+    transactionFormat: "SOLANA_V0_WIRE_TRANSACTION_BASE64" as const, ...payload,
+    ...(options ? resumeControlledMetadata(existing, options) : {}), resumed: true };
 }
 
 async function expireOrResumeLifecycle(database: PrismaClient, rpc: SolanaRpc, instrumentId: string,
   actor: InstrumentActor, options: InstrumentDeploymentOptions, phase: "INITIALIZE" | "ACTIVATE") {
   const operationType = `INSTRUMENT_${phase}`;
   const existing = await database.blockchainTransaction.findFirst({ where: { instrumentId, operationType,
-    status: { in: [...CONFIRMABLE] } }, orderBy: { createdAt: "desc" } });
+    status: { in: [...CONFIRMABLE] } }, orderBy: { createdAt: "desc" }, include: { instrument: true } });
   if (!existing) return null;
+  if (existing.instrument) requireControlledRegistry(existing.instrument, options);
   if (existing.requiredSigner !== actor.walletAddress) {
     throw new InstrumentDeploymentError("WALLET_MISMATCH", "Session wallet does not match the prepared signer", 403);
   }
@@ -736,7 +886,7 @@ async function expireOrResumeLifecycle(database: PrismaClient, rpc: SolanaRpc, i
     throw new InstrumentDeploymentError("WRONG_SOLANA_NETWORK", "Stored attempt belongs to another network", 409);
   }
   if (await activeAttemptCanResume(database, rpc, existing, options.expectedGenesisHash)) {
-    return preparedLifecycleResponse(existing, options.cluster, phase);
+    return preparedLifecycleResponse(existing, options.cluster, phase, options);
   }
   return null;
 }
@@ -783,13 +933,13 @@ function contextualProgramAccount(response: unknown, minimumSlot: number, progra
 export function verifyConfirmedInstrument(dataBase64: string, instrument: {
   id: string; issuerAuthority: string; complianceAuthority: string; corporateActionAuthority: string;
   mintAddress: string | null; faceValueMinor: bigint; couponRateBps: number; paymentsPerYear: number;
-  issueAt: Date; maturityAt: Date; totalSupply: bigint; settlementAsset: { mintAddress: string | null };
+  issueAt: Date; maturityAt: Date; totalSupply: bigint; settlementAsset: { mintAddress: string | null }; tokenPolicy?: string;
   }, expectedStatus: "DEPLOYING" | "ACTIVE" | "PAUSED" | "REDEEMED") {
   let chain;
   try { chain = decodeConfirmedInstrumentAccount(dataBase64); }
   catch { throw new InstrumentDeploymentError("INSTRUMENT_ACCOUNT_MISMATCH", "Instrument PDA data is invalid"); }
   const id = Buffer.from(uuidBytes(instrument.id));
-  if (chain.version !== 1 || !Buffer.from(chain.instrumentId).equals(id) || chain.issuerAuthority !== instrument.issuerAuthority ||
+  if (chain.version !== (instrument.tokenPolicy === CONTROLLED_TOKEN_POLICY ? 2 : 1) || !Buffer.from(chain.instrumentId).equals(id) || chain.issuerAuthority !== instrument.issuerAuthority ||
       chain.complianceAuthority !== instrument.complianceAuthority ||
       chain.corporateActionAuthority !== instrument.corporateActionAuthority || chain.bondMint !== instrument.mintAddress ||
       chain.settlementMint !== instrument.settlementAsset.mintAddress || chain.faceValueMinor !== instrument.faceValueMinor ||
@@ -809,17 +959,18 @@ export async function prepareInstrumentInitialization(database: PrismaClient, rp
   const instrument = await database.instrument.findUnique({ where: { id: instrumentId }, include: { settlementAsset: true } });
   if (!instrument) throw new InstrumentDeploymentError("INSTRUMENT_NOT_FOUND", "Instrument was not found", 404);
   if (instrument.issuerAuthority !== actor.walletAddress) throw new InstrumentDeploymentError("WALLET_MISMATCH", "Session wallet is not the instrument issuer", 403);
-  if (instrument.status !== "DRAFT" || instrument.circulatingSupply !== instrument.totalSupply ||
+  const controlled = requireControlledRegistry(instrument, options);
+  if (instrument.status !== "DRAFT" || instrument.circulatingSupply !== (controlled ? 0n : instrument.totalSupply) ||
       !instrument.mintAddress || !instrument.settlementAsset.mintAddress || instrument.programId !== options.programId) {
     throw new InstrumentDeploymentError("INITIALIZE_NOT_AVAILABLE", "Initialization requires a fully distributed DRAFT instrument");
   }
   const distribution = await database.blockchainTransaction.findFirst({ where: { instrumentId,
-    operationType: "INSTRUMENT_DISTRIBUTION", status: "FINALIZED" }, select: { id: true } });
-  if (!distribution) throw new InstrumentDeploymentError("DISTRIBUTION_REQUIRED", "A finalized distribution is required before initialization");
+    operationType: controlled ? "INSTRUMENT_MINT_SETUP" : "INSTRUMENT_DISTRIBUTION", status: "FINALIZED" }, select: { id: true } });
+  if (!distribution) throw new InstrumentDeploymentError(controlled ? "MINT_SETUP_REQUIRED" : "DISTRIBUTION_REQUIRED", "The prior issuance phase must be finalized before initialization");
   if (await rpc.request("getGenesisHash", []) !== options.expectedGenesisHash) {
     throw new InstrumentDeploymentError("WRONG_SOLANA_NETWORK", "RPC genesis hash does not match configuration", 503);
   }
-  const plan = await buildInstrumentInitialization({ programId: options.programId, instrumentId: uuidBytes(instrument.id),
+  const plan = await (controlled ? buildControlledInstrumentInitialization : buildInstrumentInitialization)({ programId: options.programId, instrumentId: uuidBytes(instrument.id),
     administrator: actor.walletAddress, bondMint: instrument.mintAddress, settlementMint: instrument.settlementAsset.mintAddress,
     complianceAuthority: instrument.complianceAuthority, corporateActionAuthority: instrument.corporateActionAuthority,
     faceValueMinor: instrument.faceValueMinor, couponRateBps: instrument.couponRateBps,
@@ -831,7 +982,9 @@ export async function prepareInstrumentInitialization(database: PrismaClient, rp
   const { recentBlockhash, lastValidBlockHeight } = await latestBlockhash(rpc);
   const serializedTransactionBase64 = serializeUnsignedInstructionsTransaction({ instructions: [plan.instruction],
     feePayer: actor.walletAddress, recentBlockhash, lastValidBlockHeight });
-  const payload: InitializationPayload = { instrumentAddress: plan.instrumentAddress };
+  const payload = { instrumentAddress: plan.instrumentAddress, ...await controlledMetadata(instrument, options),
+    ...(controlled ? { bondMint: instrument.mintAddress, settlementMint: instrument.settlementAsset.mintAddress,
+      controlledPolicyAddress: await deriveControlledPolicyAddress(options.programId, plan.instrumentAddress) } : {}) };
   try {
     const operation = await database.$transaction(async transaction => {
       const row = await transaction.blockchainTransaction.create({ data: { instrumentId, operationType: "INSTRUMENT_INITIALIZE",
@@ -851,9 +1004,9 @@ export async function prepareInstrumentInitialization(database: PrismaClient, rp
     const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
     if (code !== "P2002") throw error;
     const concurrent = await database.blockchainTransaction.findFirst({ where: { instrumentId,
-      operationType: "INSTRUMENT_INITIALIZE", status: { in: [...CONFIRMABLE] } }, orderBy: { createdAt: "desc" } });
+      operationType: "INSTRUMENT_INITIALIZE", status: { in: [...CONFIRMABLE] } }, orderBy: { createdAt: "desc" }, include: { instrument: true } });
     if (!concurrent) throw error;
-    return preparedLifecycleResponse(concurrent, options.cluster, "INITIALIZE");
+    return preparedLifecycleResponse(concurrent, options.cluster, "INITIALIZE", options);
   }
 }
 
@@ -900,6 +1053,7 @@ export async function confirmInstrumentInitialization(database: PrismaClient, rp
   if (!operation || !instrument || instrument.id !== instrumentId || operation.operationType !== "INSTRUMENT_INITIALIZE") {
     throw new InstrumentDeploymentError("DEPLOYMENT_ATTEMPT_NOT_FOUND", "Initialization attempt was not found", 404);
   }
+  const controlled = requireControlledRegistry(instrument, options);
   if (actor.walletAddress !== instrument.issuerAuthority || operation.requiredSigner !== actor.walletAddress) {
     throw new InstrumentDeploymentError("WALLET_MISMATCH", "Session wallet does not match the prepared signer", 403);
   }
@@ -919,21 +1073,32 @@ export async function confirmInstrumentInitialization(database: PrismaClient, rp
   const response = await rpc.request("getAccountInfo", [payload.instrumentAddress,
     { commitment: "finalized", encoding: "base64", minContextSlot: slot }]);
   verifyConfirmedInstrument(contextualProgramAccount(response, slot, options.programId), instrument, "DEPLOYING");
+  if (controlled) {
+    const setup = await buildControlledMintSetup({ programId: options.programId, instrumentId: uuidBytes(instrument.id),
+      administrator: actor.walletAddress, bondRentLamports: 1n, settlementRentLamports: 1n, totalSupply: instrument.totalSupply });
+    if (setup.bondMint !== instrument.mintAddress || setup.settlementMint !== instrument.settlementAsset.mintAddress) {
+      throw new InstrumentDeploymentError("INITIALIZE_STATE_MISMATCH", "Controlled mint addresses are not canonical");
+    }
+    await verifyControlledRegistryAccounts(rpc, instrument, options, slot);
+    const treasury = await rpc.request("getAccountInfo", [setup.treasuryTokenAccount, { commitment: "finalized", encoding: "base64", minContextSlot: slot }]);
+    controlledTokenState(accountData(treasury, slot), setup.treasuryTokenAccount,
+      { mint: instrument.mintAddress!, owner: actor.walletAddress, amount: instrument.totalSupply }, "TREASURY_STATE_MISMATCH");
+  }
   await database.$transaction(async transaction => {
     const attempt = await transaction.blockchainTransaction.updateMany({ where: { id: operationId,
       status: { in: [...CONFIRMABLE] }, OR: [{ signature: null }, { signature: transactionSignature }] },
       data: { signature: transactionSignature, status: "FINALIZED", submittedAt: now, finalizedAt: now, lastErrorCode: null } });
     const updated = await transaction.instrument.updateMany({ where: { id: instrument.id, status: "DRAFT",
-      circulatingSupply: instrument.totalSupply }, data: { status: "DEPLOYING", version: { increment: 1 } } });
+      circulatingSupply: controlled ? 0n : instrument.totalSupply }, data: { status: "DEPLOYING", version: { increment: 1 } } });
     if (attempt.count !== 1 || updated.count !== 1) throw new InstrumentDeploymentError("DEPLOYMENT_CONFLICT", "Initialization state changed concurrently");
     await transaction.auditLog.create({ data: { actorId: actor.id, actorWallet: actor.walletAddress,
       event: "INSTRUMENT_INITIALIZED", entityType: "Instrument", entityId: instrument.id,
       correlationId: actor.correlationId, blockchainTransactionId: operationId,
       metadataJson: { signature: transactionSignature, finalizedSlot: slot,
-        instrumentAddress: payload.instrumentAddress, status: "DEPLOYING", nextPhase: "ACTIVATE" } } });
+        instrumentAddress: payload.instrumentAddress, status: "DEPLOYING", nextPhase: controlled ? "DISTRIBUTION" : "ACTIVATE" } } });
   });
   return { operationId, signature: transactionSignature, finalizedSlot: slot, status: "FINALIZED" as const,
-    phase: "INITIALIZE" as const, instrumentAddress: payload.instrumentAddress, nextPhase: "ACTIVATE" as const };
+    phase: "INITIALIZE" as const, instrumentAddress: payload.instrumentAddress, nextPhase: controlled ? "DISTRIBUTION" as const : "ACTIVATE" as const };
 }
 
 export async function prepareInstrumentActivation(database: PrismaClient, rpc: SolanaRpc, instrumentId: string,
@@ -948,6 +1113,7 @@ export async function prepareInstrumentActivation(database: PrismaClient, rpc: S
       !instrument.mintAddress || instrument.programId !== options.programId) {
     throw new InstrumentDeploymentError("ACTIVATION_NOT_AVAILABLE", "Activation requires an initialized and fully distributed instrument");
   }
+  const controlled = requireControlledRegistry(instrument, options);
   const initialized = await database.blockchainTransaction.findFirst({ where: { instrumentId,
     operationType: "INSTRUMENT_INITIALIZE", status: "FINALIZED" }, select: { id: true } });
   const distributionAttempt = await database.blockchainTransaction.findFirst({ where: { instrumentId,
@@ -966,15 +1132,17 @@ export async function prepareInstrumentActivation(database: PrismaClient, rpc: S
     if (!data) throw new InstrumentDeploymentError("ACTIVATION_STATE_MISMATCH", "A distributed holder account is missing");
     tokenAccountState(data, { mint: distribution.bondMint, owner: allocation.walletAddress,
       amount: BigInt(allocation.amount) }, "ACTIVATION_STATE_MISMATCH");
+    if (controlled) controlledTokenState(data, allocation.tokenAccount,
+      { mint: distribution.bondMint, owner: allocation.walletAddress, amount: BigInt(allocation.amount) }, "ACTIVATION_STATE_MISMATCH");
   });
-  const plan = await buildInstrumentActivation({ programId: options.programId, instrumentId: uuidBytes(instrument.id),
+  const plan = await (controlled ? buildControlledInstrumentActivation : buildInstrumentActivation)({ programId: options.programId, instrumentId: uuidBytes(instrument.id),
     issuerAuthority: actor.walletAddress, bondMint: instrument.mintAddress,
     holderTokenAccounts: distribution.allocations.map(row => row.tokenAccount) });
   const { recentBlockhash, lastValidBlockHeight } = await latestBlockhash(rpc);
   const serializedTransactionBase64 = serializeUnsignedInstructionsTransaction({ instructions: [plan.instruction],
     feePayer: actor.walletAddress, recentBlockhash, lastValidBlockHeight });
   const payload = { instrumentAddress: plan.instrumentAddress, bondMint: distribution.bondMint,
-    treasuryTokenAccount: distribution.treasuryTokenAccount, allocations: distribution.allocations };
+    treasuryTokenAccount: distribution.treasuryTokenAccount, allocations: distribution.allocations, ...await controlledMetadata(instrument, options) };
   try {
     const operation = await database.$transaction(async transaction => {
       const row = await transaction.blockchainTransaction.create({ data: { instrumentId, operationType: "INSTRUMENT_ACTIVATE",
@@ -990,14 +1158,14 @@ export async function prepareInstrumentActivation(database: PrismaClient, rpc: S
     return { operationId: operation.id, phase: "ACTIVATE" as const, cluster: options.cluster,
       requiredSigner: actor.walletAddress, networkGenesisHash: options.expectedGenesisHash, recentBlockhash,
       lastValidBlockHeight, serializedTransactionBase64, transactionFormat: "SOLANA_V0_WIRE_TRANSACTION_BASE64" as const,
-      instrumentAddress: plan.instrumentAddress, allocations: distribution.allocations, resumed: false };
+      instrumentAddress: plan.instrumentAddress, allocations: distribution.allocations, ...await controlledMetadata(instrument, options), resumed: false };
   } catch (error) {
     const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
     if (code !== "P2002") throw error;
     const concurrent = await database.blockchainTransaction.findFirst({ where: { instrumentId,
-      operationType: "INSTRUMENT_ACTIVATE", status: { in: [...CONFIRMABLE] } }, orderBy: { createdAt: "desc" } });
+      operationType: "INSTRUMENT_ACTIVATE", status: { in: [...CONFIRMABLE] } }, orderBy: { createdAt: "desc" }, include: { instrument: true } });
     if (!concurrent) throw error;
-    return preparedLifecycleResponse(concurrent, options.cluster, "ACTIVATE");
+    return preparedLifecycleResponse(concurrent, options.cluster, "ACTIVATE", options);
   }
 }
 
@@ -1012,6 +1180,7 @@ export async function confirmInstrumentActivation(database: PrismaClient, rpc: S
   if (!operation || !instrument || instrument.id !== instrumentId || operation.operationType !== "INSTRUMENT_ACTIVATE") {
     throw new InstrumentDeploymentError("DEPLOYMENT_ATTEMPT_NOT_FOUND", "Activation attempt was not found", 404);
   }
+  const controlled = requireControlledRegistry(instrument, options);
   if (actor.walletAddress !== instrument.issuerAuthority || operation.requiredSigner !== actor.walletAddress) {
     throw new InstrumentDeploymentError("WALLET_MISMATCH", "Session wallet does not match the prepared signer", 403);
   }
@@ -1041,6 +1210,11 @@ export async function confirmInstrumentActivation(database: PrismaClient, rpc: S
   payload.allocations.forEach((allocation, index) => tokenAccountState(accountData(holderResponses[index], slot),
     { mint: instrument.mintAddress!, owner: allocation.walletAddress, amount: BigInt(allocation.amount) },
     "ACTIVATION_STATE_MISMATCH"));
+  if (controlled) {
+    payload.allocations.forEach((allocation, index) => controlledTokenState(accountData(holderResponses[index], slot), allocation.tokenAccount,
+      { mint: instrument.mintAddress!, owner: allocation.walletAddress, amount: BigInt(allocation.amount) }, "ACTIVATION_STATE_MISMATCH"));
+    await verifyControlledRegistryAccounts(rpc, instrument, options, slot, payload.allocations);
+  }
   await database.$transaction(async transaction => {
     const attempt = await transaction.blockchainTransaction.updateMany({ where: { id: operationId,
       status: { in: [...CONFIRMABLE] }, OR: [{ signature: null }, { signature: transactionSignature }] },

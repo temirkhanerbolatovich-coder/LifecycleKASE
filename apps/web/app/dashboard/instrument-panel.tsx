@@ -13,11 +13,15 @@ import { filterRegistry, INITIAL_FILTERS, statusTone } from "./workspace-present
 import { workspaceSelectionFromHash, workspaceSectionHash, workspaceSectionFromHash } from "./workspace-navigation";
 
 import { useLocale, useLocalizedTextState } from "./locale-context";
+import { reviewedDeploymentPlan, type DeploymentPlan, type DeploymentPhase,
+  type ControlledDeploymentConfiguration } from "./instrument-deployment-workflow";
+import type { InstrumentTokenPolicy } from "./controlled-identity";
 
 type Instrument = {
   id: string; name: string; ticker: string; network: string; status: string; issuerAuthority: string;
   faceValueMinor: string; couponRateBps: number; paymentsPerYear: number; issueAt: string; maturityAt: string;
   totalSupply: string; circulatingSupply: string; programId: string | null; mintAddress: string | null;
+  tokenPolicy?: InstrumentTokenPolicy; corporateActionAuthority?: string; complianceAuthority?: string; networkGenesisHash?: string | null;
   issuer: { legalName: string };
   settlementAsset: { code: string; name: string; mintAddress: string | null; disclaimer: string };
 };
@@ -25,14 +29,8 @@ type Request = (path: string, init?: RequestInit) => Promise<Record<string, unkn
 const INSTRUMENT_STATUS_LABELS: Record<string, string> = { DRAFT: "Черновик", DEPLOYING: "Выпуск", ACTIVE: "Активен", PAUSED: "Приостановлен", REDEEMED: "Погашен" };
 type SendingWallet = WalletWithFeatures<StandardConnectFeature & SolanaSignAndSendTransactionFeature>;
 type SigningWallet = WalletWithFeatures<StandardConnectFeature & SolanaSignTransactionFeature>;
-type DistributionAllocation = { investorId: string; walletAddress: string; tokenAccount: string; amount: string };
 type DistributionCandidate = { investorId: string; displayName: string; walletAddress: string };
 type DistributionDraft = { instrument: Instrument; candidates: DistributionCandidate[]; selections: Record<string, string> };
-type DeploymentPhase = "MINT_SETUP" | "DISTRIBUTION" | "INITIALIZE" | "ACTIVATE";
-type DeploymentPlan = { operationId: string; phase: DeploymentPhase; cluster: SupportedSnapshotCluster;
-  requiredSigner: string; networkGenesisHash: string; serializedTransactionBase64: string;
-  bondMint?: string; settlementMint?: string; treasuryTokenAccount?: string; instrumentAddress?: string;
-  allocations?: DistributionAllocation[] };
 
 function transactionWallet(wallet: Wallet | undefined, cluster: SupportedSnapshotCluster): boolean {
   const connectFeature = wallet?.features[StandardConnect] as StandardConnectFeature[typeof StandardConnect] | undefined;
@@ -45,25 +43,6 @@ function transactionWallet(wallet: Wallet | undefined, cluster: SupportedSnapsho
   return typeof feature?.signAndSendTransaction === "function" && feature.supportedTransactionVersions.includes(0);
 }
 
-function deploymentPlan(value: Record<string, unknown>, instrument: Instrument, walletAddress: string): DeploymentPlan {
-  const cluster = value["cluster"];
-  const result = value as unknown as DeploymentPlan;
-  if (!["MINT_SETUP", "DISTRIBUTION", "INITIALIZE", "ACTIVATE"].includes(String(value["phase"])) ||
-      (cluster !== "localnet" && cluster !== "devnet") ||
-      typeof value["operationId"] !== "string" || typeof value["serializedTransactionBase64"] !== "string" ||
-      value["requiredSigner"] !== walletAddress || instrument.issuerAuthority !== walletAddress) {
-    throw new Error("Сервер вернул несовместимый план выпуска или другой issuer signer.");
-  }
-  if ((value["phase"] === "DISTRIBUTION" || value["phase"] === "ACTIVATE") &&
-      (!Array.isArray(value["allocations"]) || value["allocations"].length !== 3)) {
-    throw new Error("Сервер вернул неполный план держателей.");
-  }
-  if ((value["phase"] === "INITIALIZE" || value["phase"] === "ACTIVATE") && typeof value["instrumentAddress"] !== "string") {
-    throw new Error("Сервер не вернул Instrument PDA.");
-  }
-  unsignedTransactionForSigner(result.serializedTransactionBase64, walletAddress);
-  return result;
-}
 
 function shortAddress(address: string): string {
   return address.length > 15 ? `${address.slice(0, 6)}…${address.slice(-6)}` : address;
@@ -87,10 +66,12 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
   role: string; request: Request; wallet: Wallet | undefined; walletAddress: string; onBusyChange: (busy: boolean) => void;
   renderQaControls?: ((instrument: { id: string; status: string }, onChanged: () => Promise<void>) => ReactNode) | undefined;
 }) {
-  const { t, formatDate, formatAmount, displayMessage } = useLocale();
+  const { t, locale, formatDate, formatAmount, displayMessage } = useLocale();
   const statusLabels = Object.fromEntries(Object.entries(INSTRUMENT_STATUS_LABELS)
     .map(([status, label]) => [status, displayMessage(label)]));
   const [items, setItems] = useState<Instrument[]>([]);
+  const [controlledEnabled, setControlledEnabled] = useState(false);
+  const [controlledConfiguration, setControlledConfiguration] = useState<ControlledDeploymentConfiguration | null>(null);
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [detailId, setDetailId] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
@@ -125,8 +106,9 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
     finally { inFlight.current = false; setBusy(false); onBusyChange(false); }
   }
 
-  function acceptPreparedPlan(response: Record<string, unknown>, instrument: Instrument): boolean {
-    const prepared = deploymentPlan(response, instrument, walletAddress);
+  async function acceptPreparedPlan(response: Record<string, unknown>, instrument: Instrument,
+    allocations?: readonly { walletAddress: string; amount: string }[]): Promise<boolean> {
+    const prepared = await reviewedDeploymentPlan(response, instrument, walletAddress, controlledConfiguration, allocations);
     const previousSignature = resumedDeploymentSignature(response);
     setPlan(prepared); setDeployInstrumentId(instrument.id); setSignature(previousSignature ?? "");
     setReviewed(previousSignature !== null); setSendAttempted(previousSignature !== null);
@@ -137,7 +119,7 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
     const response = await request(`/api/v1/instruments/${instrument.id}/deploy/prepare`, {
       method: "POST", body: JSON.stringify({ phase: "MINT_SETUP" })
     });
-    if (acceptPreparedPlan(response, instrument)) {
+    if (await acceptPreparedPlan(response, instrument)) {
       setMessage(t("registry.instrument.resumed"));
       return;
     }
@@ -148,7 +130,7 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
     const response = await request(`/api/v1/instruments/${instrument.id}/deploy/prepare`, {
       method: "POST", body: JSON.stringify({ phase })
     });
-    if (acceptPreparedPlan(response, instrument)) {
+    if (await acceptPreparedPlan(response, instrument)) {
       setMessage(t("registry.instrument.resumed"));
       return;
     }
@@ -192,7 +174,7 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
         walletAddress: distributionDraft.selections[amount], amount
       })) })
     });
-    const resumed = acceptPreparedPlan(response, distributionDraft.instrument);
+    const resumed = await acceptPreparedPlan(response, distributionDraft.instrument, ["10", "20", "5"].map(amount => ({ amount, walletAddress: distributionDraft.selections[amount]! })));
     setDistributionDraft(null);
     if (resumed) {
       setMessage(t("registry.instrument.distributionResumed"));
@@ -203,6 +185,9 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
 
   async function sendDeployment() {
     if (!plan || !reviewed || sendAttempted || !transactionWallet(wallet, plan.cluster)) throw new Error(t("registry.instrument.reviewedPlanRequired"));
+    const instrument = items.find(row => row.id === deployInstrumentId);
+    if (!instrument) throw new Error(t("registry.instrument.selectInstrumentFirst"));
+    await reviewedDeploymentPlan(plan as unknown as Record<string, unknown>, instrument, walletAddress, controlledConfiguration, plan.allocations);
     const chain = walletChainForCluster(plan.cluster);
     const connected = await (wallet as WalletWithFeatures<StandardConnectFeature>).features[StandardConnect].connect();
     const requiredFeature = plan.cluster === "localnet" ? SolanaSignTransaction : SolanaSignAndSendTransaction;
@@ -265,6 +250,9 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
       signal ? { signal } : undefined);
     if (signal?.aborted) return;
     if (!Array.isArray(result["items"])) throw new Error(t("registry.instrument.invalidRegistryResponse"));
+    setControlledEnabled(result["controlledRegistryEnabled"] === true && !renderQaControls);
+    setControlledConfiguration(typeof result["controlledProgramId"] === "string" && typeof result["controlledNetworkGenesisHash"] === "string"
+      ? { programId: result["controlledProgramId"], networkGenesisHash: result["controlledNetworkGenesisHash"] } : null);
     const rows = result["items"] as Instrument[];
     setItems(previous => cursor ? [...previous, ...rows] : rows);
     setNextCursor(typeof result["nextCursor"] === "string" ? result["nextCursor"] : null);
@@ -299,7 +287,8 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
         issuerLegalName: data.get("issuerLegalName"), name: data.get("name"), ticker: data.get("ticker"),
         faceValueKzt: data.get("faceValueKzt"), couponRateBps: Number(data.get("couponRateBps")),
         paymentsPerYear: Number(data.get("paymentsPerYear")),
-        issueAt: `${issueDate}T00:00:00.000Z`, maturityAt: `${maturityDate}T00:00:00.000Z`
+        issueAt: `${issueDate}T00:00:00.000Z`, maturityAt: `${maturityDate}T00:00:00.000Z`,
+        ...(controlledEnabled ? { tokenPolicy: data.get("tokenPolicy") } : {})
       }) });
       form.reset();
       try {
@@ -343,6 +332,12 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
         <label className="block text-sm">{t("registry.instrument.frequencyField")}<select className={inputClass} name="paymentsPerYear" defaultValue="2" disabled={busy}><option value="1">1</option><option value="2">2</option><option value="4">4</option></select></label>
         <label className="block text-sm">{t("registry.instrument.issueDateField")}<input className={inputClass} name="issueDate" type="date" required disabled={busy} /></label>
         <label className="block text-sm">{t("registry.instrument.maturityDateField")}<input className={inputClass} name="maturityDate" type="date" required disabled={busy} /></label>
+        {controlledEnabled && <label className="block text-sm lg:col-span-2">{locale === "en" ? "Bond transfer rules" : "Правила перевода облигаций"}
+          <select className={inputClass} name="tokenPolicy" defaultValue="LEGACY_UNRESTRICTED_V1" disabled={busy}>
+            <option value="LEGACY_UNRESTRICTED_V1">{locale === "en" ? "Existing issuance · unrestricted transfers" : "Прежний выпуск · свободные переводы"}</option>
+            <option value="CONTROLLED_FROZEN_V2">{locale === "en" ? "Governed issuance · protected redemption units" : "Контролируемый выпуск · защита облигаций к погашению"}</option>
+          </select><span className="mt-1 block text-xs text-[#61746a]">{locale === "en" ? "Governed bonds move with holder and operator signatures. Only assigned redemption units are reserved; free units remain transferable after capture." : "Контролируемые облигации переводятся с подписями держателя и оператора. Резервируются только назначенные к погашению единицы; свободные доступны после фиксации держателей."}</span>
+        </label>}
         {createError && <p role="alert" className="form-error lg:col-span-2">{displayMessage(createError)}{" "}{t("registry.instrument.fieldsPreserved")}</p>}
         <div className="lg:col-span-2"><button className={`${buttonClass} border-[#163f2b] bg-[#163f2b] text-white`} disabled={busy}>{t("registry.instrument.createDraft")}</button><button type="button" disabled={busy} className="secondary-button ml-2" onClick={event => event.currentTarget.closest("details")?.removeAttribute("open")}>{t("registry.instrument.cancel")}</button></div>
       </form>
@@ -389,6 +384,7 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
         </div>
         <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
           <div><dt className="text-[#61746a]">{t("registry.instrument.network")}</dt><dd>{instrument.network}</dd></div>
+          <div><dt className="text-[#61746a]">{locale === "en" ? "Transfer rules" : "Правила перевода"}</dt><dd>{instrument.tokenPolicy === "CONTROLLED_FROZEN_V2" ? (locale === "en" ? "Governed · redemption units protected" : "Контролируемые · защита погашаемых единиц") : (locale === "en" ? "Unrestricted" : "Свободные")}</dd></div>
           <div><dt className="text-[#61746a]">{t("registry.instrument.issuerWallet")}</dt><dd><CopyValue value={instrument.issuerAuthority} label={t("registry.instrument.issuerWallet")} /></dd></div>
           <div><dt className="text-[#61746a]">{t("registry.instrument.faceValue")}</dt><dd>{formatAmount(instrument.faceValueMinor)}</dd></div>
           <div><dt className="text-[#61746a]">{t("registry.instrument.coupon")}</dt><dd>{instrument.couponRateBps} bps · {instrument.paymentsPerYear}{" "}{t("registry.instrument.paymentsPerYear")}</dd></div>
@@ -403,17 +399,21 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
           <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || plan !== null}
             onClick={() => void runDeployment(() => prepareDeployment(instrument))}>{t("registry.instrument.prepareMint")}</button>
         )}
-        {!renderQaControls && instrument.status === "DRAFT" && instrument.mintAddress && instrument.circulatingSupply === "0" && <>
+        {!renderQaControls && instrument.status === "DRAFT" && instrument.mintAddress && instrument.circulatingSupply === "0" && instrument.tokenPolicy !== "CONTROLLED_FROZEN_V2" && <>
           <p className="mt-2 text-xs text-[#28744a]">{t("registry.instrument.mintConfirmed")}{" "}{shortAddress(instrument.mintAddress)}{t("registry.instrument.tokensInTreasury")}</p>
           {!renderQaControls && role === "ADMINISTRATOR" && <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || plan !== null || distributionDraft !== null}
             onClick={() => void runDeployment(() => startDistribution(instrument))}>{t("registry.instrument.chooseInvestors")}</button>}
         </>}
-        {!renderQaControls && instrument.status === "DRAFT" && instrument.mintAddress && instrument.circulatingSupply === instrument.totalSupply && <>
-          <p className="mt-2 text-xs text-[#28744a]">{t("registry.instrument.distributionConfirmed")}</p>
+        {!renderQaControls && instrument.status === "DRAFT" && instrument.mintAddress && (instrument.circulatingSupply === instrument.totalSupply || instrument.tokenPolicy === "CONTROLLED_FROZEN_V2") && <>
+          <p className="mt-2 text-xs text-[#28744a]">{instrument.tokenPolicy === "CONTROLLED_FROZEN_V2" ?
+            (locale === "en" ? "Issuance accounts created. Initialize the instrument to issue treasury bonds." : "Счета выпуска созданы. Зарегистрируйте инструмент, чтобы выпустить облигации в хранилище.") : t("registry.instrument.distributionConfirmed")}</p>
           {!renderQaControls && role === "ADMINISTRATOR" && <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || plan !== null}
             onClick={() => void runDeployment(() => prepareLifecycle(instrument, "INITIALIZE"))}>{t("registry.instrument.prepareInitialize")}</button>}
         </>}
-        {!renderQaControls && instrument.status === "DEPLOYING" && <>
+        {!renderQaControls && instrument.status === "DEPLOYING" && instrument.tokenPolicy === "CONTROLLED_FROZEN_V2" && instrument.circulatingSupply === "0" && role === "ADMINISTRATOR" &&
+          <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || plan !== null || distributionDraft !== null}
+            onClick={() => void runDeployment(() => startDistribution(instrument))}>{t("registry.instrument.chooseInvestors")}</button>}
+        {!renderQaControls && instrument.status === "DEPLOYING" && (instrument.tokenPolicy !== "CONTROLLED_FROZEN_V2" || instrument.circulatingSupply === instrument.totalSupply) && <>
           <p className="mt-2 text-xs text-[#28744a]">{t("registry.instrument.initialized")}</p>
           {!renderQaControls && role === "ADMINISTRATOR" && <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || plan !== null}
             onClick={() => void runDeployment(() => prepareLifecycle(instrument, "ACTIVATE"))}>{t("registry.instrument.prepareActivate")}</button>}
@@ -440,7 +440,10 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
     </div>}
     {plan && <div className="mt-4 rounded-xl border border-[#d3b779] bg-[#fffaf0] p-4 text-sm">
       <p className="font-semibold">{items.find(row => row.id === deployInstrumentId)?.ticker ?? deployInstrumentId}{" "}{t("registry.instrument.phaseReviewLabel")}{" "}{plan.phase}</p>
-      <p className="mt-2 text-xs leading-5">{t("registry.instrument.networkLabel")}{" "}<strong>{plan.cluster}</strong>. {displayMessage(phaseSummary(plan.phase))}</p>
+      <p className="mt-2 text-xs leading-5">{t("registry.instrument.networkLabel")}{" "}<strong>{plan.cluster}</strong>. {plan.tokenPolicy === "CONTROLLED_FROZEN_V2" && plan.phase === "MINT_SETUP" ?
+        (locale === "en" ? "Create a governed bond mint with zero supply. The next step issues 35 bonds into the protected treasury." : "Создать контролируемый выпуск с нулевым supply. Следующий шаг выпустит 35 облигаций в защищённое хранилище.") :
+        plan.tokenPolicy === "CONTROLLED_FROZEN_V2" && plan.phase === "INITIALIZE" ? (locale === "en" ? "Register the instrument, issue 35 treasury bonds and revoke mint authority atomically." : "Зарегистрировать инструмент, выпустить 35 облигаций в хранилище и атомарно отозвать право допэмиссии.") : displayMessage(phaseSummary(plan.phase))}</p>
+      {plan.rent && <p className="mt-2 text-xs">{locale === "en" ? "Mint account funding (lamports)" : "Средства для счетов выпуска (lamports)"}: {plan.rent.bondRentLamports} + {plan.rent.settlementRentLamports}</p>}
       <dl className="mt-3 space-y-1 text-xs"><div><dt className="text-[#61746a]">{t("registry.instrument.signer")}</dt><dd><CopyValue value={plan.requiredSigner} label={t("registry.instrument.deploymentSigner")} /></dd></div>
         {plan.bondMint && <div><dt className="text-[#61746a]">Bond mint</dt><dd className="break-all font-mono">{plan.bondMint}</dd></div>}
         {plan.settlementMint && <div><dt className="text-[#61746a]">KZT-Test mint</dt><dd className="break-all font-mono">{plan.settlementMint}</dd></div>}
@@ -448,7 +451,10 @@ export function InstrumentPanel({ role, request, wallet, walletAddress, onBusyCh
         {plan.allocations?.map(allocation => <div key={allocation.tokenAccount}><dt className="text-[#61746a]">{allocation.amount} bond · investor {allocation.investorId.slice(0, 8)}</dt>
           <dd className="break-all font-mono">{allocation.walletAddress}</dd></div>)}</dl>
       <label className="mt-3 flex gap-2 text-xs"><input type="checkbox" checked={reviewed} disabled={busy || sendAttempted} onChange={event => setReviewed(event.target.checked)} />
-        {displayMessage(phaseReview(plan.phase))}</label>
+        {plan.tokenPolicy === "CONTROLLED_FROZEN_V2" && plan.phase === "MINT_SETUP" ?
+          (locale === "en" ? "Reviewed network, signer and governed transfer rules; supply remains zero until initialization" : "Проверил сеть, подписанта и правила перевода; до регистрации инструмента supply остаётся нулевым") :
+          plan.tokenPolicy === "CONTROLLED_FROZEN_V2" && plan.phase === "INITIALIZE" ?
+          (locale === "en" ? "Reviewed immutable terms, issuance of 35 bonds and irreversible revocation of mint authority" : "Проверил неизменяемые условия, выпуск 35 облигаций и необратимый отзыв права допэмиссии") : displayMessage(phaseReview(plan.phase))}</label>
       <button type="button" className={`mt-3 ${buttonClass}`} disabled={busy || !reviewed || sendAttempted || !transactionWallet(wallet, plan.cluster)}
         onClick={() => void runDeployment(sendDeployment)}>{t("registry.instrument.signAndSend")}{" "}{plan.phase}</button>
       {sendAttempted && <div className="mt-3"><p className="text-xs">{t("registry.instrument.attemptUuid")}{" "}<span className="font-mono">{plan.operationId}</span></p>

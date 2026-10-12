@@ -1,10 +1,17 @@
 import { Prisma, type PrismaClient, type Entitlement } from "@prisma/client";
 import { calculateCouponBreakdown, calculateEarlyRedemption, calculatePrincipal, createSnapshotV2Commitment,
-  evaluateInvestorEligibility, DomainValidationError } from "@lifecycle-kase/domain";
+  evaluateInvestorEligibility, summarizeCouponBreakdowns, allocateEarlyRedemption, EARLY_REDEMPTION_ALLOCATION_POLICY,
+  type EarlyRedemptionAllocation, DomainValidationError } from "@lifecycle-kase/domain";
 import type { InstrumentActor } from "./instrument-registry.js";
 import { actionInput, actionText, requireActionIssuer, workflowDatabaseError } from "./corporate-action-registry.js";
 import { TransactionWorkflowError, WORKFLOW_UUID } from "./transaction-workflow.js";
 import { redemptionTokenSources } from "./redemption-sources.js";
+import { redemptionAllocationPolicy } from "./redemption-policy.js";
+import { buildControlledUnitReservation } from "@lifecycle-kase/solana-client";
+import { CONTROLLED_TOKEN_POLICY, LEGACY_TOKEN_POLICY } from "./controlled-policy.js";
+import { controlledBurnAllocations, requireControlledReservationProof } from "./controlled-settlement.js";
+import { uuidBytes } from "./snapshot-registration.js";
+import { rpcObject } from "./transaction-workflow.js";
 
 export const FORMULA_VERSION = "integer-entitlements-v1";
 export const ELIGIBILITY_RULE_VERSION = "eligibility-v1-local-demo-explicit";
@@ -101,14 +108,30 @@ export function entitlementAmounts(type: Action["type"], balance: bigint, instru
   return { amountMinor: integer(amount), tokensToRedeem: type === "BOND_REDEMPTION" ? integer(balance) : 0n,
     roundingRemainder: coupon.remainder.toString(), denominator: coupon.denominator.toString() };
 }
-function rowCalculation(action: Action, row: SnapshotInvestor, address: string, snapshotHash: string) {
-  const result = entitlementAmounts(action.type, row.balance, action.instrument, action.redemptionPercentageBps, action.redemptionPriceMinor);
+function exactAllocation(action: Action): EarlyRedemptionAllocation | null {
+  if (redemptionAllocationPolicy(action) !== EARLY_REDEMPTION_ALLOCATION_POLICY) return null;
+  if (!action.snapshot) throw new TransactionWorkflowError("FINALIZED_SNAPSHOT_REQUIRED", "Exact redemption requires a captured snapshot");
+  return allocateEarlyRedemption({ targetTokens: action.redemptionTargetTokens!, rows: action.snapshot.investors.map(row => ({
+    investorId: row.investorId, balance: row.balance,
+    // Settlement-wallet revision must never change who receives a remainder token.
+    tieAddress: redemptionTokenSources(action.snapshot!.investors, row.id).map(source => source.wallet).sort()[0]!
+  })) });
+}
+function rowCalculation(action: Action, row: SnapshotInvestor, address: string, snapshotHash: string,
+  allocation: EarlyRedemptionAllocation | null) {
+  const allocated = allocation?.rows.find(item => item.investorId === row.investorId.toLowerCase());
+  const result = allocated ? { amountMinor: integer(allocated.redeemedTokens * action.redemptionPriceMinor!),
+    tokensToRedeem: integer(allocated.redeemedTokens), roundingRemainder: allocated.quotaRemainder.toString(),
+    denominator: allocation!.denominator.toString() } :
+    entitlementAmounts(action.type, row.balance, action.instrument, action.redemptionPercentageBps, action.redemptionPriceMinor);
   const decision = eligibility(action, row, address);
   const zero = result.amountMinor === 0n || action.type === "EARLY_REDEMPTION" && result.tokensToRedeem === 0n;
   const inputs = { actionType: action.type, snapshotId: action.snapshot!.id, snapshotHash, effectiveSlot: action.snapshot!.solanaSlot.toString(),
     effectiveBlockTime: action.snapshot!.blockTime.toISOString(), balance: row.balance.toString(), faceValueMinor: action.instrument.faceValueMinor.toString(),
     couponRateBps: action.instrument.couponRateBps, paymentsPerYear: action.instrument.paymentsPerYear,
     redemptionPercentageBps: action.redemptionPercentageBps, redemptionPriceMinor: action.redemptionPriceMinor?.toString() ?? null,
+    ...(allocated ? { allocationPolicy: allocation!.policy, targetTokens: allocation!.targetTokens.toString(),
+      totalBalance: allocation!.totalBalance.toString(), tieAddress: allocated.tieAddress, remainingTokens: allocated.remainingTokens.toString() } : {}),
     roundingRemainder: result.roundingRemainder, denominator: result.denominator,
     eligibilityRuleVersion: ELIGIBILITY_RULE_VERSION, eligible: decision.eligible, eligibilityReason: decision.reason };
   return { ...result, inputs, decision, zero };
@@ -116,22 +139,154 @@ function rowCalculation(action: Action, row: SnapshotInvestor, address: string, 
 function serializedEntitlement(row: Entitlement) {
   return { ...row, balanceAtRecordDate: row.balanceAtRecordDate.toString(), amountMinor: row.amountMinor.toString(), tokensToRedeem: row.tokensToRedeem.toString() };
 }
+
+function storedExactRedemptionSummary(action: Action) {
+  if (redemptionAllocationPolicy(action) !== EARLY_REDEMPTION_ALLOCATION_POLICY || action.entitlements.length === 0) return null;
+  requireFinalizedEntitlementSnapshot(action);
+  const allocation = exactAllocation(action)!;
+  if (action.entitlements.length !== allocation.rows.length ||
+      new Set(action.entitlements.map(row => row.investorId)).size !== allocation.rows.length) {
+    throw new TransactionWorkflowError("CALCULATION_CHANGED", "Exact redemption coverage differs from the snapshot");
+  }
+  for (const row of action.entitlements) {
+    const expected = allocation.rows.find(item => item.investorId === row.investorId);
+    const inputs = row.calculationInputs;
+    if (!expected || row.formulaVersion !== allocation.policy || row.balanceAtRecordDate !== expected.balance ||
+        row.tokensToRedeem !== expected.redeemedTokens || row.amountMinor !== expected.redeemedTokens * action.redemptionPriceMinor! ||
+        !inputs || typeof inputs !== "object" || Array.isArray(inputs) || inputs["allocationPolicy"] !== allocation.policy ||
+        inputs["targetTokens"] !== allocation.targetTokens.toString() || inputs["totalBalance"] !== allocation.totalBalance.toString() ||
+        inputs["tieAddress"] !== expected.tieAddress || inputs["remainingTokens"] !== expected.remainingTokens.toString() ||
+        inputs["roundingRemainder"] !== expected.quotaRemainder.toString() || inputs["denominator"] !== allocation.denominator.toString()) {
+      throw new TransactionWorkflowError("CALCULATION_CHANGED", "Stored exact redemption differs from its immutable allocation");
+    }
+  }
+  if (action.totalEntitlementMinor !== allocation.targetTokens * action.redemptionPriceMinor!) {
+    throw new TransactionWorkflowError("CALCULATION_CHANGED", "Stored exact redemption total differs from its target");
+  }
+  return { policy: allocation.policy, targetTokens: allocation.targetTokens.toString(),
+    allocatedTokens: action.entitlements.reduce((sum, row) => sum + row.tokensToRedeem, 0n).toString(),
+    totalBalance: allocation.totalBalance.toString(), remainingTokens: (allocation.totalBalance - allocation.targetTokens).toString(),
+    tieBreak: "SNAPSHOT_OWNER_BASE58_ASC" as const };
+}
+
+function storedCouponInteger(value: unknown): bigint {
+  if (typeof value !== "string" || !/^(0|[1-9][0-9]{0,19})$/.test(value)) {
+    throw new TransactionWorkflowError("CALCULATION_CHANGED", "Stored coupon integer is invalid");
+  }
+  return BigInt(value);
+}
+
+/** Derived response metadata uses captured terms without changing commitments or payable amounts. */
+function storedCouponSummary(action: Action) {
+  if (action.type !== "COUPON_PAYMENT" || action.entitlements.length === 0) return null;
+  if (!action.snapshot || action.snapshot.investors.length !== action.snapshot.investorCount ||
+      action.entitlements.length !== action.snapshot.investorCount) {
+    throw new TransactionWorkflowError("CALCULATION_CHANGED", "Stored coupon coverage differs from the snapshot");
+  }
+  try {
+    let capturedTerms: string | undefined;
+    const investorIds = new Set<string>();
+    const rows = action.entitlements.map(row => {
+      const inputs = row.calculationInputs;
+      if (!inputs || typeof inputs !== "object" || Array.isArray(inputs) ||
+          row.formulaVersion !== FORMULA_VERSION || inputs["actionType"] !== "COUPON_PAYMENT" ||
+          inputs["snapshotId"] !== action.snapshot!.id ||
+          inputs["snapshotHash"] !== Buffer.from(action.snapshot!.snapshotHash).toString("hex") ||
+          inputs["effectiveSlot"] !== action.snapshot!.solanaSlot.toString() ||
+          inputs["effectiveBlockTime"] !== action.snapshot!.blockTime.toISOString() ||
+          typeof inputs["couponRateBps"] !== "number" || typeof inputs["paymentsPerYear"] !== "number") {
+        throw new TransactionWorkflowError("CALCULATION_CHANGED", "Stored coupon calculation inputs are invalid");
+      }
+      const balance = storedCouponInteger(inputs["balance"]);
+      const faceValueMinor = storedCouponInteger(inputs["faceValueMinor"]);
+      const remainder = storedCouponInteger(inputs["roundingRemainder"]);
+      const denominator = storedCouponInteger(inputs["denominator"]);
+      const investor = action.snapshot!.investors.find(item => item.id === row.snapshotInvestorId);
+      if (!investor || investor.investorId !== row.investorId || investorIds.has(row.investorId) ||
+          balance !== row.balanceAtRecordDate || balance !== investor.balance || row.tokensToRedeem !== 0n) {
+        throw new TransactionWorkflowError("CALCULATION_CHANGED", "Stored coupon position differs from the snapshot");
+      }
+      investorIds.add(row.investorId);
+      const terms = `${faceValueMinor}:${inputs["couponRateBps"]}:${inputs["paymentsPerYear"]}`;
+      if (capturedTerms !== undefined && capturedTerms !== terms) {
+        throw new TransactionWorkflowError("CALCULATION_CHANGED", "Stored coupon rows use different economic terms");
+      }
+      capturedTerms = terms;
+      const expected = calculateCouponBreakdown({ balance, faceValueMinor,
+        couponRateBps: inputs["couponRateBps"], paymentsPerYear: inputs["paymentsPerYear"] });
+      if (row.amountMinor !== expected.amountMinor || remainder !== expected.remainder || denominator !== expected.denominator) {
+        throw new TransactionWorkflowError("CALCULATION_CHANGED", "Stored coupon amount or rounding differs from captured terms");
+      }
+      return expected;
+    });
+    const summary = summarizeCouponBreakdowns(rows);
+    if (summary.roundedTotalMinor !== action.totalEntitlementMinor) {
+      throw new TransactionWorkflowError("CALCULATION_CHANGED", "Stored coupon total differs from its rows");
+    }
+    return {
+      roundedTotalMinor: summary.roundedTotalMinor.toString(),
+      theoreticalTotal: { numerator: summary.theoreticalTotal.numerator.toString(), denominator: summary.theoreticalTotal.denominator.toString() },
+      roundingResidual: { numerator: summary.roundingResidual.numerator.toString(), denominator: summary.roundingResidual.denominator.toString() },
+      roundingPolicy: "FLOOR_PER_INVESTOR" as const,
+      residualDestination: "TREASURY" as const,
+      taxTreatment: "NOT_IMPLEMENTED" as const
+    };
+  } catch (error) {
+    if (error instanceof DomainValidationError) {
+      throw new TransactionWorkflowError("CALCULATION_CHANGED", "Stored coupon calculation is outside the supported range");
+    }
+    throw error;
+  }
+}
+
 export async function getEntitlements(database: PrismaClient, id: string) {
   const action = await loadAction(database, id);
+  const controlledRedemption = action.instrument.tokenPolicy === CONTROLLED_TOKEN_POLICY && action.type !== "COUPON_PAYMENT";
+  const reservations = controlledRedemption ? await database.blockchainTransaction.findMany({ where: {
+    corporateActionId: id, operationType: "CONTROLLED_UNIT_RESERVATION", status: "FINALIZED", signature: { not: null },
+  } }) : [];
   return { actionId: id, actionVersion: action.version, actionType: action.type, status: action.status,
+    tokenPolicy: action.instrument.tokenPolicy ?? LEGACY_TOKEN_POLICY,
+    ...(redemptionAllocationPolicy(action) === EARLY_REDEMPTION_ALLOCATION_POLICY || action.instrument.tokenPolicy === CONTROLLED_TOKEN_POLICY ? {
+      instrumentId: action.instrumentId, programId: action.instrument.programId, network: action.instrument.network,
+      networkGenesisHash: action.snapshot?.networkGenesisHash ?? null,
+      corporateActionAuthority: action.instrument.corporateActionAuthority
+    } : {}),
     ...(action.type !== "COUPON_PAYMENT" ? { tokenMint: action.instrument.mintAddress } : {}),
     approvedById: action.approvedById, approvedAt: action.approvedAt, reviewNote: action.reviewNote,
     totalEntitlementMinor: action.totalEntitlementMinor.toString(), eligibleHolders: action.eligibleHolders,
-    formulaVersion: FORMULA_VERSION, eligibilityRuleVersion: ELIGIBILITY_RULE_VERSION,
-    items: action.entitlements.map(row => {
+    formulaVersion: redemptionAllocationPolicy(action), eligibilityRuleVersion: ELIGIBILITY_RULE_VERSION,
+    redemptionAllocationPolicy: redemptionAllocationPolicy(action), redemptionTargetTokens: action.redemptionTargetTokens?.toString() ?? null,
+    exactRedemptionSummary: storedExactRedemptionSummary(action),
+    couponSummary: storedCouponSummary(action),
+    items: await Promise.all(action.entitlements.map(async row => {
       const capturedInvestor = action.snapshot?.investors.find(item => item.id === row.snapshotInvestorId);
       if (!capturedInvestor || capturedInvestor.investorId !== row.investorId) {
         throw new TransactionWorkflowError("CALCULATION_CHANGED", "Entitlement is outside the snapshot");
       }
+      const sources = action.type !== "COUPON_PAYMENT" ? redemptionTokenSources(action.snapshot!.investors, row.snapshotInvestorId) : [];
+      const plan = controlledRedemption ? await buildControlledUnitReservation({ programId: action.instrument.programId!, instrumentId: uuidBytes(action.instrumentId), actionId: uuidBytes(id),
+        investorId: uuidBytes(row.investorId), corporateActionAuthority: action.instrument.corporateActionAuthority, bondMint: action.instrument.mintAddress!,
+        tokenAccounts: sources, snapshotHash: Buffer.from(action.snapshot!.snapshotHash).toString("hex") }) : null;
+      let unitReservationConfirmed = false;
+      if (plan && row.onchainPda === plan.entitlementAddress) {
+        const operation = reservations.find(value => value.entitlementId === row.id && value.investorId === row.investorId && value.instrumentId === action.instrumentId &&
+          value.networkGenesisHash === action.snapshot!.networkGenesisHash && value.requiredSigner === action.instrument.corporateActionAuthority);
+        if (operation) try {
+          const payload = rpcObject(operation.preparedPayload);
+          if (payload["tokenPolicy"] === CONTROLLED_TOKEN_POLICY && payload["snapshotHash"] === Buffer.from(action.snapshot!.snapshotHash).toString("hex") &&
+              payload["entitlementAddress"] === plan.entitlementAddress && payload["tokensToRedeem"] === row.tokensToRedeem.toString()) {
+            requireControlledReservationProof(payload["confirmedReservation"], { unitReservationAddress: plan.unitReservationAddress, sourceHash: plan.sourceHash,
+              holdingAddresses: plan.holdingAddresses, tokenAccounts: sources, allocations: controlledBurnAllocations(sources, row.tokensToRedeem).map(source => source.burnAmount.toString()), consumed: false });
+            unitReservationConfirmed = true;
+          }
+        } catch (error) { if (!(error instanceof TransactionWorkflowError)) throw error; }
+      }
       return { ...serializedEntitlement(row), currentEligibility: eligibility(action, capturedInvestor, row.settlementWalletAddress),
+        ...(plan ? { unitReservationAddress: plan.unitReservationAddress, unitReservationConfirmed } : {}),
         ...(action.type !== "COUPON_PAYMENT" ? { redemptionSources: redemptionTokenSources(action.snapshot!.investors, row.snapshotInvestorId).map(source => ({
           address: source.address, walletAddress: source.wallet, balanceAtSnapshot: source.balanceAtSnapshot.toString() })) } : {}) };
-    }),
+    })),
     investors: action.snapshot?.investors.map(row => ({ investorId: row.investorId, displayName: row.investor.displayName,
       balance: row.balance.toString(), snapshotEligibility: row.eligibilityStatus,
       receiverWallets: receiverChoices(action, row).map(wallet => wallet.address) })) ?? [] };
@@ -154,7 +309,7 @@ async function mutate(database: PrismaClient, id: string, version: number, actor
       requireFinalizedEntitlementSnapshot(action);
       // Persisted on-chain approval history remains authoritative when its feature flag is off.
       if (await tx.blockchainTransaction.findFirst({ where: { corporateActionId: id, status: { not: "FAILED" },
-        operationType: { in: ["ACTION_APPROVER_ASSIGN", "ACTION_RESERVE_FUND", "ACTION_RESERVE_RELEASE", "ACTION_APPROVAL"] }
+        operationType: { in: ["ACTION_APPROVER_ASSIGN", "ACTION_RESERVE_FUND", "ACTION_RESERVE_RELEASE", "ACTION_APPROVAL", "CONTROLLED_UNIT_RESERVATION"] }
       }, select: { id: true } })) {
         throw new TransactionWorkflowError("ONCHAIN_REVIEW_REQUIRED", "Use the on-chain reserve and separate approver workflow for this action");
       }
@@ -184,6 +339,7 @@ export async function calculateEntitlements(database: PrismaClient, id: string, 
       throw new TransactionWorkflowError("INVALID_REQUEST", "Receiver investor is outside this snapshot", 400);
     }
     const hash = requireFinalizedEntitlementSnapshot(action); let total = 0n; let eligibleHolders = 0;
+    const allocation = exactAllocation(action);
     const evidence: Prisma.InputJsonObject[] = [];
     for (const row of action.snapshot!.investors) {
       const choices = receiverChoices(action, row);
@@ -191,11 +347,11 @@ export async function calculateEntitlements(database: PrismaClient, id: string, 
       if (!address || !choices.some(wallet => wallet.address === address)) {
         throw new TransactionWorkflowError("RECEIVER_REQUIRED", "Select one active verified receiver wallet for each investor", 400);
       }
-      const calc = rowCalculation(action, row, address, hash);
+      const calc = rowCalculation(action, row, address, hash, allocation);
       total = integer(total + calc.amountMinor); if (calc.decision.eligible && !calc.zero) eligibleHolders++;
       const data = { settlementWalletAddress: address, balanceAtRecordDate: row.balance, amountMinor: calc.amountMinor,
         tokensToRedeem: calc.tokensToRedeem, status: calc.zero ? "NOT_ELIGIBLE_ZERO_ROUNDING" as const : "CALCULATED" as const,
-        formulaVersion: FORMULA_VERSION, calculationInputs: calc.inputs, eligibilityReason: calc.zero ? "ZERO_ROUNDING" : calc.decision.reason };
+        formulaVersion: redemptionAllocationPolicy(action), calculationInputs: calc.inputs, eligibilityReason: calc.zero ? "ZERO_ROUNDING" : calc.decision.reason };
       const existing = action.entitlements.find(item => item.investorId === row.investorId);
       if (existing && (existing.executionAttempts !== 0 || existing.settlementSignature || existing.burnSignature || existing.onchainPda)) {
         throw new TransactionWorkflowError("ENTITLEMENT_EXECUTION_EXISTS", "An execution-bearing entitlement cannot be revised");
@@ -206,7 +362,7 @@ export async function calculateEntitlements(database: PrismaClient, id: string, 
         tokensToRedeem: calc.tokensToRedeem.toString(), eligible: calc.decision.eligible, reason: saved.eligibilityReason, inputs: calc.inputs });
     }
     await changeStatus(tx, action, "CALCULATED", { totalEntitlementMinor: total, eligibleHolders, approvedById: null, approvedAt: null });
-    await audit(tx, action, actor, "ENTITLEMENTS_CALCULATED", { snapshotHash: hash, formulaVersion: FORMULA_VERSION,
+    await audit(tx, action, actor, "ENTITLEMENTS_CALCULATED", { snapshotHash: hash, formulaVersion: redemptionAllocationPolicy(action),
       totalEntitlementMinor: total.toString(), eligibleHolders, entitlements: evidence });
   });
 }
@@ -217,6 +373,9 @@ export async function reviewEntitlements(database: PrismaClient, id: string, bod
   const decision = input["decision"]; const note = actionText(input["note"], "Review note", 1000)!;
   if (!["SUBMIT", "APPROVE", "REJECT", "RETURN"].includes(String(decision))) throw new TransactionWorkflowError("INVALID_REQUEST", "Review decision is unsupported", 400);
   return mutate(database, id, version, actor, async (tx, action) => {
+    if (decision !== "SUBMIT" && (redemptionAllocationPolicy(action) === EARLY_REDEMPTION_ALLOCATION_POLICY || action.instrument.tokenPolicy === CONTROLLED_TOKEN_POLICY)) {
+      throw new TransactionWorkflowError("ONCHAIN_REVIEW_REQUIRED", "Exact target and controlled actions require their separate on-chain approver workflow");
+    }
     if (decision !== "SUBMIT" && await tx.blockchainTransaction.findFirst({ where: { instrumentId: action.instrumentId,
       operationType: "ACTION_APPROVER_ASSIGN", status: "FINALIZED" }, select: { id: true } })) {
       throw new TransactionWorkflowError("ONCHAIN_REVIEW_REQUIRED", "This instrument requires its separate on-chain approver");
@@ -247,13 +406,15 @@ export async function reviewEntitlements(database: PrismaClient, id: string, bod
 
 function verifyStoredCalculations(action: Action, positiveStatus: "CALCULATED" | "READY" | "EXECUTION", currentEligibility = true) {
   const hash = requireFinalizedEntitlementSnapshot(action); let total = 0n; let count = 0;
-  if (action.entitlements.length !== action.snapshot!.investorCount) {
+  const allocation = exactAllocation(action);
+  if (action.entitlements.length !== action.snapshot!.investorCount ||
+      new Set(action.entitlements.map(row => row.snapshotInvestorId)).size !== action.snapshot!.investorCount) {
     throw new TransactionWorkflowError("CALCULATION_INCOMPLETE", "Entitlement coverage differs from the snapshot");
   }
   for (const entitlement of action.entitlements) {
     const row = action.snapshot!.investors.find(item => item.id === entitlement.snapshotInvestorId);
     if (!row || entitlement.investorId !== row.investorId) throw new TransactionWorkflowError("CALCULATION_CHANGED", "Entitlement is outside the snapshot");
-    const calc = rowCalculation(action, row, entitlement.settlementWalletAddress, hash);
+    const calc = rowCalculation(action, row, entitlement.settlementWalletAddress, hash, allocation);
     if (currentEligibility && !calc.decision.eligible) throw new TransactionWorkflowError("ELIGIBILITY_BLOCKED", `Operation is blocked: ${calc.decision.reason}`);
     const storedInputs = entitlement.calculationInputs;
     if (!storedInputs || typeof storedInputs !== "object" || Array.isArray(storedInputs)) {
@@ -265,7 +426,7 @@ function verifyStoredCalculations(action: Action, positiveStatus: "CALCULATED" |
       throw new TransactionWorkflowError("CALCULATION_CHANGED", "Committed eligibility inputs are invalid");
     }
     if (entitlement.amountMinor !== calc.amountMinor || entitlement.tokensToRedeem !== calc.tokensToRedeem ||
-        entitlement.balanceAtRecordDate !== row.balance || entitlement.formulaVersion !== FORMULA_VERSION ||
+        entitlement.balanceAtRecordDate !== row.balance || entitlement.formulaVersion !== redemptionAllocationPolicy(action) ||
         !sameJson(entitlement.calculationInputs, expectedInputs) ||
         (calc.zero ? entitlement.status !== "NOT_ELIGIBLE_ZERO_ROUNDING" : positiveStatus === "EXECUTION"
           ? !["READY", action.type === "COUPON_PAYMENT" ? "PAID" : "REDEEMED"].includes(entitlement.status) : entitlement.status !== positiveStatus)) {

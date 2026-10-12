@@ -1,0 +1,81 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.73s
+     Running unittests src/lib.rs (target/debug/deps/lifecycle_kase-b1bff6685c924738)
+
+running 25 tests
+test exact_redemption::tests::target_sidecar_has_fixed_abi_size_and_domain_boundaries ... ok
+test entitlement::tests::coupon_zero_rounding_preserves_rows_and_only_positive_amounts_are_ready ... ok
+test exact_redemption::tests::equal_remainders_use_stable_snapshot_owner_addresses_and_keep_zero_rows ... ok
+test exact_redemption::tests::exact_plan_distributes_every_requested_token_and_ignores_registration_order ... ok
+test entitlement::tests::validates_coupon_maturity_and_partial_redemption_with_integer_formulas ... ok
+test entitlement::tests::exact_registration_checks_snapshot_money_and_proportional_bounds_before_global_finalization ... ok
+test exact_redemption::tests::exact_plan_rejects_incomplete_duplicate_out_of_range_and_overflow_inputs ... ok
+test entitlement::tests::preserves_skipped_investors_and_zero_rounding_without_ready_payments ... ok
+test financial::tests::matches_shared_typescript_vectors ... ok
+test entitlement::tests::rejects_wrong_snapshot_identity_receiver_balance_and_overflow ... ok
+test exact_redemption::tests::typescript_shared_vectors_match_program_finalization ... ok
+test redemption::tests::new_accounts_preserve_exact_client_layout_sizes ... ok
+test redemption::tests::stale_overlapping_actions_and_supply_underflow_are_rejected ... ok
+test tests::accepts_all_action_types_with_valid_parameters ... ok
+test tests::accepts_canonical_demo_terms ... ok
+test tests::accepts_snapshot_only_in_the_record_date_window ... ok
+test tests::rejects_invalid_financial_terms ... ok
+test tests::rejects_invalid_action_parameters_and_dates ... ok
+test redemption::tests::redemption_allocation_uses_investor_floor_across_multiple_wallets ... ok
+test tests::rejects_invalid_identity_and_dates ... ok
+test redemption::tests::source_hash_matches_the_typescript_wire_vector ... ok
+test redemption::tests::source_account_cannot_be_rebound_to_another_action_investor_or_snapshot ... ok
+test tests::rejects_invalid_snapshot_state_and_commitment ... ok
+test redemption::tests::immutable_sources_reject_duplicate_wrong_balance_empty_or_changed_identity ... ok
+test tests::selects_the_program_identity_for_the_build_profile ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+   Doc-tests lifecycle_kase
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Compiling lifecycle_kase v0.1.0 (/mnt/c/Users/Админ/Documents/ChatGPT/LifecycleKASE/programs/lifecycle_kase)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.90s
+     Running unittests src/lib.rs (target/debug/deps/lifecycle_kase-012fab873f40e7a1)
+
+running 25 tests
+test exact_redemption::tests::target_sidecar_has_fixed_abi_size_and_domain_boundaries ... ok
+test exact_redemption::tests::equal_remainders_use_stable_snapshot_owner_addresses_and_keep_zero_rows ... ok
+test financial::tests::matches_shared_typescript_vectors ... ok
+test entitlement::tests::rejects_wrong_snapshot_identity_receiver_balance_and_overflow ... ok
+test entitlement::tests::preserves_skipped_investors_and_zero_rounding_without_ready_payments ... ok
+test exact_redemption::tests::exact_plan_distributes_every_requested_token_and_ignores_registration_order ... ok
+test entitlement::tests::validates_coupon_maturity_and_partial_redemption_with_integer_formulas ... ok
+test entitlement::tests::coupon_zero_rounding_preserves_rows_and_only_positive_amounts_are_ready ... ok
+test exact_redemption::tests::exact_plan_rejects_incomplete_duplicate_out_of_range_and_overflow_inputs ... ok
+test exact_redemption::tests::typescript_shared_vectors_match_program_finalization ... ok
+test entitlement::tests::exact_registration_checks_snapshot_money_and_proportional_bounds_before_global_finalization ... ok
+test redemption::tests::new_accounts_preserve_exact_client_layout_sizes ... ok
+test redemption::tests::stale_overlapping_actions_and_supply_underflow_are_rejected ... ok
+test redemption::tests::redemption_allocation_uses_investor_floor_across_multiple_wallets ... ok
+test tests::accepts_canonical_demo_terms ... ok
+test redemption::tests::source_hash_matches_the_typescript_wire_vector ... ok
+test redemption::tests::source_account_cannot_be_rebound_to_another_action_investor_or_snapshot ... ok
+test redemption::tests::immutable_sources_reject_duplicate_wrong_balance_empty_or_changed_identity ... ok
+test tests::rejects_invalid_identity_and_dates ... ok
+test tests::rejects_invalid_financial_terms ... ok
+test tests::selects_the_program_identity_for_the_build_profile ... ok
+test tests::rejects_invalid_snapshot_state_and_commitment ... ok
+test tests::accepts_all_action_types_with_valid_parameters ... ok
+test tests::accepts_snapshot_only_in_the_record_date_window ... ok
+test tests::rejects_invalid_action_parameters_and_dates ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+   Doc-tests lifecycle_kase
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.74s
+    Checking lifecycle_kase v0.1.0 (/mnt/c/Users/Админ/Documents/ChatGPT/LifecycleKASE/programs/lifecycle_kase)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.25s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.03s

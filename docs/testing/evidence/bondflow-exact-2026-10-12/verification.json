@@ -1,0 +1,40 @@
+{
+  "schema": "kase-four-actions-demo-v2",
+  "completedAt": "2026-10-11T23:39:13.219Z",
+  "actions": [
+    {
+      "scenario": "COUPON_PAYMENT",
+      "receiptHash": "d2b57f167e0bf0872de16154b76e0788dd6a21dca4eb6b99e2bb8ba4a971aa28",
+      "amountMinor": "1750000000",
+      "tokensRedeemed": "0",
+      "supplyBefore": "35",
+      "supplyAfter": "35"
+    },
+    {
+      "scenario": "EARLY_REDEMPTION",
+      "receiptHash": "3b4ee6bf974ff12fcb828f52fd1644fc65e8871c966db8a643e27b6663247e8c",
+      "amountMinor": "7000000000",
+      "tokensRedeemed": "7",
+      "supplyBefore": "35",
+      "supplyAfter": "28"
+    },
+    {
+      "scenario": "EXACT_EARLY_REDEMPTION",
+      "receiptHash": "ac127ce6d3264c53dfe5db6aa453ffdc7d3dc5f477dfb8793c7fddd9fade53c6",
+      "amountMinor": "8000000000",
+      "tokensRedeemed": "8",
+      "supplyBefore": "28",
+      "supplyAfter": "20"
+    },
+    {
+      "scenario": "BOND_REDEMPTION",
+      "receiptHash": "d7296cee87c3a25364e7a2b29e186e0e0c2e92db016870c6abac35df3710d69a",
+      "amountMinor": "21000000000",
+      "tokensRedeemed": "20",
+      "supplyBefore": "20",
+      "supplyAfter": "0"
+    }
+  ],
+  "verification": "OFFLINE_EVIDENCE_CONSISTENCY_ONLY",
+  "reQueriedChain": false
+}

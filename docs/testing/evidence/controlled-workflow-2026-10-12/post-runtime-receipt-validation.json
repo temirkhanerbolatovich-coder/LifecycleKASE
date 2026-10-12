@@ -1,0 +1,65 @@
+{
+  "verification": "OFFLINE_SAVED_RUNTIME_RECEIPT_VALIDATOR_ONLY",
+  "checkedAt": "2026-10-12T09:33:29.527Z",
+  "accepted": 3,
+  "rejected": 21,
+  "evidenceSha256": "8371e4bf85ecb35e4b0e540c06bfa357eade27f8c615c15c382cbaf27e1980c7",
+  "reQueriedChain": false,
+  "reQueriedDatabase": false,
+  "financialTransactionsSent": 0,
+  "evidenceUnchanged": true,
+  "liveRuntimeRerun": false,
+  "receipts": [
+    {
+      "actionId": "7cc5abf7-a0a8-4064-b464-5a05cc78de44",
+      "scenario": "EARLY_REDEMPTION",
+      "receiptHash": "03dec87a73b10fb4ed3debe9456f872c5fc984f34ffa41e3510f356765e6934d",
+      "currentTokenSupply": "0",
+      "originalCanonicalBytesAccepted": true,
+      "rejectedCases": [
+        "omitted burn sources",
+        "substituted source",
+        "changed historical balance",
+        "zero supply burn delta",
+        "out-of-range exact supply burn delta",
+        "overlapping exact supply burn steps",
+        "wrong receipt PDA"
+      ]
+    },
+    {
+      "actionId": "0c58b6fb-111c-4e5f-b498-083b1a8d065d",
+      "scenario": "EXACT_EARLY_REDEMPTION",
+      "receiptHash": "69d9fbf091aada34f7ec7de6fc5526efbea4bd989aca72f012f21df53473b83f",
+      "currentTokenSupply": "0",
+      "originalCanonicalBytesAccepted": true,
+      "rejectedCases": [
+        "omitted burn sources",
+        "substituted source",
+        "changed historical balance",
+        "zero supply burn delta",
+        "out-of-range exact supply burn delta",
+        "overlapping exact supply burn steps",
+        "wrong receipt PDA"
+      ]
+    },
+    {
+      "actionId": "1ccf9400-47f3-44f7-bc18-6b2f0dde34ff",
+      "scenario": "BOND_REDEMPTION",
+      "receiptHash": "9a9721df0c4f2bc50c2c78a1904a763c72de7001634b80bb76aed2378b412a61",
+      "currentTokenSupply": "0",
+      "originalCanonicalBytesAccepted": true,
+      "rejectedCases": [
+        "omitted burn sources",
+        "substituted source",
+        "changed historical balance",
+        "zero supply burn delta",
+        "out-of-range exact supply burn delta",
+        "overlapping exact supply burn steps",
+        "wrong receipt PDA"
+      ]
+    }
+  ],
+  "sourceSha256": "c2b0edc7f783389d66490fd213ff35b8f92ed461d8d82c39270c7e07ac7e65b2",
+  "compiledSha256": "5a654dc4d95409dd1418308a1cb5523505cb2b8e339b985ada5041430e9603c6",
+  "testSha256": "100f50b79e2d2f1df85dd664256ec26227a2e9307593bc2edb61a687545a2ad7"
+}

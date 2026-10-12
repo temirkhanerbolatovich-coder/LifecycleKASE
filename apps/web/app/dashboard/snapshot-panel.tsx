@@ -7,6 +7,7 @@ import { isActionId, preparedSnapshot, requireFinalizedResponse, resumedDeployme
 import { signAndSubmitPrepared, supportsPreparedTransaction } from "./wallet-transaction";
 import { waitForFinalizedCheck } from "./finalized-check";
 import { OperatorApiError } from "./operator-api";
+import { requireControlledSnapshot, type ControlledCaptureView } from "./controlled-capture-workflow";
 
 type Props = {
   wallet: Wallet | undefined;
@@ -16,6 +17,7 @@ type Props = {
   selectedActionId?: string;
   onConfirmed?: () => void;
   onWindowMissed?: () => Promise<void>;
+  controlledCapture?: ControlledCaptureView;
 };
 
 function networkDescription(cluster: SupportedSnapshotCluster): string {
@@ -24,7 +26,7 @@ function networkDescription(cluster: SupportedSnapshotCluster): string {
     : "Devnet — публичная тестовая сеть; комиссия оплачивается тестовым SOL.";
 }
 
-export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange, selectedActionId, onConfirmed, onWindowMissed }: Props) {
+export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange, selectedActionId, onConfirmed, onWindowMissed, controlledCapture }: Props) {
   const { locale, displayMessage: financialCopy, formatAmount, formatDate } = useLocale();
   const [actionId, setActionId] = useState(selectedActionId ?? "");
   const [plan, setPlan] = useState<PreparedSnapshot | null>(null);
@@ -57,6 +59,7 @@ export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange, se
     if (!isActionId(actionId)) throw new Error("Введите корректный UUID корпоративного действия.");
     const response = await request(`/api/v1/corporate-actions/${actionId}/snapshot/prepare`, { method: "POST", body: "{}" });
     const prepared = preparedSnapshot(response, actionId, walletAddress);
+    if (controlledCapture) await requireControlledSnapshot(prepared, response, controlledCapture);
     const existingSignature = resumedDeploymentSignature(response);
     setPlan(prepared);
     setOperationId(prepared.operationId);

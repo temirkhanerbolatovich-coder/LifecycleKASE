@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { buildCouponExecution, buildCouponFinalization, encodePublicKey, serializeUnsignedInstructionsTransaction, type SolanaInstructionPlan } from "@lifecycle-kase/solana-client";
 import { preparedCouponExecution, couponReviewChanged, type CouponExecutionView } from "./coupon-execution-workflow";
+import { finalizedCouponReceipt } from "./coupon-execution-workflow";
+import { deriveControlledCaptureAddress, deriveControlledPolicyAddress, decodePublicKey } from "@lifecycle-kase/solana-client";
 const id = "00000000-0000-4000-8000-000000000001";
 const key = (value: number) => encodePublicKey(new Uint8Array(32).fill(value));
 const signer = key(3);
@@ -57,4 +59,38 @@ test("coupon phases reject altered instructions, recipients, privileges and hidd
       await assert.rejects(preparedCouponExecution({ ...payload, serializedTransactionBase64: serialize([changedAta, plan.instruction]) }, view, signer));
     }
   }
+});
+test("governed coupon uses existing payment wire while binding the canonical capture and policy metadata", async () => {
+  const f = await fixture(); const view = { ...f.view, tokenPolicy: "CONTROLLED_FROZEN_V2" as const };
+  const payload = { ...f.payload, tokenPolicy: view.tokenPolicy, controlledPolicyAddress: await deriveControlledPolicyAddress(view.programId, view.instrumentAddress), controlledCaptureAddress: await deriveControlledCaptureAddress(view.programId, view.actionAddress) };
+  await preparedCouponExecution(payload, view, signer);
+  for (const change of [{ tokenPolicy: "LEGACY_UNRESTRICTED_V1" }, { controlledPolicyAddress: key(20) }, { controlledCaptureAddress: key(20) }]) {
+    await assert.rejects(preparedCouponExecution({ ...payload, ...change }, view, signer));
+  }
+});
+test("coupon downloads require canonical hash and governed raw holder lineage; hash-valid corruption fails closed", async () => {
+  const f = await fixture("FINALIZE"); const signature = "1".repeat(64);
+  const view = { ...f.view, tokenPolicy: "CONTROLLED_FROZEN_V2" as const, tokenMint: key(4), items: f.view.items.map(row => ({ ...row, signature })) };
+  const policy = await deriveControlledPolicyAddress(view.programId, view.instrumentAddress), capture = await deriveControlledCaptureAddress(view.programId, view.actionAddress);
+  const bytes = Buffer.alloc(170); Buffer.from(decodePublicKey(view.tokenMint)).copy(bytes); Buffer.from(decodePublicKey(key(9))).copy(bytes, 32);
+  bytes.writeBigUInt64LE(35n, 64); bytes[108] = 2; bytes[165] = 2; bytes.writeUInt16LE(7, 166);
+  const position = { address: key(10), tokenProgramOwner: "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb", mintAddress: view.tokenMint, walletAddress: key(9), balance: "35", state: "FROZEN", delegate: null, closeAuthority: null, immutableOwner: true, dataBase64: bytes.toString("base64") };
+  const registry = { mintAddress: view.tokenMint, slot: 20, supply: "35", totalBalance: "35", positivePositions: [position] }; const registryCanonicalJson = JSON.stringify(registry);
+  const evidence = { schema: "controlled-capture-v1", controlledPolicyAddress: policy, controlledCaptureAddress: capture, startedSlot: "10", readSlot: 20,
+    registry, registryCanonicalJson, registrySha256: createHash("sha256").update(registryCanonicalJson).digest("hex") };
+  const receipt = { schemaVersion: "coupon-controlled-action-receipt-v1", actionId: id, actionType: "COUPON_PAYMENT", tokenPolicy: view.tokenPolicy, programId: view.programId,
+    genesisHash: view.networkGenesisHash, snapshot: { hash: view.snapshotHash }, totalAmountMinor: view.totalAmountMinor, reconciliation: "MATCHED",
+    controlledRegistry: { captureAddress: capture, captureFinishSignature: signature, captureEvidence: evidence, assignedUnitPolicy: "NOT_APPLICABLE" },
+    entitlements: view.items.map(row => ({ entitlementId: row.id, investorId: row.investorId, amountMinor: row.amountMinor, settlement: { receiver: row.receiver, signature, reconciliation: "MATCHED" } })) };
+  const response = (value: unknown) => { const canonicalJson = JSON.stringify(value); return { actionId: id, status: "FINALIZED", signature, onchainPda: view.actionReceiptAddress, canonicalJson, sha256: createHash("sha256").update(canonicalJson).digest("hex") }; };
+  assert.equal(await finalizedCouponReceipt(response(receipt), view), JSON.stringify(receipt));
+  // PostgreSQL JSONB can reorder parsed registry keys; the original UTF-8 bytes remain authoritative.
+  const reordered = { ...evidence, registry: Object.fromEntries(Object.entries(registry).reverse()) };
+  await finalizedCouponReceipt(response({ ...receipt, controlledRegistry: { ...receipt.controlledRegistry, captureEvidence: reordered } }), view);
+  for (const changed of [{ tokenPolicy: "LEGACY_UNRESTRICTED_V1" }, { totalAmountMinor: "1" }, { controlledRegistry: { ...receipt.controlledRegistry, captureAddress: key(20) } },
+    { controlledRegistry: { ...receipt.controlledRegistry, captureEvidence: { ...evidence, registrySha256: "ab".repeat(32) } } },
+    { entitlements: [{ ...receipt.entitlements[0], settlement: { ...receipt.entitlements[0]!.settlement, receiver: key(20) } }] }]) {
+    await assert.rejects(finalizedCouponReceipt(response({ ...receipt, ...changed }), view));
+  }
+  await assert.rejects(finalizedCouponReceipt({ ...response(receipt), sha256: "ab".repeat(32) }, view));
 });

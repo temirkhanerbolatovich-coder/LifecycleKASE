@@ -57,7 +57,7 @@ try {
     else { $env:KASE_DEMO_VIDEO = "false" }
     $env:WSLENV = (@($savedEnvironment["WSLENV"], "ACTION_TEST_DATABASE_URL", "KASE_DEMO_ACCEPTANCE", "KASE_DEMO_VIDEO", "KASE_PLAYWRIGHT_MODULE", "KASE_CHROMIUM_EXECUTABLE") | Where-Object { $_ }) -join ":"
     & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "test-initialize-instrument.ps1") -RpcPort $RpcPort -WslDistribution $WslDistribution -WslUser $WslUser -Profile $Profile
-    if ($LASTEXITCODE -ne 0) { throw "Three-action acceptance failed; retained owner state was not used" }
+    if ($LASTEXITCODE -ne 0) { throw "Four-action acceptance failed; retained owner state was not used" }
 }
 finally {
     if ($containerId -match "^[0-9a-f]{64}$") {

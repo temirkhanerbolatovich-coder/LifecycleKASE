@@ -3,12 +3,13 @@ import { useLocale, useLocalizedTextState } from "./locale-context";
 import { createTranslator, getDisplayLocale, translateStoredMessage } from "./locale";
 import type { Wallet } from "@wallet-standard/base";
 import { useEffect, useRef, useState } from "react";
-import { preparedActionPlan, snapshotWindowMessage, type CorporateActionView, type PreparedAction } from "./action-workflow";
+import { preparedActionPlan, requireCorporateActionTransaction, snapshotWindowMessage, type CorporateActionView, type PreparedAction } from "./action-workflow";
 import { SnapshotPanel } from "./snapshot-panel";
 import { EntitlementPanel } from "./entitlement-panel";
 import { CouponFundingPanel } from "./coupon-funding-panel";
 import { CouponExecutionPanel } from "./coupon-execution-panel";
 import { RedemptionExecutionPanel } from "./redemption-execution-panel";
+import { ControlledCapturePanel } from "./controlled-capture-panel";
 import { requireFinalizedResponse, resumedDeploymentSignature } from "./snapshot-workflow";
 import { signAndSubmitPrepared, supportsPreparedTransaction } from "./wallet-transaction";
 import { actionPresentation, statusTone, getActionTypes, getActionStatuses, formatWorkspaceDate } from "./workspace-presentation";
@@ -61,6 +62,7 @@ export function CorporateActionDetail({ action: selected, role, wallet, walletAd
     const response = await request(`/api/v1/corporate-actions/${selected.id}/prepare`, { method: "POST",
       body: JSON.stringify({ phase, ...(phase === "CANCEL" ? { reason } : {}) }) });
     const prepared = preparedActionPlan(response, selected, walletAddress);
+    await requireCorporateActionTransaction(prepared, selected);
     const restored = resumedDeploymentSignature(response);
     setPlan(prepared); setSignature(restored ?? ""); setSendAttempted(restored !== null); setReviewed(restored !== null);
     if (prepared.reason) setReason(prepared.reason);
@@ -68,6 +70,7 @@ export function CorporateActionDetail({ action: selected, role, wallet, walletAd
   }
   async function send() {
     if (!plan || !reviewed || sendAttempted) throw new Error(t("core.review.the.plan.first"));
+    await requireCorporateActionTransaction(plan, selected);
     await signAndSubmitPrepared({ wallet, walletAddress, plan, request, submitFields: { phase: plan.phase },
       submitPath: `/api/v1/corporate-actions/${plan.corporateActionId}/submit`,
       onSigning: () => { setSendAttempted(true); setMessage(t("core.review.the.phantom.request.resending.is.disabled.check.the.signature.if.an.error")); },
@@ -148,7 +151,7 @@ export function CorporateActionDetail({ action: selected, role, wallet, walletAd
     <DetailTabs idPrefix={`action-${selected.id}`} selected={tab} onChange={setTab} tabs={[{id:"workflow",label:t("core.action.workflow")},{id:"terms",label:t("core.terms.and.source")},{id:"history",label:qaMode ? t("core.simulation.history") : t("core.history.and.evidence")}]} />
     <div id={`action-${selected.id}-workflow`} aria-labelledby={`action-${selected.id}-workflow-tab`} hidden={tab !== "workflow"} role="tabpanel" aria-label={t("core.action.workflow")}>
       {canWrite && !plan && selected.status === "DRAFT" && <button className="primary-button mt-4" disabled={busy} onClick={() => void run(() => prepare("SCHEDULE"))}>{t("core.prepare.scheduling.transaction")}</button>}
-      {canWrite && !plan && !selected.snapshot && ["DRAFT", "SCHEDULED"].includes(selected.status) && <details className="danger-details mt-4"><summary>{t("core.cancel.action")}</summary>
+      {canWrite && !plan && !selected.snapshot && (selected.status === "DRAFT" || selected.status === "SCHEDULED" && selected.instrument.tokenPolicy !== "CONTROLLED_FROZEN_V2") && <details className="danger-details mt-4"><summary>{t("core.cancel.action")}</summary>
         <label className="text-sm">{t("core.cancellation.reason")}<textarea className={inputClass} maxLength={1000} value={reason} onChange={event => setReason(event.target.value)} /></label>
         <button className={`mt-3 ${buttonClass}`} disabled={busy || reason.trim().length < 3} onClick={() => void run(selected.status === "DRAFT" ? cancelDraft : () => prepare("CANCEL"))}>{selected.status === "DRAFT" ? t("core.cancel.unsigned.draft") : t("core.prepare.cancel.transaction")}</button>
       </details>}
@@ -162,6 +165,8 @@ export function CorporateActionDetail({ action: selected, role, wallet, walletAd
       {plan && <div className="transaction-review mt-4">
         <strong>{plan.phase === "SCHEDULE" ? t("core.schedule.action") : t("core.cancel.action")}</strong><p className="mt-2 text-sm">{t("core.network")} {plan.cluster}. {plan.phase === "SCHEDULE" ? t("core.action.terms.will.be.registered.on.chain.no.payment.or.token.movement.occurs") : t("core.the.action.will.be.cancelled.on.chain")}</p>
         <p className="mt-2">{selected.instrument.ticker} · {TYPES[selected.type]} · {selected.intent}</p>
+        {selected.type === "EARLY_REDEMPTION" && <p className="mt-2 text-sm">{selected.redemptionAllocationPolicy === "exact-target-largest-remainder-v2" ?
+          <>{t("financial.redemption.target.tokens")}: <strong>{selected.redemptionTargetTokens}</strong> · {t("financial.redemption.exact.option")}</> : <>{selected.redemptionPercentageBps} bps · {t("financial.redemption.legacy.option")}</>}</p>}
         <dl className="mt-3 space-y-2 text-xs">{Object.entries({ [t("core.signer")]: plan.requiredSigner, [t("core.holder.capture")]: formatDate(selected.recordAt), [t("core.execution")]: formatDate(selected.executeAt), ...(plan.phase === "CANCEL" ? { [t("core.cancellation.reason")]: plan.reason ?? "—" } : {}) }).map(([label, value]) => <div key={label}>
       <dt className="text-[#61746a]">{label}</dt>
       <dd className="break-all font-mono">{value}</dd>
@@ -173,7 +178,10 @@ export function CorporateActionDetail({ action: selected, role, wallet, walletAd
         <label className="mt-3 block text-sm">{t("core.transaction.signature")}<input className={inputClass} maxLength={88} value={signature} disabled={busy} onChange={event => setSignature(event.target.value.trim())} /></label>
         <button className={`mt-3 ${buttonClass}`} disabled={busy || !/^[1-9A-HJ-NP-Za-km-z]{64,88}$/.test(signature)} onClick={() => void run(confirm)}>{t("core.verify.the.network.and.database.result")}</button>
       </div>}
-      {canWrite && !plan && selected.status === "SCHEDULED" && <SnapshotPanel key={selected.id} selectedActionId={selected.id} wallet={wallet} walletAddress={walletAddress} request={request} onBusyChange={value => { setBusy(value); onBusyChange(value); }}
+      {!qaMode && selected.instrument.tokenPolicy === "CONTROLLED_FROZEN_V2" && !["DRAFT", "CANCELLED", "REJECTED"].includes(selected.status) && <ControlledCapturePanel
+        action={selected} administrator={administrator} wallet={wallet} walletAddress={walletAddress} request={request}
+        onBusyChange={value => { setBusy(value); onBusyChange(value); }} onChanged={onReload} />}
+      {canWrite && !plan && selected.status === "SCHEDULED" && selected.instrument.tokenPolicy !== "CONTROLLED_FROZEN_V2" && <SnapshotPanel key={selected.id} selectedActionId={selected.id} wallet={wallet} walletAddress={walletAddress} request={request} onBusyChange={value => { setBusy(value); onBusyChange(value); }}
         onWindowMissed={async () => { await onReload(); setMessage(t("core.capture.closed.check.the.snapshot.window.or.recover.the.saved.attempt")); }}
         onConfirmed={() => void run(async () => { await onReload(); setMessage(t("core.snapshot.created.finalized.commitment.and.database.match.no.payments.occurred")); })} />}
       {selected.snapshot?.status === "FINALIZED" && !plan && <details className="term-help workflow-section" open={!couponExecutionStage && !redemptionExecutionStage}><summary>{t("core.entitlements.and.approval")}</summary><EntitlementPanel key={`entitlements-${selected.id}${qaMode ? `-${selected.version}` : ""}`} actionId={selected.id} canWrite={Boolean(canWrite)} administrator={administrator} request={request} onSummary={setAmountMinor}
@@ -202,7 +210,9 @@ export function CorporateActionDetail({ action: selected, role, wallet, walletAd
       </div>}
       <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2"><div><dt>{t("core.planned.record.time")}</dt><dd>{formatDate(selected.recordAt)}</dd></div><div><dt>{t("core.execution")}</dt><dd>{formatDate(selected.executeAt)}</dd></div>
         <div><dt>{t("core.source")}</dt><dd className="break-all">{selected.sourceType} · {selected.sourceReference ?? "—"}</dd></div><div><dt>{t("core.document")}</dt><dd className="break-all">{selected.sourceDocument ?? "—"}</dd></div>
-        {selected.type === "EARLY_REDEMPTION" && <div><dt>{t("core.early.redemption")}</dt><dd>{selected.redemptionPercentageBps} bps · {selected.redemptionPriceMinor} {t("core.minor.units.per.bond")}</dd></div>}</dl>
+        {selected.type === "EARLY_REDEMPTION" && <div><dt>{t("core.early.redemption")}</dt><dd>{selected.redemptionAllocationPolicy === "exact-target-largest-remainder-v2" ?
+          <>{t("financial.redemption.target.tokens")}: {selected.redemptionTargetTokens} · {t("financial.redemption.exact.option")}</> : <>{selected.redemptionPercentageBps} bps · {t("financial.redemption.legacy.option")}</>} · {selected.redemptionPriceMinor} {t("core.minor.units.per.bond")}</dd>
+          {!qaMode && selected.redemptionAllocationPolicy === "exact-target-largest-remainder-v2" && !selected.exactTargetRedemptionEnabled && <p className="access-note">{t("financial.redemption.exact.disabled")}</p>}</div>}</dl>
 
     </div>
     <div id={`action-${selected.id}-history`} aria-labelledby={`action-${selected.id}-history-tab`} hidden={tab !== "history"} role="tabpanel" aria-label={qaMode ? t("core.simulation.history") : t("core.history.and.evidence")}>

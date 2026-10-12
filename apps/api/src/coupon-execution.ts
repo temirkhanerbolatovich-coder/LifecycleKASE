@@ -9,13 +9,15 @@ import { ACTION_RECEIPT_BYTES, ENTITLEMENT_RECEIPT_BYTES, buildCouponExecution, 
 import { actionInput, workflowDatabaseError } from "./corporate-action-registry.js";
 import { requireCouponExecutionCalculation, type EntitlementActor } from "./entitlements.js";
 import { verifyConfirmedInstrument, type InstrumentDeploymentOptions } from "./instrument-deployment.js";
+import { requireControlledRegistry } from "./controlled-policy.js";
+import { controlledCaptureState } from "./controlled-settlement.js";
 import { reserveTokenDelta } from "./action-approval.js";
 import { assertCouponReceiptIntegrity, couponReceiptDraft } from "./coupon-receipt.js";
 import { uuidBytes } from "./snapshot-registration.js";
 import { ACTIVE_TRANSACTION_STATUSES, requireAttemptSigner, requireWorkflowNetwork, resumeWorkflowAttempt, rpcNumber, rpcObject,
   submitWorkflowTransaction, TransactionWorkflowError, verifyWorkflowFinalization, workflowBlockhash, workflowProgramAccount, WORKFLOW_UUID } from "./transaction-workflow.js";
 
-export type CouponExecutionOptions = InstrumentDeploymentOptions & { enabled: boolean };
+export type CouponExecutionOptions = InstrumentDeploymentOptions & { enabled: boolean; controlledRegistryEnabled?: boolean };
 const active = { in: [...ACTIVE_TRANSACTION_STATUSES] };
 const operations = { PAY: "COUPON_PAYMENT", FINALIZE: "COUPON_FINALIZE" } as const;
 type Source = Awaited<ReturnType<typeof requireCouponExecutionCalculation>>;
@@ -32,6 +34,7 @@ function checkOptions(options: CouponExecutionOptions) {
 }
 async function source(database: PrismaClient | Prisma.TransactionClient, id: string, options: CouponExecutionOptions, receiverId?: string) {
   const action = await requireCouponExecutionCalculation(database, id, receiverId);
+  requireControlledRegistry(action.instrument, options);
   if (action.instrument.network !== "SOLANA_LOCALNET" || action.instrument.programId !== options.programId ||
       action.snapshot!.networkGenesisHash !== options.expectedGenesisHash) throw new TransactionWorkflowError("WRONG_SOLANA_NETWORK", "Calculation belongs to another program or genesis", 503);
   const asset = await database.settlementAsset.findUniqueOrThrow({ where: { id: action.instrument.settlementAssetId } });
@@ -77,7 +80,8 @@ async function chainState(rpc: SolanaRpc, action: Source, mint: string, options:
   decodeReserveMint(await workflowProgramAccount(rpc, mint, TOKEN_2022_PROGRAM_ID, slot));
   const vaultBalance = await tokenAccount(rpc, addresses.vaultAddress, mint, addresses.reserveAddress, slot);
   if (vaultBalance === null) throw new TransactionWorkflowError("COUPON_ACCOUNT_MISMATCH", "Reserve vault is missing");
-  return { ...addresses, chain, hash, policy, reserve, vaultBalance };
+  const controlled = await controlledCaptureState(rpc, action, options, "FINISHED", slot);
+  return { ...addresses, chain, hash, policy, reserve, vaultBalance, controlled };
 }
 function prepared(op: BlockchainTransaction, resumed: boolean) {
   return { ...rpcObject(op.preparedPayload), operationId: op.id, requiredSigner: op.requiredSigner, networkGenesisHash: op.networkGenesisHash,
@@ -99,6 +103,7 @@ export async function getCouponExecution(database: PrismaClient, id: string, opt
       entitlementAddress: addresses.entitlementAddress, entitlementReceiptAddress: addresses.entitlementReceiptAddress, recipientAddress: addresses.recipientAddress };
   }));
   return { enabled: true, actionId: id, actionVersion: action.version, status: action.status, requiredSigner: action.instrument.corporateActionAuthority,
+    tokenPolicy: action.instrument.tokenPolicy ?? "LEGACY_UNRESTRICTED_V1", instrumentId: action.instrumentId, tokenMint: action.instrument.mintAddress,
     programId: options.programId, networkGenesisHash: options.expectedGenesisHash, settlementMint: mint,
     instrumentAddress: finalization.instrumentAddress, actionAddress: finalization.actionAddress, approvalPolicyAddress: finalization.approvalPolicyAddress,
     reserveAddress: finalization.reserveAddress, vaultAddress: finalization.vaultAddress, actionReceiptAddress: finalization.actionReceiptAddress, snapshotHash,
@@ -155,6 +160,8 @@ export async function prepareCouponExecution(database: PrismaClient, rpc: Solana
   const requiredLamports = fee + rent + state.policy.networkReserveLamports;
   if (payer["owner"] !== SYSTEM_PROGRAM_ID || payer["executable"] !== false || BigInt(rpcNumber(payer["lamports"])) < requiredLamports) throw new TransactionWorkflowError("NETWORK_BUDGET_REQUIRED", "Payer needs SOL for rent, fees and its retained reserve");
   const payload = { phase: selected.phase, idempotencyKey: selected.key, idempotencyHash, corporateActionId: id, actionVersion: action.version,
+    tokenPolicy: action.instrument.tokenPolicy ?? "LEGACY_UNRESTRICTED_V1",
+    ...(state.controlled ? { controlledPolicyAddress: state.controlled.controlledPolicyAddress, controlledCaptureAddress: state.controlled.controlledCaptureAddress } : {}),
     entitlementId: selected.entitlementId, entitlementVersion: row?.version ?? null, programId: options.programId, cluster: "localnet", snapshotHash: state.hash,
     settlementMint: mint, settlementWallet: row?.settlementWalletAddress ?? null, amountMinor: (row?.amountMinor ?? action.totalEntitlementMinor).toString(),
     ...("recipientAddress" in plan ? { recipientAddress: plan.recipientAddress, entitlementAddress: plan.entitlementAddress, entitlementReceiptAddress: plan.entitlementReceiptAddress } : { actionReceiptAddress: plan.actionReceiptAddress, receiptHash: draft!.hash }),

@@ -3,7 +3,7 @@ import { useLocale, useLocalizedTextState } from "./locale-context";
 import { createTranslator, getDisplayLocale, translateStoredMessage } from "./locale";
 import type { Wallet } from "@wallet-standard/base";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { actionTimeUtc, futureLocalTime, type CorporateActionView } from "./action-workflow";
+import { actionTimeUtc, earlyRedemptionDraftTerms, futureLocalTime, type CorporateActionView, type RedemptionAllocationPolicy } from "./action-workflow";
 import { isActionId } from "./snapshot-workflow";
 import { OperatorApiError } from "./operator-api";
 import { CorporateActionDetail } from "./corporate-action-detail";
@@ -25,6 +25,7 @@ export function CorporateActionPanel({ role, request, wallet, walletAddress, onB
   const [instruments, setInstruments] = useState<ActiveInstrument[]>([]);
   const [selectedId, setSelectedId] = useState(""); const [opened, setOpened] = useState<Record<string, CorporateActionView>>({});
   const [filters, setFilters] = useState(INITIAL_FILTERS); const [type, setType] = useState("COUPON_PAYMENT");
+  const [redemptionPolicy, setRedemptionPolicy] = useState<RedemptionAllocationPolicy>(renderQaControls ? "exact-target-largest-remainder-v2" : "integer-entitlements-v1");
   const [recordAt, setRecordAt] = useState(() => futureLocalTime(5)); const [executeAt, setExecuteAt] = useState(() => futureLocalTime(15));
   const [busy, setBusy] = useState(false); const [message, setMessage] = useLocalizedTextState("");
   const [error, setError] = useState<string | null>(null); const [pendingDraftId, setPendingDraftId] = useState("");
@@ -65,15 +66,17 @@ export function CorporateActionPanel({ role, request, wallet, walletAddress, onB
         pendingDraft.current = { requestId: id, instrumentId: form.get("instrumentId"), type,
           intent: form.get("intent"), sourceType: form.get("sourceType"), sourceReference: form.get("sourceReference") || null,
           sourceDocument: form.get("sourceDocument") || null, recordAt: actionTimeUtc(recordAt), executeAt: actionTimeUtc(executeAt),
-          ...(type === "EARLY_REDEMPTION" ? { redemptionPercentageBps: Number(form.get("redemptionPercentageBps")), redemptionPriceKzt: form.get("redemptionPriceKzt") } : {}) };
+          ...(type === "EARLY_REDEMPTION" ? earlyRedemptionDraftTerms(redemptionPolicy, { percentageBps: form.get("redemptionPercentageBps"),
+            targetTokens: form.get("redemptionTargetTokens"), priceKzt: form.get("redemptionPriceKzt") }) : {}) };
         setPendingDraftId(id);
       }
       let response;
       try { response = await request("/api/v1/corporate-actions", { method: "POST", body: JSON.stringify(pendingDraft.current) }); }
       catch (error) {
-        if (error instanceof OperatorApiError && (error.status === 400 || error.code === "ACTION_RECORD_TOO_SOON")) {
+        if (error instanceof OperatorApiError && (error.status === 400 || error.code === "ACTION_RECORD_TOO_SOON" || error.code === "EXACT_TARGET_REDEMPTION_DISABLED")) {
           pendingDraft.current = null; setPendingDraftId("");
         }
+        if (error instanceof OperatorApiError && error.code === "EXACT_TARGET_REDEMPTION_DISABLED") throw new Error(t("financial.redemption.exact.disabled"));
         throw error;
       }
       if (typeof response["id"] !== "string" || !isActionId(response["id"])) throw new Error(t("core.the.api.did.not.return.an.action.uuid"));
@@ -114,9 +117,13 @@ export function CorporateActionPanel({ role, request, wallet, walletAddress, onB
           <label className="text-sm">{t("core.document.description")}<input name="sourceDocument" maxLength={500} className={inputClass} /></label>
           <label className="text-sm">{t("core.planned.record.date")} {workspaceTimeZone()}<input required type="datetime-local" className={inputClass} value={recordAt} onChange={event => setRecordAt(event.target.value)} /></label>
           <label className="text-sm">{t("core.execution.date")} {workspaceTimeZone()}<input required type="datetime-local" className={inputClass} value={executeAt} onChange={event => setExecuteAt(event.target.value)} /></label>
-          {type === "EARLY_REDEMPTION" && <><label className="text-sm">{t("core.share.bps.2000.20")}<input name="redemptionPercentageBps" type="number" min={1} max={10000} step={1} defaultValue={2000} required className={inputClass} /></label>
+          {type === "EARLY_REDEMPTION" && <><label className="text-sm sm:col-span-2">{t("financial.redemption.allocation.method")}<select className={inputClass} value={redemptionPolicy} onChange={event => setRedemptionPolicy(event.target.value as RedemptionAllocationPolicy)}>
+              <option value="integer-entitlements-v1">{t("financial.redemption.legacy.option")}</option><option value="exact-target-largest-remainder-v2">{t("financial.redemption.exact.option")}</option></select></label>
+            {redemptionPolicy === "exact-target-largest-remainder-v2" ? <label className="text-sm">{t("financial.redemption.target.tokens")}<input name="redemptionTargetTokens" inputMode="numeric" pattern="[1-9][0-9]*" maxLength={19} defaultValue="7" required className={inputClass} /></label> :
+              <label className="text-sm">{t("core.share.bps.2000.20")}<input name="redemptionPercentageBps" type="number" min={1} max={10000} step={1} defaultValue={2000} required className={inputClass} /></label>}
             <label className="text-sm">{t("core.price.per.bond.kzt.test")}<input name="redemptionPriceKzt" inputMode="decimal" defaultValue="1000" required className={inputClass} /></label></>}
         </fieldset>
+        {type === "EARLY_REDEMPTION" && redemptionPolicy === "exact-target-largest-remainder-v2" && <p className="access-note mt-2">{t("financial.redemption.exact.draft.help")} {!renderQaControls && t("financial.redemption.exact.gate.help")}</p>}
         <p className="mt-3 text-xs text-[#61746a]">{t("core.the.planned.record.date.must.be.at.least.60.seconds.away.when.preparing")}</p>
         <button type="button" disabled={busy || Boolean(pendingDraftId)} className={`mt-3 ${buttonClass}`} onClick={() => { setRecordAt(futureLocalTime(5)); setExecuteAt(futureLocalTime(15)); }}>{t("core.capture.in.5.minutes.execute.in.15")}</button>
         <button type="submit" disabled={busy || instruments.length === 0} className="primary-button ml-2 mt-3">{pendingDraftId ? t("core.retry.the.saved.request") : t("core.create.draft")}</button>

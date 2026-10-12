@@ -2,6 +2,10 @@ import { createHash } from "node:crypto";
 import type { ActionReceipt, Prisma, PrismaClient } from "@prisma/client";
 import { reconcileSettlementLegs } from "@lifecycle-kase/domain";
 import { requireCouponExecutionCalculation } from "./entitlements.js";
+import { CONTROLLED_TOKEN_POLICY } from "./controlled-policy.js";
+import { deriveCorporateActionAddresses, deriveControlledCaptureAddress, deriveControlledPolicyAddress } from "@lifecycle-kase/solana-client";
+import { uuidBytes } from "./snapshot-registration.js";
+import { requireControlledSnapshotEvidence } from "./controlled-snapshot.js";
 import { rpcObject, TransactionWorkflowError, WORKFLOW_UUID } from "./transaction-workflow.js";
 
 type Database = PrismaClient | Prisma.TransactionClient;
@@ -13,6 +17,20 @@ export async function couponReceiptDraft(database: Database, id: string) {
   }
   const approval = await database.blockchainTransaction.findFirst({ where: { corporateActionId: id, operationType: "ACTION_APPROVAL", status: "FINALIZED" } });
   if (!approval?.signature) throw new TransactionWorkflowError("ONCHAIN_APPROVAL_REQUIRED", "Finalized approval evidence is missing");
+  const controlled = action.instrument.tokenPolicy === CONTROLLED_TOKEN_POLICY;
+  const captureFinish = controlled ? await database.blockchainTransaction.findFirst({ where: { corporateActionId: id, operationType: "CONTROLLED_CAPTURE_FINISH", status: "FINALIZED" } }) : null;
+  let captureAddress: string | null = null;
+  if (controlled) {
+    const actionAddresses = await deriveCorporateActionAddresses(action.instrument.programId!, uuidBytes(action.instrumentId), uuidBytes(id));
+    captureAddress = await deriveControlledCaptureAddress(action.instrument.programId!, actionAddresses.actionAddress);
+    if (!captureFinish?.signature || captureFinish.networkGenesisHash !== action.snapshot!.networkGenesisHash || !action.snapshot!.captureEvidence ||
+        rpcObject(captureFinish.preparedPayload)["controlledCaptureAddress"] !== captureAddress) throw new TransactionWorkflowError("RECONCILIATION_REQUIRED", "Finalized controlled coupon capture evidence differs");
+    const evidence = rpcObject(action.snapshot!.captureEvidence);
+    if (evidence["controlledCaptureAddress"] !== captureAddress || evidence["controlledPolicyAddress"] !== await deriveControlledPolicyAddress(action.instrument.programId!, actionAddresses.instrumentAddress)) {
+      throw new TransactionWorkflowError("RECONCILIATION_REQUIRED", "Controlled coupon raw capture addresses differ");
+    }
+    requireControlledSnapshotEvidence(action.snapshot!.captureEvidence, action.snapshot!.canonicalJson);
+  }
   const items = [];
   for (const row of action.entitlements) {
     if (row.amountMinor === 0n) {
@@ -32,6 +50,7 @@ export async function couponReceiptDraft(database: Database, id: string) {
       throw new TransactionWorkflowError("RECONCILIATION_REQUIRED", "Payment, Cash/Asset Legs and finalized evidence must match");
     }
     const proof = rpcObject(op.preparedPayload);
+    if (controlled && proof["tokenPolicy"] !== CONTROLLED_TOKEN_POLICY) throw new TransactionWorkflowError("RECONCILIATION_REQUIRED", "Finalized coupon token policy differs");
     if (typeof proof["entitlementReceiptAddress"] !== "string" || typeof proof["executedAt"] !== "string" ||
         !/^[0-9]+$/.test(proof["executedAt"]) || !Number.isSafeInteger(proof["finalizedSlot"]) || Number(proof["finalizedSlot"]) < 0) {
       throw new TransactionWorkflowError("RECONCILIATION_REQUIRED", "Finalized receipt address, clock and slot evidence are missing");
@@ -40,7 +59,9 @@ export async function couponReceiptDraft(database: Database, id: string) {
       settlement: { receiver: row.settlementWalletAddress, signature: op.signature, receiptAddress: proof["entitlementReceiptAddress"],
         executedAt: proof["executedAt"], finalizedSlot: proof["finalizedSlot"], cashLeg: "CONFIRMED", assetLeg: "NOT_APPLICABLE", reconciliation: "MATCHED" } });
   }
-  const payload = { schemaVersion: "coupon-action-receipt-v1", actionId: id, instrumentId: action.instrumentId,
+  const payload = { schemaVersion: controlled ? "coupon-controlled-action-receipt-v1" : "coupon-action-receipt-v1", actionId: id, instrumentId: action.instrumentId,
+    ...(controlled ? { tokenPolicy: CONTROLLED_TOKEN_POLICY, controlledRegistry: { captureAddress,
+      captureFinishSignature: captureFinish!.signature, captureEvidence: action.snapshot!.captureEvidence, assignedUnitPolicy: "NOT_APPLICABLE" } } : {}),
     ticker: action.instrument.ticker, actionType: "COUPON_PAYMENT", programId: action.instrument.programId,
     network: action.instrument.network, genesisHash: action.snapshot!.networkGenesisHash,
     source: { type: action.sourceType, reference: action.sourceReference, document: action.sourceDocument },

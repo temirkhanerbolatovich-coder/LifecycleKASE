@@ -1,5 +1,8 @@
 import { encodeBase58, isActionId, unsignedTransactionForSigner } from "./snapshot-workflow";
+import { derivedAddress, publicKeyBytes, type InstrumentTokenPolicy } from "./controlled-identity";
+import { requireControlledCaptureEvidence } from "./controlled-evidence";
 export type CouponExecutionView = { enabled: boolean; actionId: string; actionVersion: number; status: string;
+  tokenPolicy?: InstrumentTokenPolicy; tokenMint?: string; instrumentId?: string;
   requiredSigner: string; programId: string; networkGenesisHash: string; settlementMint: string; snapshotHash: string;
   instrumentAddress: string; actionAddress: string; approvalPolicyAddress: string; reserveAddress: string; vaultAddress: string; actionReceiptAddress: string;
   totalAmountMinor: string; paid: number; payable: number; executeAt: string; pending: Record<string, unknown> | null;
@@ -7,7 +10,8 @@ export type CouponExecutionView = { enabled: boolean; actionId: string; actionVe
     entitlementAddress: string; entitlementReceiptAddress: string; recipientAddress: string }[] };
 export type CouponExecutionPlan = Pick<CouponExecutionView, "programId" | "settlementMint" | "snapshotHash" | "actionAddress" | "reserveAddress" | "vaultAddress"> & { corporateActionId: string; operationId: string; phase: "PAY" | "FINALIZE"; cluster: "localnet";
   requiredSigner: string; serializedTransactionBase64: string; idempotencyKey: string; networkGenesisHash: string;
-  amountMinor: string; settlementWallet: string | null; actionReceiptAddress?: string; receiptHash?: string; entitlementId: string | null };
+  amountMinor: string; settlementWallet: string | null; actionReceiptAddress?: string; receiptHash?: string; entitlementId: string | null;
+  tokenPolicy?: InstrumentTokenPolicy; controlledPolicyAddress?: string; controlledCaptureAddress?: string };
 const SYSTEM = "11111111111111111111111111111111";
 const TOKEN = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 const ATA = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
@@ -18,6 +22,7 @@ export async function preparedCouponExecution(payload: Record<string, unknown>, 
   const invalid = () => new Error("План выплаты изменился или не соответствует выбранному действию. Обновите данные перед подписью.");
   const pay = payload["phase"] === "PAY";
   const row = view.items.find(value => value.id === payload["entitlementId"]);
+  if (view.tokenPolicy === "CONTROLLED_FROZEN_V2" ? payload["tokenPolicy"] !== view.tokenPolicy : payload["tokenPolicy"] !== undefined && payload["tokenPolicy"] !== "LEGACY_UNRESTRICTED_V1") throw invalid();
   if (!view.enabled || payload["corporateActionId"] !== view.actionId || !isActionId(String(payload["operationId"])) ||
       payload["actionVersion"] !== view.actionVersion || (payload["lastValidBlockHeight"] as number) < 0 ||
       !["PAY", "FINALIZE"].includes(String(payload["phase"])) || payload["cluster"] !== "localnet" ||
@@ -33,6 +38,11 @@ export async function preparedCouponExecution(payload: Record<string, unknown>, 
       !["PREPARED", "SUBMITTED", "UNKNOWN_CONFIRMATION", "FINALIZED", "FAILED"].includes(String(payload["status"])) ||
       payload["signature"] !== null && (typeof payload["signature"] !== "string" || !/^[1-9A-HJ-NP-Za-km-z]{64,88}$/.test(payload["signature"])) ||
       ["SUBMITTED", "UNKNOWN_CONFIRMATION", "FINALIZED"].includes(String(payload["status"])) && !payload["signature"]) throw invalid();
+  if (view.tokenPolicy === "CONTROLLED_FROZEN_V2") {
+    const policy = await derivedAddress(view.programId, ["controlled-policy", publicKeyBytes(view.instrumentAddress)]);
+    const capture = await derivedAddress(view.programId, ["controlled-capture", publicKeyBytes(view.actionAddress)]);
+    if (payload["controlledPolicyAddress"] !== policy || payload["controlledCaptureAddress"] !== capture) throw invalid();
+  }
   for (const field of ["actionAddress", "reserveAddress", "vaultAddress"] as const) if (payload[field] !== view[field]) throw invalid();
   if (pay && ["entitlementAddress", "entitlementReceiptAddress", "recipientAddress"].some(field => payload[field] !== row![field as keyof typeof row])) throw invalid();
   const idempotencyHash = hex(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(
@@ -67,6 +77,41 @@ export async function preparedCouponExecution(payload: Record<string, unknown>, 
   return payload as CouponExecutionPlan;
 }
 export function couponReviewChanged(a: CouponExecutionPlan, b: CouponExecutionPlan) {
-  return ["phase", "corporateActionId", "entitlementId", "idempotencyKey", "requiredSigner", "networkGenesisHash", "programId", "settlementMint", "snapshotHash", "actionAddress", "reserveAddress", "vaultAddress", "amountMinor", "settlementWallet", "receiptHash", "actionReceiptAddress"]
+  return ["phase", "corporateActionId", "entitlementId", "idempotencyKey", "requiredSigner", "networkGenesisHash", "programId", "settlementMint", "snapshotHash", "actionAddress", "reserveAddress", "vaultAddress", "amountMinor", "settlementWallet", "receiptHash", "actionReceiptAddress", "tokenPolicy", "controlledPolicyAddress", "controlledCaptureAddress"]
     .some(key => a[key as keyof CouponExecutionPlan] !== b[key as keyof CouponExecutionPlan]);
+}
+
+/** Download only finalized, hash-matched coupon evidence bound to the loaded action and actual governed capture. */
+export async function finalizedCouponReceipt(payload: Record<string, unknown>, view: CouponExecutionView): Promise<string> {
+  const invalid = () => new Error("Итоговый документ купона не совпадает с подтверждёнными выплатами или держателями.");
+  const signature = (value: unknown) => typeof value === "string" && /^[1-9A-HJ-NP-Za-km-z]{64,88}$/.test(value);
+  if (payload["actionId"] !== view.actionId || payload["status"] !== "FINALIZED" || payload["onchainPda"] !== view.actionReceiptAddress || !signature(payload["signature"]) ||
+      typeof payload["canonicalJson"] !== "string" || typeof payload["sha256"] !== "string" ||
+      hex(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload["canonicalJson"])))) !== payload["sha256"]) throw invalid();
+  const value: unknown = JSON.parse(payload["canonicalJson"]);
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw invalid();
+  const receipt = value as Record<string, unknown>;
+  if (receipt["actionId"] !== view.actionId || receipt["actionType"] !== "COUPON_PAYMENT") throw invalid();
+  if (view.tokenPolicy === "CONTROLLED_FROZEN_V2") {
+    const controlled = receipt["controlledRegistry"] as Record<string, unknown> | undefined;
+    const snapshot = receipt["snapshot"] as Record<string, unknown> | undefined;
+    if (receipt["schemaVersion"] !== "coupon-controlled-action-receipt-v1" || receipt["tokenPolicy"] !== view.tokenPolicy || !controlled || !snapshot ||
+        receipt["programId"] !== view.programId || receipt["genesisHash"] !== view.networkGenesisHash || receipt["totalAmountMinor"] !== view.totalAmountMinor ||
+        snapshot["hash"] !== view.snapshotHash || receipt["reconciliation"] !== "MATCHED" || controlled["assignedUnitPolicy"] !== "NOT_APPLICABLE" ||
+        !signature(controlled["captureFinishSignature"]) || controlled["captureAddress"] !== await derivedAddress(view.programId, ["controlled-capture", publicKeyBytes(view.actionAddress)]) ||
+        !Array.isArray(receipt["entitlements"])) throw invalid();
+    await requireControlledCaptureEvidence(controlled["captureEvidence"], { programId: view.programId, instrumentAddress: view.instrumentAddress, actionAddress: view.actionAddress,
+      ...(view.tokenMint ? { tokenMint: view.tokenMint } : {}) });
+    const rows = receipt["entitlements"] as Record<string, unknown>[];
+    if (rows.length !== view.items.length || new Set(rows.map(row => row["entitlementId"])).size !== rows.length) throw invalid();
+    for (const item of view.items) {
+      const row = rows.find(row => row["entitlementId"] === item.id);
+      if (!row || row["investorId"] !== item.investorId || row["amountMinor"] !== item.amountMinor) throw invalid();
+      if (item.amountMinor !== "0") {
+        const settlement = row["settlement"] as Record<string, unknown> | undefined;
+        if (!settlement || settlement["receiver"] !== item.receiver || settlement["signature"] !== item.signature || settlement["reconciliation"] !== "MATCHED") throw invalid();
+      }
+    }
+  } else if (receipt["schemaVersion"] !== undefined && receipt["schemaVersion"] !== "coupon-action-receipt-v1") throw invalid();
+  return payload["canonicalJson"];
 }

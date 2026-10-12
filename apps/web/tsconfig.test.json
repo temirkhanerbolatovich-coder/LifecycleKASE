@@ -2,6 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "outDir": ".test-dist", "rootDir": "app/dashboard", "lib": ["esnext", "dom"] },
   "include": [
+    "app/dashboard/controlled-workflow.test.ts",
     "app/dashboard/investor-registry-workflow.test.ts",
     "app/dashboard/locale.test.ts",
     "app/dashboard/qa-sandbox.test.ts",
@@ -20,6 +21,7 @@
     "app/dashboard/onchain-entitlement-workflow.test.ts",
     "app/dashboard/action-workflow.ts",
     "app/dashboard/action-workflow.test.ts",
+    "app/dashboard/exact-redemption-action-workflow.test.ts",
     "app/dashboard/wallet-transaction.ts",
     "app/dashboard/wallet-transaction.test.ts",
     "app/dashboard/operator-api.ts",

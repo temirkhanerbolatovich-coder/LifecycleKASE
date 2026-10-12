@@ -19,6 +19,8 @@ import { confirmCouponExecution, couponExecutionEnabled, getCouponExecution, pre
 import { getCouponReceipt } from "./coupon-receipt.js";
 import { confirmRedemptionExecution, getRedemptionExecution, prepareRedemptionExecution, redemptionExecutionEnabled, submitRedemptionExecution } from "./redemption-execution.js";
 import { getRedemptionReceipt } from "./redemption-receipt.js";
+import { exactTargetRedemptionEnabled } from "./redemption-policy.js";
+import { ControlledRegistryError, controlledRegistryEnabled } from "./controlled-policy.js";
 import { confirmOnchainCalculation, onchainCalculationEnabled, prepareOnchainCalculation,
   submitOnchainCalculation } from "./onchain-entitlements.js";
 
@@ -42,7 +44,7 @@ export class CorporateActionController {
     return { id: session.user.id, walletAddress: session.walletAddress, correlationId };
   }
   private httpError(error: unknown, response: Response): never {
-    if (error instanceof AuthFlowError || error instanceof TransactionWorkflowError || error instanceof InstrumentDeploymentError || error instanceof InstrumentRegistryError) {
+    if (error instanceof AuthFlowError || error instanceof TransactionWorkflowError || error instanceof InstrumentDeploymentError || error instanceof InstrumentRegistryError || error instanceof ControlledRegistryError) {
       if (error instanceof AuthRateLimitError) response.setHeader("Retry-After", String(error.retryAfterSeconds));
       throw new HttpException({ code: error.code, message: error.message }, error.status);
     }
@@ -60,7 +62,7 @@ export class CorporateActionController {
   @Get(":id")
   @Header("Cache-Control", "no-store")
   async detail(@Param("id") actionId: string, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
-    try { await this.actor(request, response, false); return { ...await getCorporateAction(this.prisma, actionId), couponExecutionEnabled: couponExecutionEnabled(), redemptionExecutionEnabled: redemptionExecutionEnabled() }; }
+    try { await this.actor(request, response, false); return { ...await getCorporateAction(this.prisma, actionId), controlledRegistryEnabled: controlledRegistryEnabled(), couponExecutionEnabled: couponExecutionEnabled(), redemptionExecutionEnabled: redemptionExecutionEnabled(), exactTargetRedemptionEnabled: exactTargetRedemptionEnabled() }; }
     catch (error) { this.httpError(error, response); }
   }
   @Post()
@@ -113,12 +115,12 @@ export class CorporateActionController {
         corporateActionId: actionId, operationType: "CALCULATION_FINALIZE", status: "FINALIZED"
       }, select: { id: true } }));
       const pending = enabled ? await this.prisma.blockchainTransaction.findFirst({ where: { corporateActionId: actionId,
-        operationType: { in: ["ENTITLEMENT_REGISTER", "CALCULATION_FINALIZE", "CALCULATION_RESET"] }, status: { in: [...ACTIVE_TRANSACTION_STATUSES] } }, orderBy: { createdAt: "desc" } }) : null;
+        operationType: { in: ["ENTITLEMENT_REGISTER", "CALCULATION_FINALIZE", "CALCULATION_RESET", "CONTROLLED_UNIT_RESERVATION"] }, status: { in: [...ACTIVE_TRANSACTION_STATUSES] } }, orderBy: { createdAt: "desc" } }) : null;
       return { ...result, onchainRegistrationEnabled: enabled, onchainCalculationFinalized: finalized, actionApprovalEnabled: actionApprovalEnabled(),
         onchainPending: pending ? { ...rpcObject(pending.preparedPayload), operationId: pending.id, requiredSigner: pending.requiredSigner,
           networkGenesisHash: pending.networkGenesisHash, serializedTransactionBase64: pending.preparedTransactionBase64,
           lastValidBlockHeight: Number(pending.lastValidBlockHeight), status: pending.status, signature: pending.signature,
-          transactionFormat: "SOLANA_V0_WIRE_TRANSACTION_BASE64" } : null };
+          transactionFormat: "SOLANA_V0_WIRE_TRANSACTION_BASE64", resumed: true } : null };
     }
     catch (error) { this.httpError(error, response); }
   }

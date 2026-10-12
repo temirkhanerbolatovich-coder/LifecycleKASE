@@ -1,0 +1,379 @@
+{
+  "schema": "controlled-registry-source-fingerprints-v1",
+  "capturedAt": "2026-10-12T00:50:24.159Z",
+  "baseCommit": "8368d6833799e4133437fde4ecd60691c04fab39",
+  "branch": "codex/full-project-audit-20261010",
+  "status": "UNCOMMITTED_LOCALNET_PROTOCOL_CANDIDATE",
+  "artifact": {
+    "path": "generated/localnet-candidate-controlled-20261012-c/lifecycle_kase.so",
+    "sha256": "772d8217c6395bbcd854f60f743139d756a15e7a0b7bb03396a586dc4b7b407b"
+  },
+  "idl": {
+    "path": "generated/localnet-candidate-controlled-20261012-c/lifecycle_kase.json",
+    "sha256": "4d50cb17cd0c0e0d3740e4b0ec42a71e2bdb62001fc9b654093024d33f5d046f"
+  },
+  "compiledClient": {
+    "path": "packages/solana-client/dist/controlled-registry.js",
+    "sha256": "98f2e9e63f0b099ea9b30c9747b032e6b60ef5a33169b1a11f05c1a77b836623"
+  },
+  "runtime": {
+    "completedAt": "2026-10-12T00:46:40.465Z",
+    "genesisHash": "5MAbDmYLZL4eqG6UyH8fkgivEWFZCtv6EiyL1ZzCvok7",
+    "sha256": "f049fab3b3fd39c163a58d7ec4cc6f03e93f942d447a86265be0132593851166"
+  },
+  "legacyRuntime": {
+    "completedAt": "2026-10-12T00:43:48.467Z",
+    "genesisHash": "FsiceXrUN9qn4gx4VbHzm2JNdTbKpaapToSJzSZx1DrW",
+    "sha256": "e5aceae7f76f2f617f2cc5aad10440ba418d801c522419d4c1fadf69a6d27416"
+  },
+  "files": [
+    {
+      "path": ".env.example",
+      "sha256": "bee7959d1060ebd60f766c90a64723c30d4ff1408989e0cb8b320a199ac81ed1"
+    },
+    {
+      "path": ".gitleaks.toml",
+      "sha256": "88b6fa7861417076a65d8405083f8b463dfef2158ad598ad75854bb33c98b0b7"
+    },
+    {
+      "path": "README.md",
+      "sha256": "965d3a2e54cf4ba0fb49db2df29ce0b01319bc8efa793107c5d1f8a73fbddd98"
+    },
+    {
+      "path": "apps/api/src/action-approval.ts",
+      "sha256": "8997c0a3267cd9d3dcc3c33c56841a9c385253290e7011495e7a520f6a84b70e"
+    },
+    {
+      "path": "apps/api/src/corporate-action-operations.ts",
+      "sha256": "fd225a95b03c470407d1f5a27b838959efd8254d8b6e7c00e5e607998d95c332"
+    },
+    {
+      "path": "apps/api/src/corporate-action-registry.ts",
+      "sha256": "62e73366a5914e4b2670d6041fde5e1d3def768724a162823b009ff6e5e38cdc"
+    },
+    {
+      "path": "apps/api/src/corporate-action.controller.ts",
+      "sha256": "8fd2ef816bae73e587d449666e3fbe07e23a3d96301fa956c423ee97298301a9"
+    },
+    {
+      "path": "apps/api/src/entitlements.test.ts",
+      "sha256": "76df3a8d363279676d771134364f79f89992f12a32f1dc2edae245d9a5bd235b"
+    },
+    {
+      "path": "apps/api/src/entitlements.ts",
+      "sha256": "dfc3bb81ac50a11c8f3b8cf4dc0497cb923684b82bae1bcc4b8957980f9bb574"
+    },
+    {
+      "path": "apps/api/src/exact-redemption-calculation.test.ts",
+      "sha256": "ad4674455a4a66d89a5d1021a104a416263d9e21afead5ea89cf303f98a2b56e"
+    },
+    {
+      "path": "apps/api/src/onchain-entitlements.test.ts",
+      "sha256": "919e5236f6d4f5050f0094226b4b6268b717ca02e159cd47124fa7b20bfb7f2d"
+    },
+    {
+      "path": "apps/api/src/onchain-entitlements.ts",
+      "sha256": "6c095d974699da582d0639103fa9c6fc44da9c0ad6634b6948fa26e643c7f1d2"
+    },
+    {
+      "path": "apps/api/src/redemption-execution.ts",
+      "sha256": "8a56ec1ef582810422b826e15d71cdaf6aeb57f6151cd05027da4b79dab879a3"
+    },
+    {
+      "path": "apps/api/src/redemption-policy.test.ts",
+      "sha256": "461588985f7a42c8968436582581edb5f98937e132bf0f78c37973e5d878b4e7"
+    },
+    {
+      "path": "apps/api/src/redemption-policy.ts",
+      "sha256": "5cfe3d490645da797e39583670b3ef3a4b87c1186313a49c9b86807362a06516"
+    },
+    {
+      "path": "apps/api/src/redemption-receipt.ts",
+      "sha256": "cd626d9ba7291f417f3475a7eb630523cdc2d2894a9d3c441ac192b4fb86cd80"
+    },
+    {
+      "path": "apps/api/src/snapshot-confirmation.ts",
+      "sha256": "22f584c1dcc5eede80d3cfd119cdc7ae5f40328cc277754c936973817fa8f041"
+    },
+    {
+      "path": "apps/web/app/dashboard/action-workflow.test.ts",
+      "sha256": "3dd9b6eeaec763c2723b75d8eb7b60b6417b53f51c2fb62b16156576e66058e3"
+    },
+    {
+      "path": "apps/web/app/dashboard/action-workflow.ts",
+      "sha256": "73f677f2948d524293673cf9661d09cbd1f0135913658dd50d0bcb3223388854"
+    },
+    {
+      "path": "apps/web/app/dashboard/corporate-action-detail.tsx",
+      "sha256": "37f4b5b6602772eed3ac76116be8ebd369f16295a9f525926e415ec23531d9e1"
+    },
+    {
+      "path": "apps/web/app/dashboard/corporate-action-panel.tsx",
+      "sha256": "17e42e31d655db997748556ae5ebd161f4f2034598fd9ef482db4082c93a70f1"
+    },
+    {
+      "path": "apps/web/app/dashboard/entitlement-panel.tsx",
+      "sha256": "fbea0c9f89fcc5c0b529b9090b7cdfe1216bd9a6a916b5c4c40b0e87b7e7a0f3"
+    },
+    {
+      "path": "apps/web/app/dashboard/entitlement-workflow.test.ts",
+      "sha256": "2953981d2da1f2bf0cce222c5a753611f5b78f8102febe1c11dcb13a7fe68b1c"
+    },
+    {
+      "path": "apps/web/app/dashboard/entitlement-workflow.ts",
+      "sha256": "5b43646cc97116c8cf43781c95986c6d9dff37132a841303120c02a1524a8192"
+    },
+    {
+      "path": "apps/web/app/dashboard/exact-redemption-action-workflow.test.ts",
+      "sha256": "f5382ff15ce41a17b81d3b3e4e7eaac0bd4b2ca9e5101fc5a9ec603268a7591a"
+    },
+    {
+      "path": "apps/web/app/dashboard/financial-messages.ts",
+      "sha256": "061aff9f91b2171274c567968100b0f359db4adb8e2df3a29729b9be412e38be"
+    },
+    {
+      "path": "apps/web/app/dashboard/locale.test.ts",
+      "sha256": "ac0afc53193d246e28c52297a9f1114be72110f93e29660e0c8c57d12681a222"
+    },
+    {
+      "path": "apps/web/app/dashboard/locale.ts",
+      "sha256": "ed8be020f564b84bf4d148bfa3d3ea600b3f1a56166ab70afdc28ea0a7b870e0"
+    },
+    {
+      "path": "apps/web/app/dashboard/onchain-entitlement-workflow.test.ts",
+      "sha256": "f3a490fb5243e3ce41a39d3526c1350c1b50bd0bc5c2fa72f9aa32fcba8f5813"
+    },
+    {
+      "path": "apps/web/app/dashboard/onchain-entitlement-workflow.ts",
+      "sha256": "99a2ff5a2a44538ea5127c03b5ab455682416e1b816a88a4b0791737c2ff6474"
+    },
+    {
+      "path": "apps/web/app/dashboard/qa-sandbox.test.ts",
+      "sha256": "872ea1e5a1d731e12add035aef782790708087ac872a9daa4ba1314254ca77f0"
+    },
+    {
+      "path": "apps/web/app/dashboard/qa-sandbox.ts",
+      "sha256": "462862c581aa72a7a1f6642f27848ea07524eee2b425e009f59db865beb4b097"
+    },
+    {
+      "path": "apps/web/app/dashboard/redemption-calculation-workflow.test.ts",
+      "sha256": "e10a8627449eeb1529c8d63343f23d4045a03133e9444f7aa8bff63d6bc93e3f"
+    },
+    {
+      "path": "apps/web/app/dashboard/redemption-calculation-workflow.ts",
+      "sha256": "b8f84898bf8dab97d1dfdb57d0129afe66511682eb0afc6c423f28d6908dfaa7"
+    },
+    {
+      "path": "apps/web/app/dashboard/redemption-execution-workflow.test.ts",
+      "sha256": "364b444efa4347e6801c546aa3c2ff4a8d0a54ed6d239e024d6f3972974e72b9"
+    },
+    {
+      "path": "apps/web/app/dashboard/redemption-execution-workflow.ts",
+      "sha256": "d44c8787d9cdcba32ae401f9fd2220dd87cb4630b802a25ead70838043493c96"
+    },
+    {
+      "path": "apps/web/package.json",
+      "sha256": "24fb459ceabd9e777d309e425200823793a931cd23449fc69ef9eb299a9ab912"
+    },
+    {
+      "path": "apps/web/tsconfig.test.json",
+      "sha256": "88df5c9c98161a1068147ca61069ed4bf91e163cab712801a1303c007592f3e2"
+    },
+    {
+      "path": "docs/architecture/overview.md",
+      "sha256": "5d2504845943d7c58d0f3cdc17b49dbe39eace6f980a5895b3dcdde39d6b0fae"
+    },
+    {
+      "path": "docs/decisions/ADR-029-exact-target-redemption.md",
+      "sha256": "50104b285b071dd401c05edb94ac80ac541d36e5b412a69cf3241aaa00804908"
+    },
+    {
+      "path": "docs/decisions/ADR-030-controlled-registry-and-unit-reservations.md",
+      "sha256": "367d4a79e7dfe8525bf37f69858f2fe9028efd35d98d544ff097dc647342bae6"
+    },
+    {
+      "path": "docs/decisions/README.md",
+      "sha256": "4cdeef09058ac84a27ae0d62d9c36e72d842a32548716b845267267d7c779762"
+    },
+    {
+      "path": "docs/features/bondflow-implementation-plan.md",
+      "sha256": "9d12558f956238fe115a978d6a2fe4c287b8d621d76563f248844050a067205b"
+    },
+    {
+      "path": "docs/features/controlled-registry.md",
+      "sha256": "449d02e035f84e8c3d8b91253beac62bd8b2740fad545dbc0a35696ae2d4d9d4"
+    },
+    {
+      "path": "docs/features/entitlements-and-review.md",
+      "sha256": "1d644d309ece080830ce4806cd1e05073b84b52bda637d0bd5457accc87ba96f"
+    },
+    {
+      "path": "docs/features/exact-target-redemption.md",
+      "sha256": "da8c7522b4d5e82cf03e5eff19c8900ea98503191a61c0b32be89a65e3af4803"
+    },
+    {
+      "path": "docs/features/on-chain-entitlement-registration.md",
+      "sha256": "38c4af0338b7ec22f447dcf2ba503f22ba16d0f6c1373d9170d17842e02ccac1"
+    },
+    {
+      "path": "docs/features/redemption-execution-and-receipts.md",
+      "sha256": "67f40b3bbb3b11f78698a217279fa10d50224c780cc593ca03a569c76e87ec96"
+    },
+    {
+      "path": "docs/requirements/KASE_BondFlow_TZ.md",
+      "sha256": "21c7143cd0c5f88f2e802198e1d342061f4a2a6a1f2dc8be32a02dbbf683c4d4"
+    },
+    {
+      "path": "docs/testing/bondflow-coupon-summary-2026-10-11.md",
+      "sha256": "d3d796e6ea42dd5cc1d09ea187b4bf1e01590e5e7167e240be304ddc8a587045"
+    },
+    {
+      "path": "docs/testing/bondflow-exact-redemption-2026-10-12.md",
+      "sha256": "3c36aed6516849ba14b8eb096d4ad1618029c52bf5ec424f676f0ab5d968a36e"
+    },
+    {
+      "path": "docs/testing/controlled-registry-2026-10-12.md",
+      "sha256": "e5c0f2de2e1140363fa42ea5e229ceb86abe98f2baa32812f355783c2e075d1c"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "f564aa6e3dcdb61b2fa0bfb324f9aea77f4e726d9940f951b7c99fa7802c6132"
+    },
+    {
+      "path": "package.json",
+      "sha256": "04887870f89e6275c0e425897fdd551825e77e4782549216128fc80832db0fc6"
+    },
+    {
+      "path": "packages/domain/package.json",
+      "sha256": "f0fe3472c6e113e9eb808e7e0ff012bf7ee5d55cce01ad89622862b09965cc54"
+    },
+    {
+      "path": "packages/domain/src/early-redemption-allocation.test.ts",
+      "sha256": "878c00c4470464de736d27048d947a5e09531a93b594639de38ef544beace405"
+    },
+    {
+      "path": "packages/domain/src/early-redemption-allocation.ts",
+      "sha256": "f85ae64377a17f2433da9149a8c04ca8efdce22a16a19310a23e06d65f7d6380"
+    },
+    {
+      "path": "packages/domain/src/financial.test.ts",
+      "sha256": "28878898874d85a27acd6baab9aa074016bdd7027439bdaeb552ccdcfe4639d8"
+    },
+    {
+      "path": "packages/domain/src/financial.ts",
+      "sha256": "7454b781c65a8cc8c95a3657239ca6cdd6c82675c56e99faef1055787cdff9d1"
+    },
+    {
+      "path": "packages/domain/src/index.ts",
+      "sha256": "49dcdc90e3ec217cb662e38a57af74cd320b6a47822a003d184a47f58cc3f2bb"
+    },
+    {
+      "path": "packages/solana-client/README.md",
+      "sha256": "776f946c9f6c41d5555633c3e8a1a328ac7b8464f0cd5a73c8b78a6c63cb1f17"
+    },
+    {
+      "path": "packages/solana-client/src/controlled-registry.test.ts",
+      "sha256": "044bd74be3bcd78cd65580190de5b59c95436f9d76fea4e0e0d7eba53a5dd2e7"
+    },
+    {
+      "path": "packages/solana-client/src/controlled-registry.ts",
+      "sha256": "82a54d3d176caee732a5041a876bcda5323bd05c9b45350dc7fab73592ee58c6"
+    },
+    {
+      "path": "packages/solana-client/src/corporate-action.test.ts",
+      "sha256": "b5e735f84d63f4b94e40bbf2047a138de576fcf64b0bc33af3dbe9bb977ceff6"
+    },
+    {
+      "path": "packages/solana-client/src/corporate-action.ts",
+      "sha256": "6ef1636aec6a66fdaf721f842d04e0e777f711fac71542c4aae2313c0e48e2cf"
+    },
+    {
+      "path": "packages/solana-client/src/entitlement-registration.test.ts",
+      "sha256": "188ef837d2b1a8615904882a0aaaf5eda7504f9804bc6d435e1244a88026f0df"
+    },
+    {
+      "path": "packages/solana-client/src/entitlement-registration.ts",
+      "sha256": "4e2402dd05b63c2853f051878db74124946fb0627b5832b9af8d71267a0a384b"
+    },
+    {
+      "path": "packages/solana-client/src/index.ts",
+      "sha256": "fa2610aaf5ec9a8da2951fc86ecc82d0da1efa11c6d727b20d6cb8dc212a3581"
+    },
+    {
+      "path": "packages/solana-client/src/snapshot-confirmation.test.ts",
+      "sha256": "f25717ffe4a0055cc1d574c10ae339b03db605a78cee5e190c102a5d2f5f68f3"
+    },
+    {
+      "path": "packages/solana-client/src/snapshot-confirmation.ts",
+      "sha256": "e909165f6f7d7f9e7c4bbf98a3c0356b70e1f007ba517d4f403ba009f007fc6b"
+    },
+    {
+      "path": "prisma/migrations/20261011160000_exact_redemption_target/migration.sql",
+      "sha256": "6a5e0f16ff61bc0377b24b8c94437ab7bb1c5d9f9b81bb28384122774981b3bf"
+    },
+    {
+      "path": "prisma/schema.prisma",
+      "sha256": "d0e5af84345b48d769b810a377fd460a11beb39e842b4bb90a60473c98d354b5"
+    },
+    {
+      "path": "programs/lifecycle_kase/README.md",
+      "sha256": "b08ba33d77d78117b83a3df77eb9348ec0d160d1522e394d527a14a46482cf10"
+    },
+    {
+      "path": "programs/lifecycle_kase/src/controlled_registry.rs",
+      "sha256": "8509b87e40951b2bef215a338f905e834d62092ffec81e2223696006272e18eb"
+    },
+    {
+      "path": "programs/lifecycle_kase/src/entitlement.rs",
+      "sha256": "c79cf979a90ee463eb24521d367f2414ec5282bf8de89076eeb320546c6b9a03"
+    },
+    {
+      "path": "programs/lifecycle_kase/src/exact_redemption.rs",
+      "sha256": "f078aef33cb76307373eb60dd6ad2708b3973dbed14ba9597dc4f19c488cc562"
+    },
+    {
+      "path": "programs/lifecycle_kase/src/lib.rs",
+      "sha256": "bd985829c827276a34d95a3b81a216d2dd29c4d1fa62ae382bc1793f77c69ed1"
+    },
+    {
+      "path": "programs/lifecycle_kase/src/redemption.rs",
+      "sha256": "fae5e031b8e79ae985d8cce5501a18c2e32bfead34e1bdad422ddadfaef01eb8"
+    },
+    {
+      "path": "scripts/test-controlled-registry.mjs",
+      "sha256": "fa30b36fe8776853724ebda95c6e486786864bdc9fdabb627117000c3b8b9334"
+    },
+    {
+      "path": "scripts/test-controlled-registry.ps1",
+      "sha256": "56cf53cdc4f0149ac3141ea7c2a48a371288ab826a8f8ade5f5bb7ef255162d6"
+    },
+    {
+      "path": "scripts/test-controlled-registry.sh",
+      "sha256": "e6ba829149d232b92a75d97f6dc668cd0fa073fe36cdb2d3935165b583f1ddfd"
+    },
+    {
+      "path": "scripts/test-kase-demo.mjs",
+      "sha256": "15d8c5de7ca47a6463ae73a28ea61584e1bf117ba5a0eb891da852b63bb0091b"
+    },
+    {
+      "path": "scripts/test-kase-demo.ps1",
+      "sha256": "3484baa8c2e7663ad47e070bd1b3f583d41aa1ba1ecf4ff7af0a421cdfb7d695"
+    },
+    {
+      "path": "scripts/verify-kase-demo-evidence.mjs",
+      "sha256": "787059fa4ca4880a33a5dac8fc455fe6d1b24eef780bd882fbefff7676736bf8"
+    },
+    {
+      "path": "test/fixtures/early-redemption-allocation-parity.tsv",
+      "sha256": "dcef71224d80befe849b1b46afcdd10b42bf2f422a86b2ee80574bcaea8128c1"
+    },
+    {
+      "path": "test/kase-demo-evidence.test.mjs",
+      "sha256": "07d90cce17bd077006eabc86951e24abf95cd5f05f51564da3db7908bd793788"
+    },
+    {
+      "path": "tools/solana-integration/test-initialize-instrument.mjs",
+      "sha256": "715b8c72ec98ea2f7238fc92cfa34783a31a919b1ea01bbe2d04aecf90b7ef28"
+    }
+  ]
+}

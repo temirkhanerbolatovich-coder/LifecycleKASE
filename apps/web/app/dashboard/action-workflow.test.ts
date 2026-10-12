@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { actionTimeUtc, preparedActionPlan, snapshotWindowMessage, type CorporateActionView } from "./action-workflow.js";
+import { actionTimeUtc, earlyRedemptionDraftTerms, preparedActionPlan, snapshotWindowMessage, type CorporateActionView } from "./action-workflow.js";
 
 const KEY = "11111111111111111111111111111111";
 const ACTION = "00000000-0000-4000-8000-000000000001";
@@ -29,6 +29,39 @@ test("action date input is explicitly converted from local time to exact UTC sec
   const value = "2026-10-02T17:35";
   assert.equal(actionTimeUtc(value), new Date(value).toISOString());
   assert.throws(() => actionTimeUtc("invalid")); assert.throws(() => actionTimeUtc("2026-10-02T17:35Z"));
+});
+
+test("exact-target action plans require explicit matching policy, target and target PDA while legacy omission remains valid", () => {
+  const f = fixture();
+  const action: CorporateActionView = { ...f.action, type: "EARLY_REDEMPTION", redemptionPriceMinor: "1000000000",
+    redemptionAllocationPolicy: "exact-target-largest-remainder-v2", redemptionTargetTokens: "7" };
+  const payload = { ...f.payload, type: action.type, redemptionPriceMinor: action.redemptionPriceMinor,
+    redemptionAllocationPolicy: action.redemptionAllocationPolicy, redemptionTargetTokens: "7", targetAddress: KEY };
+  assert.equal(preparedActionPlan(payload, action, KEY).redemptionTargetTokens, "7");
+  for (const change of [{ redemptionAllocationPolicy: undefined }, { redemptionAllocationPolicy: "integer-entitlements-v1" },
+    { redemptionTargetTokens: undefined }, { redemptionTargetTokens: "8" }, { redemptionTargetTokens: 7 }, { targetAddress: undefined }]) {
+    assert.throws(() => preparedActionPlan({ ...payload, ...change }, action, KEY));
+  }
+  const cancel = { ...payload, phase: "CANCEL", reason: "Owner requested cancellation", targetAddress: undefined };
+  assert.equal(preparedActionPlan(cancel, action, KEY).phase, "CANCEL");
+  assert.throws(() => preparedActionPlan({ ...cancel, redemptionTargetTokens: "8" }, action, KEY));
+  assert.throws(() => preparedActionPlan(payload, f.action, KEY));
+  assert.throws(() => preparedActionPlan({ ...f.payload, redemptionTargetTokens: "7" }, f.action, KEY));
+});
+
+test("early-redemption drafts preserve integer targets beyond Number precision and keep percentage mode independent", () => {
+  assert.deepEqual(earlyRedemptionDraftTerms("exact-target-largest-remainder-v2", { targetTokens: "9007199254740993", percentageBps: "2000", priceKzt: "1000" }), {
+    redemptionAllocationPolicy: "exact-target-largest-remainder-v2", redemptionTargetTokens: "9007199254740993", redemptionPercentageBps: null, redemptionPriceKzt: "1000"
+  });
+  assert.deepEqual(earlyRedemptionDraftTerms("integer-entitlements-v1", { targetTokens: "7", percentageBps: "2000", priceKzt: "0.000001" }), {
+    redemptionAllocationPolicy: "integer-entitlements-v1", redemptionTargetTokens: null, redemptionPercentageBps: 2000, redemptionPriceKzt: "0.000001"
+  });
+  for (const targetTokens of ["0", "-1", "01", "1.5", "1e3", "9223372036854775808", 7]) {
+    assert.throws(() => earlyRedemptionDraftTerms("exact-target-largest-remainder-v2", { targetTokens, percentageBps: null, priceKzt: "1000" }));
+  }
+  for (const priceKzt of ["0", "-1", "1e3", "1.0000001", "9223372036854.775808"]) {
+    assert.throws(() => earlyRedemptionDraftTerms("exact-target-largest-remainder-v2", { targetTokens: "7", percentageBps: null, priceKzt }));
+  }
 });
 test("snapshot window distinguishes waiting, recovery and application-only expiry", () => {
   const payload = { actionId: ACTION, status: "SCHEDULED", version: 3, onChainTransition: false };

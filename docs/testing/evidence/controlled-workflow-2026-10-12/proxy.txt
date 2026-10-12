@@ -1,0 +1,5 @@
+
+> lifecycle-kase@0.0.0 test:web:proxy
+> node scripts/test-web-operator-proxy.mjs
+
+PASS production proxy: Origin/body, Strict HttpOnly cookies, action/snapshot/registry/deployment routes, unknown-route isolation

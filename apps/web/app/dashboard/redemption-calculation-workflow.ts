@@ -1,7 +1,9 @@
 import { encodeBase58, isActionId } from "./snapshot-workflow";
-import type { EntitlementsView } from "./entitlement-workflow";
-import type { PreparedOnchainCalculation } from "./onchain-entitlement-workflow";
+import { validatedExactRedemptionSummary, type EntitlementsView } from "./entitlement-workflow";
+import { redemptionAllocationMatches } from "./action-workflow";
+import { requireOnchainCalculationIdentity, type PreparedOnchainCalculation } from "./onchain-entitlement-workflow";
 import { requireReviewedTransaction, transactionHex } from "./reviewed-transaction";
+import { controlledHoldingAddress } from "./controlled-identity";
 const SYSTEM = "11111111111111111111111111111111";
 const TOKEN = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 const COMPUTE = "ComputeBudget111111111111111111111111111111";
@@ -31,13 +33,19 @@ async function discriminator(name: string) {
 export async function requireRedemptionCalculationTransaction(plan: PreparedOnchainCalculation, view: EntitlementsView): Promise<void> {
   if (!["EARLY_REDEMPTION", "BOND_REDEMPTION"].includes(view.actionType ?? "")) return;
   const fail = () => new Error("Регистрация погашения не совпадает со snapshot, источниками токенов или PDA. Подпись остановлена.");
-  if (!key(view.tokenMint) || !key(plan.redemptionProgressAddress)) throw fail();
+  const exact = view.redemptionAllocationPolicy === "exact-target-largest-remainder-v2";
+  const controlled = view.tokenPolicy === "CONTROLLED_FROZEN_V2";
+  if (controlled ? plan.tokenPolicy !== view.tokenPolicy : plan.tokenPolicy !== undefined && plan.tokenPolicy !== "LEGACY_UNRESTRICTED_V1") throw fail();
+  if (!key(view.tokenMint) || !key(plan.redemptionProgressAddress) || !redemptionAllocationMatches(plan as unknown as Record<string, unknown>, view) ||
+      exact && (view.actionType !== "EARLY_REDEMPTION" || plan.phase !== "RESET" && !key(plan.targetAddress))) throw fail();
+  if (exact && !validatedExactRedemptionSummary(view)) throw fail();
+  await requireOnchainCalculationIdentity(plan, view);
   const expected = [
     { program: COMPUTE, accounts: [] as string[], data: "02801a0600" },
     { program: COMPUTE, accounts: [] as string[], data: "030000000000000000" }
   ];
   const writable = new Set([plan.requiredSigner, plan.actionAddress]);
-  if (plan.phase === "REGISTER") {
+  if (plan.phase === "REGISTER" || plan.phase === "RESERVE_UNITS") {
     const row = view.items.find(item => item.id === plan.entitlementId);
     const sources = row?.redemptionSources;
     if (!row || !sources?.length || sources.length > 8 || !isActionId(row.investorId) || plan.bondMint !== view.tokenMint ||
@@ -55,20 +63,32 @@ export async function requireRedemptionCalculationTransaction(plan: PreparedOnch
       ...publicKey(plan.actionAddress), ...publicKey(plan.entitlementAddress!), ...hexBytes(plan.snapshotHash), ...hexBytes(sourceData)]);
     const sourceHash = transactionHex(new Uint8Array(await crypto.subtle.digest("SHA-256", commitment)));
     if (plan.sourceHash !== sourceHash) throw fail();
-    expected.push({ program: plan.programId, accounts: [plan.requiredSigner, plan.instrumentAddress, plan.actionAddress, plan.entitlementAddress!, SYSTEM],
-      data: await discriminator("register_entitlement") + row.investorId.replace(/-/g, "") + plan.snapshotHash +
+    if (plan.phase === "REGISTER") {
+      expected.push({ program: plan.programId, accounts: [plan.requiredSigner, plan.instrumentAddress, plan.actionAddress, ...(exact ? [plan.targetAddress!] : []), plan.entitlementAddress!, SYSTEM],
+      data: await discriminator(exact ? "register_entitlement_v2" : "register_entitlement") + row.investorId.replace(/-/g, "") + plan.snapshotHash +
         transactionHex(publicKey(row.settlementWalletAddress)) + u64(row.balanceAtRecordDate) + "01" + u64(row.amountMinor) + u64(row.tokensToRedeem) });
     expected.push({ program: plan.programId, accounts: [plan.requiredSigner, plan.instrumentAddress, plan.actionAddress, plan.entitlementAddress!,
-      plan.redemptionSourcesAddress!, plan.redemptionProgressAddress!, view.tokenMint!, TOKEN, SYSTEM, ...sources.map(source => source.address)],
-      data: await discriminator("register_redemption_sources") + sourceData });
+      plan.redemptionSourcesAddress!, plan.redemptionProgressAddress!, view.tokenMint!, TOKEN, SYSTEM, ...sources.map(source => source.address),
+      ...(controlled ? [plan.controlledPolicyAddress!, plan.controlledCaptureAddress!] : [])],
+      data: await discriminator(controlled ? "register_controlled_redemption_sources" : "register_redemption_sources") + sourceData });
     for (const value of [plan.entitlementAddress!, plan.redemptionSourcesAddress!, plan.redemptionProgressAddress!]) writable.add(value);
+    } else {
+      const holdings = await Promise.all(sources.map(source => controlledHoldingAddress(plan.programId, plan.instrumentAddress, source.address)));
+      let remaining = BigInt(row.tokensToRedeem);
+      const allocations = sources.map(source => { const amount = BigInt(source.balanceAtSnapshot) < remaining ? BigInt(source.balanceAtSnapshot) : remaining; remaining -= amount; return amount.toString(); });
+      if (!controlled || remaining !== 0n || JSON.stringify(plan.allocations) !== JSON.stringify(allocations) || JSON.stringify(plan.holdingAddresses) !== JSON.stringify(holdings)) throw fail();
+      expected.push({ program: plan.programId, accounts: [plan.requiredSigner, plan.instrumentAddress, plan.actionAddress, plan.controlledPolicyAddress!, plan.controlledCaptureAddress!, plan.entitlementAddress!,
+        plan.redemptionSourcesAddress!, plan.redemptionProgressAddress!, plan.unitReservationAddress!, view.tokenMint!, TOKEN, SYSTEM, ...sources.map(source => source.address), ...holdings],
+        data: await discriminator("reserve_controlled_redemption") });
+      writable.delete(plan.actionAddress); writable.add(plan.controlledCaptureAddress!); writable.add(plan.unitReservationAddress!); holdings.forEach(value => writable.add(value));
+    }
   } else {
     const rows = plan.phase === "FINALIZE" ? view.items : view.items.filter(item => item.onchainPda);
     if (!plan.sourceAddresses || plan.sourceAddresses.length !== rows.length || plan.sourceAddresses.some(value => !key(value)) ||
         new Set(plan.sourceAddresses).size !== plan.sourceAddresses.length) throw fail();
-    expected.push({ program: plan.programId, accounts: [plan.requiredSigner, plan.instrumentAddress, plan.actionAddress, plan.redemptionProgressAddress!,
+    expected.push({ program: plan.programId, accounts: [plan.requiredSigner, plan.instrumentAddress, plan.actionAddress, ...(exact && plan.phase === "FINALIZE" ? [plan.targetAddress!] : []), plan.redemptionProgressAddress!,
       ...rows.flatMap((row, index) => [row.onchainPda!, plan.sourceAddresses![index]!])],
-      data: await discriminator(plan.phase === "FINALIZE" ? "finalize_calculation" : "reset_calculation") });
+      data: await discriminator(plan.phase === "FINALIZE" ? exact ? "finalize_calculation_v2" : "finalize_calculation" : "reset_calculation") });
     if (plan.phase === "RESET") for (const value of [plan.redemptionProgressAddress!, ...rows.map(row => row.onchainPda!), ...plan.sourceAddresses]) writable.add(value);
   }
   requireReviewedTransaction(plan.serializedTransactionBase64, plan.requiredSigner, expected, writable, fail);

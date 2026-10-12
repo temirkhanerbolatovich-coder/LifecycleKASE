@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { PrismaClient } from "@prisma/client";
-import { buildRedemptionExecution, encodePublicKey, fundingTreasuryIndex, serializeUnsignedInstructionsTransaction, TOKEN_2022_PROGRAM_ID } from "@lifecycle-kase/solana-client";
-import { getRedemptionExecution, prepareRedemptionExecution, redemptionExecutionEnabled, verifyRedemptionBurnHistory, requireReviewedBurnAccounts } from "./redemption-execution.js";
+import { buildControlledRedemptionExecution, buildRedemptionExecution, encodePublicKey, fundingTreasuryIndex, serializeUnsignedInstructionsTransaction, TOKEN_2022_PROGRAM_ID } from "@lifecycle-kase/solana-client";
+import { controlledZeroBurnAccounts, getRedemptionExecution, prepareRedemptionExecution, redemptionExecutionEnabled, verifyRedemptionBurnHistory, requireReviewedBurnAccounts } from "./redemption-execution.js";
 import { redemptionBurnAllocation, redemptionRetiresInstrument, redemptionTokenSources, requireRedemptionSupply } from "./redemption-sources.js";
 
 const options = { enabled: false, cluster: "localnet" as const, expectedGenesisHash: "", programId: "", rpcEndpoint: "http://127.0.0.1:1", rpcTimeoutMs: 1000 };
@@ -90,4 +90,30 @@ test("burn evidence requires every committed source's exact zero-decimal finaliz
     { ...meta, preTokenBalances: [{ ...row(accountA, "3"), uiTokenAmount: { amount: "3", decimals: 6 } }, row(accountB, "7")] },
     { ...meta, preTokenBalances: [row(accountA, "3"), row(accountA, "3"), row(accountB, "7")] }
   ]) assert.throws(() => verifyRedemptionBurnHistory(changed, wire, bondMint, sources, 2n));
+});
+
+test("controlled burn evidence ignores closed or re-created zero allocations while preserving positive immutable token history", async () => {
+  const accounts = [encodePublicKey(Buffer.alloc(32, 21)), encodePublicKey(Buffer.alloc(32, 22))].sort();
+  const bondMint = encodePublicKey(Buffer.alloc(32, 23));
+  const sources = accounts.map((address, index) => ({ address, wallet, balanceAtSnapshot: index === 0 ? 8n : 2n }));
+  const plan = await buildControlledRedemptionExecution({ programId: PROGRAM, instrumentId: Buffer.alloc(16, 1), actionId: Buffer.alloc(16, 2),
+    investorId: Buffer.alloc(16, 3), corporateActionAuthority: wallet, bondMint, settlementMint: mint, settlementWallet: wallet,
+    idempotencyHash: "b".repeat(64), tokenAccounts: sources });
+  const wire = serializeUnsignedInstructionsTransaction({ instructions: plan.instructions, feePayer: wallet, recentBlockhash: mint, lastValidBlockHeight: 99 });
+  const row = (index: number, amount: string, owner = wallet) => ({ accountIndex: fundingTreasuryIndex(wire, accounts[index]!), mint: bondMint, owner,
+    programId: TOKEN_2022_PROGRAM_ID, uiTokenAmount: { amount, decimals: 0 } });
+  for (const zeroHistory of [[], [row(1, "0", mint)]]) {
+    const meta = { preTokenBalances: [row(0, "8"), ...zeroHistory], postTokenBalances: [row(0, "6"), ...zeroHistory] };
+    const proof = verifyRedemptionBurnHistory(meta, wire, bondMint, sources, 2n, true);
+    assert.equal(proof[0]!.balanceBefore, "8"); assert.equal(proof[0]!.expectedBalanceAfter, "6");
+    assert.deepEqual(proof[1], { address: accounts[1], walletAddress: wallet, balanceAtSnapshot: "2", burnAmount: "0", balanceBefore: null, expectedBalanceAfter: null, sourceUntouched: true });
+    assert.throws(() => verifyRedemptionBurnHistory(meta, wire, bondMint, sources, 2n));
+    assert.throws(() => verifyRedemptionBurnHistory({ ...meta, postTokenBalances: [row(0, "7")] }, wire, bondMint, sources, 2n, true));
+  }
+});
+
+test("controlled zero-rounding review retains every committed account while making no claim about current account balances", () => {
+  const sources = [{ address: "source-a", wallet: "wallet-a", balanceAtSnapshot: 2n }, { address: "source-b", wallet: "wallet-b", balanceAtSnapshot: 3n }];
+  assert.deepEqual(controlledZeroBurnAccounts(sources), sources.map(source => ({ address: source.address, walletAddress: source.wallet,
+    balanceAtSnapshot: source.balanceAtSnapshot.toString(), burnAmount: "0", balanceBefore: null, expectedBalanceAfter: null, sourceUntouched: true })));
 });

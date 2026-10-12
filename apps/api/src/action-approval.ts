@@ -7,13 +7,16 @@ import { ACTION_RESERVE_BYTES, APPROVAL_POLICY_BYTES, associatedTokenAccount, bu
 import { actionInput, actionText, workflowDatabaseError } from "./corporate-action-registry.js";
 import { applyConfirmedActionApproval, requireApprovedEntitlements, requireSubmittedEntitlementCalculation, type EntitlementActor } from "./entitlements.js";
 import { verifyConfirmedInstrument, type InstrumentDeploymentOptions } from "./instrument-deployment.js";
+import { requireControlledRegistry } from "./controlled-policy.js";
+import { controlledCaptureState, controlledReservationState } from "./controlled-settlement.js";
 import { uuidBytes } from "./snapshot-registration.js";
+import { onchainActionVersion, verifyExactRedemptionTarget } from "./redemption-policy.js";
 import { ACTIVE_TRANSACTION_STATUSES, requireAttemptSigner, requireWorkflowNetwork, resumeWorkflowAttempt, rpcNumber, rpcObject,
   submitWorkflowTransaction, TransactionWorkflowError, verifyWorkflowFinalization, workflowBlockhash, workflowProgramAccount, WORKFLOW_UUID } from "./transaction-workflow.js";
 
 const operations = { ASSIGN_APPROVER: "ACTION_APPROVER_ASSIGN", RESERVE: "ACTION_RESERVE_FUND", RELEASE: "ACTION_RESERVE_RELEASE", APPROVE: "ACTION_APPROVAL" } as const;
 const active = { in: [...ACTIVE_TRANSACTION_STATUSES] };
-export type ActionApprovalOptions = InstrumentDeploymentOptions & { enabled: boolean; networkReserveLamports: bigint; redemptionEnabled?: boolean };
+export type ActionApprovalOptions = InstrumentDeploymentOptions & { enabled: boolean; networkReserveLamports: bigint; redemptionEnabled?: boolean; controlledRegistryEnabled?: boolean };
 export function actionApprovalEnabled(environment: NodeJS.ProcessEnv = process.env) {
   const value = environment.ACTION_APPROVAL_RESERVE_ENABLED ?? "false";
   if (!["true", "false"].includes(value)) throw new TransactionWorkflowError("APPROVAL_CONFIGURATION_INVALID", "ACTION_APPROVAL_RESERVE_ENABLED must be true or false", 503);
@@ -35,6 +38,7 @@ async function source(database: PrismaClient, id: string, options: ActionApprova
   if (!WORKFLOW_UUID.test(id)) throw new TransactionWorkflowError("INVALID_REQUEST", "Action UUID is invalid", 400);
   const current = await database.corporateAction.findUnique({ where: { id }, select: { status: true } });
   const action = current?.status === "APPROVED" ? await requireApprovedEntitlements(database, id, eligibility) : await requireSubmittedEntitlementCalculation(database, id, eligibility);
+  requireControlledRegistry(action.instrument, options);
   const allowedInstrumentStatuses = eligibility === "COMMITTED" ? ["ACTIVE", "PAUSED"] : ["ACTIVE"];
   if (action.type !== "COUPON_PAYMENT" && !options.redemptionEnabled || !allowedInstrumentStatuses.includes(action.instrument.status) || action.instrument.programId !== options.programId || action.instrument.network !== "SOLANA_LOCALNET") {
     throw new TransactionWorkflowError("ACTION_APPROVAL_NOT_READY", "New approval phases require an enabled active Localnet action; paused instruments allow refund and confirmation only");
@@ -65,7 +69,7 @@ async function chainState(rpc: SolanaRpc, action: Source, mint: string, options:
     { ...action.instrument, settlementAsset: { mintAddress: mint } }, action.instrument.status as "ACTIVE" | "PAUSED");
   const chain = decodeAccount(decodeConfirmedCorporateAction, await workflowProgramAccount(rpc, addresses.actionAddress, options.programId, minimumSlot));
   const hash = Buffer.from(action.snapshot!.snapshotHash).toString("hex");
-  if (chain.version !== 1 || !Buffer.from(chain.actionId).equals(Buffer.from(uuidBytes(action.id))) || chain.instrumentAddress !== addresses.instrumentAddress ||
+  if (chain.version !== onchainActionVersion(action) || !Buffer.from(chain.actionId).equals(Buffer.from(uuidBytes(action.id))) || chain.instrumentAddress !== addresses.instrumentAddress ||
       !["UNDER_REVIEW", "RESERVED", "APPROVED"].includes(chain.status) || chain.snapshotHash !== hash || chain.totalAmountMinor !== action.totalEntitlementMinor ||
       chain.registeredEntitlements !== action.entitlements.length || chain.processedEntitlements !== 0 || chain.totalBalance !== action.snapshot!.totalBalance ||
       chain.investorCount !== action.snapshot!.investorCount || chain.walletCount !== action.snapshot!.walletCount || chain.snapshotSlot !== action.snapshot!.solanaSlot ||
@@ -77,12 +81,13 @@ async function chainState(rpc: SolanaRpc, action: Source, mint: string, options:
     const key = await deriveEntitlementAddress(options.programId, addresses.actionAddress, uuidBytes(row.investorId));
     if (row.onchainPda !== key) throw new TransactionWorkflowError("APPROVAL_ACCOUNT_MISMATCH", "An entitlement projection is incomplete");
     const value = decodeAccount(decodeConfirmedEntitlement, await workflowProgramAccount(rpc, key, options.programId, minimumSlot));
-    if (value.actionAddress !== addresses.actionAddress || value.snapshotHash !== hash || !Buffer.from(value.investorId).equals(Buffer.from(uuidBytes(row.investorId))) ||
+    if (value.version !== onchainActionVersion(action) || value.actionAddress !== addresses.actionAddress || value.snapshotHash !== hash || !Buffer.from(value.investorId).equals(Buffer.from(uuidBytes(row.investorId))) ||
         value.settlementWallet !== row.settlementWalletAddress || value.paymentAmountMinor !== row.amountMinor || value.balanceAtSnapshot !== row.balanceAtRecordDate ||
         value.tokensToRedeem !== row.tokensToRedeem || value.executedAt !== null || value.status !== (row.status === "NOT_ELIGIBLE_ZERO_ROUNDING" ? row.status : "READY")) {
       throw new TransactionWorkflowError("APPROVAL_ACCOUNT_MISMATCH", "An immutable entitlement differs from the approved calculation");
     }
   }
+  await verifyExactRedemptionTarget(rpc, action, addresses.actionAddress, options.programId, minimumSlot);
   const policyData = await account(rpc, addresses.approvalPolicyAddress, options.programId, minimumSlot);
   const policy = policyData ? decodeAccount(decodeApprovalPolicy, policyData) : null;
   if (policy && (policy.instrumentAddress !== addresses.instrumentAddress || [action.instrument.issuerAuthority, action.instrument.corporateActionAuthority].includes(policy.approver))) {
@@ -108,7 +113,9 @@ async function chainState(rpc: SolanaRpc, action: Source, mint: string, options:
       chain.status === "RESERVED" && reserve?.approvedAt !== null) {
     throw new TransactionWorkflowError("APPROVAL_ACCOUNT_MISMATCH", "Action status and reserve authorization differ");
   }
-  return { ...addresses, chain, hash, policy, reserve, treasuryAddress, treasuryBalance, vaultBalance };
+  const controlled = await controlledCaptureState(rpc, action, options, "FINISHED", minimumSlot);
+  if (controlled && action.type !== "COUPON_PAYMENT") for (const row of action.entitlements) await controlledReservationState(rpc, action, row, options, false, minimumSlot);
+  return { ...addresses, chain, hash, policy, reserve, treasuryAddress, treasuryBalance, vaultBalance, controlled };
 }
 function prepared(op: BlockchainTransaction, resumed: boolean) {
   return { ...rpcObject(op.preparedPayload), operationId: op.id, requiredSigner: op.requiredSigner,

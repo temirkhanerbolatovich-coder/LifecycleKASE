@@ -15,3 +15,4 @@ export * from "./snapshot-transaction.js";
 export * from "./action-approval.js";
 export * from "./coupon-execution.js";
 export * from "./redemption-execution.js";
+export * from "./controlled-registry.js";

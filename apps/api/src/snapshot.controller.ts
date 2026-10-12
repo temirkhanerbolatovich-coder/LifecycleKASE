@@ -1,4 +1,4 @@
-import { Body, Controller, Header, Headers, HttpException, Param, Post, Req, Res } from "@nestjs/common";
+import { Body, Controller, Get, Header, Headers, HttpException, Param, Post, Req, Res } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 
 import { HttpSolanaRpc, SolanaRpcError } from "@lifecycle-kase/solana-client";
@@ -20,6 +20,8 @@ import { submitSnapshotRegistration } from "./snapshot-submission.js";
 import { TransactionWorkflowError } from "./transaction-workflow.js";
 import { InstrumentDeploymentError, instrumentDeploymentOptions } from "./instrument-deployment.js";
 import { checkSnapshotWindow } from "./snapshot-window.js";
+import { controlledRegistryEnabled, ControlledRegistryError } from "./controlled-policy.js";
+import { getControlledCapture, prepareControlledCapture, submitControlledCapture, confirmControlledCapture } from "./controlled-capture.js";
 
 type HttpRequest = {
   headers?: { cookie?: string };
@@ -30,7 +32,7 @@ type HttpResponse = { setHeader(name: string, value: string): void };
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function httpError(error: unknown, response?: HttpResponse): never {
-  if (error instanceof TransactionWorkflowError || error instanceof InstrumentDeploymentError) throw new HttpException({ code: error.code, message: error.message }, error.status);
+  if (error instanceof TransactionWorkflowError || error instanceof InstrumentDeploymentError || error instanceof ControlledRegistryError) throw new HttpException({ code: error.code, message: error.message }, error.status);
   if (error instanceof AuthFlowError) {
     if (error instanceof AuthRateLimitError && response) {
       response.setHeader("Retry-After", String(error.retryAfterSeconds));
@@ -58,6 +60,36 @@ export class SnapshotController {
     private readonly prisma: PrismaService,
     private readonly rateLimit: AuthRateLimitService
   ) {}
+
+  @Get(":id/snapshot/capture")
+  @Header("Cache-Control", "no-store")
+  async capture(@Param("id") actionId: string, @Req() request: HttpRequest, @Res({ passthrough: true }) response: HttpResponse) {
+    try {
+      requireAuthenticationEnabled();
+      const session = await readOperatorSession(this.prisma, sessionTokenFromCookieHeader(request.headers?.cookie), new Date());
+      if (!["ADMINISTRATOR", "AUDITOR"].includes(session.user.role)) throw new AuthFlowError("ROLE_FORBIDDEN", "Operator role is required", 403);
+      const options = { ...instrumentDeploymentOptions(), controlledRegistryEnabled: controlledRegistryEnabled() };
+      return await getControlledCapture(this.prisma, new HttpSolanaRpc(options.rpcEndpoint, options.rpcTimeoutMs), actionId, options);
+    } catch (error) { httpError(error, response); }
+  }
+
+  @Post(":id/snapshot/capture/:operation")
+  @Header("Cache-Control", "no-store")
+  async captureOperation(@Param("id") actionId: string, @Param("operation") operation: string, @Body() body: unknown,
+    @Req() request: HttpRequest, @Res({ passthrough: true }) response: HttpResponse, @Headers("origin") origin?: string) {
+    const correlationId = randomUUID(); response.setHeader("X-Correlation-ID", correlationId);
+    try {
+      requireAuthenticationEnabled(); requireRequestOrigin(origin, authOptionsFromEnvironment());
+      this.rateLimit.consumeMutation(authenticationClientKey(request));
+      const session = await readOperatorSession(this.prisma, sessionTokenFromCookieHeader(request.headers?.cookie), new Date());
+      if (session.user.role !== "ADMINISTRATOR") throw new AuthFlowError("ROLE_FORBIDDEN", "Administrator role is required", 403);
+      if (!["prepare", "submit", "confirm"].includes(operation)) throw new TransactionWorkflowError("INVALID_REQUEST", "Capture operation is unsupported", 400);
+      const options = { ...instrumentDeploymentOptions(), controlledRegistryEnabled: controlledRegistryEnabled() };
+      const execute = operation === "prepare" ? prepareControlledCapture : operation === "submit" ? submitControlledCapture : confirmControlledCapture;
+      return await execute(this.prisma, new HttpSolanaRpc(options.rpcEndpoint, options.rpcTimeoutMs), actionId, body,
+        { id: session.user.id, walletAddress: session.walletAddress, correlationId }, options);
+    } catch (error) { httpError(error, response); }
+  }
 
   @Post(":id/snapshot/prepare")
   @Header("Cache-Control", "no-store")
@@ -91,7 +123,7 @@ export class SnapshotController {
         rpc,
         actionId,
         { id: session.user.id, walletAddress: session.walletAddress, correlationId },
-        { ...options, programId: instrumentDeploymentOptions().programId, now: new Date() }
+        { ...options, controlledRegistryEnabled: controlledRegistryEnabled(), programId: instrumentDeploymentOptions().programId, now: new Date() }
       );
     } catch (error) {
       httpError(error, response);
@@ -161,7 +193,8 @@ export class SnapshotController {
         signature,
         { id: session.user.id, walletAddress: session.walletAddress, correlationId },
         options.expectedGenesisHash,
-        new Date()
+        new Date(),
+        controlledRegistryEnabled()
       );
     } catch (error) {
       httpError(error, response);
@@ -178,7 +211,7 @@ export class SnapshotController {
       this.rateLimit.consumeMutation(authenticationClientKey(request));
       const session = await readOperatorSession(this.prisma, sessionTokenFromCookieHeader(request.headers?.cookie), new Date());
       if (session.user.role !== "ADMINISTRATOR") throw new AuthFlowError("ROLE_FORBIDDEN", "Administrator role is required", 403);
-      const options = instrumentDeploymentOptions(); const correlationId = randomUUID();
+      const options = { ...instrumentDeploymentOptions(), controlledRegistryEnabled: controlledRegistryEnabled() }; const correlationId = randomUUID();
       response.setHeader("X-Correlation-ID", correlationId);
       return await submitSnapshotRegistration(this.prisma, new HttpSolanaRpc(options.rpcEndpoint, options.rpcTimeoutMs), actionId, body,
         { id: session.user.id, walletAddress: session.walletAddress, correlationId }, options);

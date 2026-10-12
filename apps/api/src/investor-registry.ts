@@ -47,7 +47,12 @@ export async function assertRegistryMutationAllowed(
   }
   const windowStart = new Date(options.now.getTime() - options.graceSeconds * 1000);
   const capturing = await transaction.corporateAction.findFirst({
-    where: { status: "SCHEDULED", recordAt: { gte: windowStart, lte: options.now } },
+    where: { OR: [
+      { status: "SCHEDULED", recordAt: { gte: windowStart, lte: options.now } },
+      { controlledCaptureLocked: true },
+      { blockchainTransactions: { some: { operationType: "CONTROLLED_CAPTURE_BEGIN",
+        status: { in: ["PREPARED", "SUBMITTED", "UNKNOWN_CONFIRMATION"] } } } }
+    ] },
     select: { id: true }
   });
   if (capturing) {

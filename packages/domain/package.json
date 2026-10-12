@@ -13,6 +13,10 @@
     "./financial": {
       "types": "./dist/financial.d.ts",
       "default": "./dist/financial.js"
+    },
+    "./early-redemption-allocation": {
+      "types": "./dist/early-redemption-allocation.d.ts",
+      "default": "./dist/early-redemption-allocation.js"
     }
   },
   "files": [

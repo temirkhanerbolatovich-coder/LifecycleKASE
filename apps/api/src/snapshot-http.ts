@@ -18,6 +18,7 @@ export type SnapshotHttpOptions = {
   graceSeconds: number;
   rpcEndpoint: string;
   rpcTimeoutMs: number;
+  controlledRegistryEnabled?: boolean;
 };
 
 function safeInteger(value: string | undefined, fallback: number, name: string): number {
@@ -137,6 +138,7 @@ export async function prepareSnapshotRegistrationForAction(
         expectedGenesisHash: options.expectedGenesisHash,
         walletNetwork: options.walletNetwork,
         graceSeconds: options.graceSeconds,
+        controlledRegistryEnabled: options.controlledRegistryEnabled ?? false,
         now: options.now
       });
       const persisted = await persistSnapshotCandidate(database, candidate, {
@@ -164,7 +166,8 @@ export async function prepareSnapshotRegistrationForAction(
   const registration = await preparePendingSnapshotRegistration(database, rpc, snapshotId, {
     expectedGenesisHash: options.expectedGenesisHash,
     now: options.now,
-    graceSeconds: options.graceSeconds
+    graceSeconds: options.graceSeconds,
+    controlledRegistryEnabled: options.controlledRegistryEnabled ?? false, cluster: options.cluster
   });
   if (registration.cluster !== options.cluster) {
     throw new SnapshotPreparationError("WRONG_SOLANA_NETWORK", "Persisted snapshot cluster does not match configuration");

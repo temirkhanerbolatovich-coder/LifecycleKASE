@@ -1,0 +1,36 @@
+{
+  "scope": "Synthetic fixture, no financial/RPC/session acceptance",
+  "checked": [
+    {
+      "label": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "overflow": false,
+      "reviewPreservedAcrossLocaleAndPanel": true,
+      "originalSignaturePreserved": true,
+      "auditorReadOnly": true,
+      "walletlessSigningDisabled": true,
+      "recordConfirmationRefreshesParent": true,
+      "committedRecordPendingDbRecovery": true,
+      "zeroSupplyMintReviewAccurate": true
+    },
+    {
+      "label": "mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "overflow": false,
+      "reviewPreservedAcrossLocaleAndPanel": true,
+      "originalSignaturePreserved": true,
+      "auditorReadOnly": true,
+      "walletlessSigningDisabled": true,
+      "recordConfirmationRefreshesParent": true,
+      "committedRecordPendingDbRecovery": true,
+      "zeroSupplyMintReviewAccurate": true
+    }
+  ],
+  "errors": []
+}

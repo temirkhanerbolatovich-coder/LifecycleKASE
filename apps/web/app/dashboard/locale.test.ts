@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createTranslator, formatLocaleAmount, formatLocaleDate, messages, parseLocale, translateStoredMessage } from "./locale";
+import { createTranslator, formatLocaleAmount, formatLocaleDate, formatLocaleRationalAmount, messages, parseLocale, translateStoredMessage } from "./locale";
 import { getActionStatuses, getActionTypes } from "./workspace-presentation";
 import { getWorkspaceSections } from "./workspace-navigation";
 
@@ -27,6 +27,26 @@ test("six-decimal amounts are exact at zero, one minor unit and beyond safe Numb
   assert.equal(formatLocaleAmount("1234567", "ru"), "1,234567 KZT-Test");
   assert.equal(formatLocaleAmount("9223372036854775807", "en"), "9,223,372,036,854.775807 KZT-Test");
   for (const invalid of ["1.2", "1,2", "01", "-1", "1e6", ""]) assert.throws(() => formatLocaleAmount(invalid, "en"));
+});
+
+test("rational coupon totals display an exact fractional minor unit in both languages", () => {
+  assert.equal(formatLocaleRationalAmount({ numerator: "35000000000000", denominator: "20000" }, "en"), "1,750.00 KZT-Test");
+  assert.equal(formatLocaleRationalAmount({ numerator: "0", denominator: "20000" }, "en"), "0.00 KZT-Test");
+  assert.equal(formatLocaleRationalAmount({ numerator: "15000", denominator: "10000" }, "en"), "0.000001 KZT-Test + 1/2 of a minor unit");
+  assert.equal(formatLocaleRationalAmount({ numerator: "1", denominator: "3" }, "ru"), "0,00 KZT-Test + 1/3 минимальной единицы");
+  assert.equal(formatLocaleRationalAmount({ numerator: "180143985094819860001", denominator: "20000" }, "en"), "9,007,199,254.740993 KZT-Test + 1/20000 of a minor unit");
+  for (const value of [{ numerator: "1", denominator: "0" }, { numerator: "-1", denominator: "3" }, { numerator: "01", denominator: "3" }]) {
+    assert.throws(() => formatLocaleRationalAmount(value, "en"));
+  }
+  assert.equal(translateStoredMessage("До удержаний; налоговый модуль не реализован", "en"), "Before deductions; the tax module is not implemented");
+});
+
+test("exact-redemption terms, allocation explanation and server gate notices translate without changing token values", () => {
+  assert.equal(createTranslator("en")("financial.redemption.target.tokens"), "Target bond quantity");
+  assert.equal(translateStoredMessage("После погашения", "en"), "After redemption");
+  assert.match(translateStoredMessage("Точное погашение v2 отключено на сервере. Проверьте готовность программы и разрешение владельца; условия формы сохранены.", "en"), /disabled on the server/);
+  assert.match(translateStoredMessage("Сумма по инвесторам точно равна цели. Остаточные облигации получают наибольшие дробные доли.", "en"), /sum exactly to the target/);
+  assert.equal(translateStoredMessage("9007199254740993", "en"), "9007199254740993");
 });
 
 test("locale changes do not choose a time zone or change the original UTC value", () => {

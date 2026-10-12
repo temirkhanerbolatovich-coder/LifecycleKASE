@@ -1,0 +1,169 @@
+   Compiling lifecycle_kase v0.1.0 (/mnt/c/Users/Админ/Documents/ChatGPT/LifecycleKASE/programs/lifecycle_kase)
+    Finished `release` profile [optimized] target(s) in 31.10s
+   Compiling lifecycle_kase v0.1.0 (/mnt/c/Users/Админ/Documents/ChatGPT/LifecycleKASE/programs/lifecycle_kase)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 13.71s
+     Running unittests src/lib.rs (/mnt/c/Users/Админ/Documents/ChatGPT/LifecycleKASE/target/debug/deps/lifecycle_kase-c777ef94140c4d8c)
+609b5d25800671fdf4084ccc402e47f5a065dd1a7c6b9b956efd4bb5546a9815  /mnt/c/Users/Админ/Documents/ChatGPT/LifecycleKASE/generated/localnet-candidate-kase-20261012-042236318/lifecycle_kase.so
+PASS candidate build; owner artifacts and deployed program preserved
+
+> @lifecycle-kase/solana-client@0.1.0 build
+> tsc -p tsconfig.json
+
+
+> @lifecycle-kase/api@0.1.0 build
+> npm run build --workspace @lifecycle-kase/domain && npm run build --workspace @lifecycle-kase/solana-client && tsc -p tsconfig.json
+
+
+> @lifecycle-kase/domain@0.1.0 build
+> tsc -p tsconfig.json
+
+
+> @lifecycle-kase/solana-client@0.1.0 build
+> tsc -p tsconfig.json
+
+Testing localnet-candidate-kase-20261012-042236318 artifact at 6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo on a disposable local validator
+PASS prepared v0 MINT_SETUP finalizes with explicit compute budget, fixed supply and revoked authority
+PASS prepared v0 DISTRIBUTION finalizes exact 10/20/5 and empty treasury
+PASS prepared v0 INITIALIZE finalizes the expected Deploying PDA
+PASS prepared v0 ACTIVATE finalizes the expected Active PDA
+PASS prepared v0 action schedule/cancel: all three types, exact terms and decoded PDA state
+PASS prepared v0 snapshot finalizes an exact immutable commitment in the live record window
+PASS all-zero coupon preserves three skipped rows, rejects calculation finalization/reserve and permits full reset
+PASS mixed coupon 1/2/0: three registered holders, reserve 3, two paid receipts, zero receiver rollback, processed 2, final receipt and no burn
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": PostgreSQL database "actions_test_e2ead12c33124ed186f0753a71c19c97", schema "public" at "127.0.0.1:65482"
+
+21 migrations found in prisma/migrations
+
+Applying migration `20260928130504_init`
+Applying migration `20260928130700_database_guards`
+Applying migration `20260928143000_investor_registry_and_action_review`
+Applying migration `20260928150000_immutable_evidence`
+Applying migration `20260930143000_session_wallet_context`
+Applying migration `20261001112000_localnet_wallet_registry`
+Applying migration `20261001143000_investor_wallet_verification`
+Applying migration `20261001144500_auth_challenge_purpose_guard`
+Applying migration `20261002090000_investor_eligibility_review`
+Applying migration `20261002110000_investor_wallet_revocation`
+Applying migration `20261002111500_wallet_revocation_reason_required`
+Applying migration `20261002120000_localnet_instrument_drafts`
+Applying migration `20261002150000_instrument_deployment_attempts`
+Applying migration `20261002170000_unique_active_instrument_deployment`
+Applying migration `20261002200000_instrument_distribution_phase`
+Applying migration `20261002213000_instrument_lifecycle_phases`
+Applying migration `20261002230000_corporate_action_operations`
+Applying migration `20261003001000_coupon_funding_operations`
+Applying migration `20261009120000_program_upgrade_maintenance`
+Applying migration `20261011130000_registry_review_versions`
+Applying migration `20261011160000_exact_redemption_target`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 20260928130504_init/
+    └─ migration.sql
+  └─ 20260928130700_database_guards/
+    └─ migration.sql
+  └─ 20260928143000_investor_registry_and_action_review/
+    └─ migration.sql
+  └─ 20260928150000_immutable_evidence/
+    └─ migration.sql
+  └─ 20260930143000_session_wallet_context/
+    └─ migration.sql
+  └─ 20261001112000_localnet_wallet_registry/
+    └─ migration.sql
+  └─ 20261001143000_investor_wallet_verification/
+    └─ migration.sql
+  └─ 20261001144500_auth_challenge_purpose_guard/
+    └─ migration.sql
+  └─ 20261002090000_investor_eligibility_review/
+    └─ migration.sql
+  └─ 20261002110000_investor_wallet_revocation/
+    └─ migration.sql
+  └─ 20261002111500_wallet_revocation_reason_required/
+    └─ migration.sql
+  └─ 20261002120000_localnet_instrument_drafts/
+    └─ migration.sql
+  └─ 20261002150000_instrument_deployment_attempts/
+    └─ migration.sql
+  └─ 20261002170000_unique_active_instrument_deployment/
+    └─ migration.sql
+  └─ 20261002200000_instrument_distribution_phase/
+    └─ migration.sql
+  └─ 20261002213000_instrument_lifecycle_phases/
+    └─ migration.sql
+  └─ 20261002230000_corporate_action_operations/
+    └─ migration.sql
+  └─ 20261003001000_coupon_funding_operations/
+    └─ migration.sql
+  └─ 20261009120000_program_upgrade_maintenance/
+    └─ migration.sql
+  └─ 20261011130000_registry_review_versions/
+    └─ migration.sql
+  └─ 20261011160000_exact_redemption_target/
+    └─ migration.sql
+
+All migrations have been successfully applied.
+PASS saved-wire phase corporate-actions/8fd4dfce-6180-47ad-b690-05645800e261 SCHEDULE
+PASS saved-wire phase 8fd4dfce-6180-47ad-b690-05645800e261/snapshot FUNDING
+PASS saved-wire phase coupon/funding FUNDING
+PASS saved-wire phase entitlements/onchain REGISTER
+PASS saved-wire phase entitlements/onchain REGISTER
+PASS saved-wire phase entitlements/onchain REGISTER
+PASS saved-wire phase entitlements/onchain FINALIZE
+PASS saved-wire phase 8fd4dfce-6180-47ad-b690-05645800e261/approval ASSIGN_APPROVER
+PASS saved-wire phase 8fd4dfce-6180-47ad-b690-05645800e261/approval RESERVE
+PASS saved-wire phase 8fd4dfce-6180-47ad-b690-05645800e261/approval APPROVE
+PASS saved-wire phase coupon/execution PAY
+PASS saved-wire phase coupon/execution PAY
+PASS saved-wire phase coupon/execution PAY
+PASS saved-wire phase coupon/execution FINALIZE
+PASS complete KASE action {"type":"COUPON_PAYMENT","scenario":"COUPON_PAYMENT","actionId":"8fd4dfce-6180-47ad-b690-05645800e261","amountMinor":"1750000000","supplyBefore":"35","supplyAfter":"35","receiptHash":"d2b57f167e0bf0872de16154b76e0788dd6a21dca4eb6b99e2bb8ba4a971aa28","signature":"4fpMWGLZ8LTpyEGoym3WKHQsAvnXeC4uS3Vd3hZSt8jjXqrRCA3upqtndnkLCADRE9v2ttu5nb4UwpqrAvJByeA9"}
+PASS saved-wire phase corporate-actions/ac48dc23-a6e8-43e4-a94a-79872deb679f SCHEDULE
+PASS saved-wire phase ac48dc23-a6e8-43e4-a94a-79872deb679f/snapshot FUNDING
+PASS saved-wire phase coupon/funding FUNDING
+PASS saved-wire phase entitlements/onchain REGISTER
+PASS saved-wire phase entitlements/onchain REGISTER
+PASS saved-wire phase entitlements/onchain REGISTER
+PASS saved-wire phase entitlements/onchain FINALIZE
+PASS saved-wire phase ac48dc23-a6e8-43e4-a94a-79872deb679f/approval RESERVE
+PASS saved-wire phase ac48dc23-a6e8-43e4-a94a-79872deb679f/approval APPROVE
+PASS insufficient snapshot source: API rejection, finalized program failure, unchanged reserve/recipient/supply, no receipt or settlement
+PASS redemption missing-history recovery and complete projection/audit rollback using original signature
+PASS saved-wire phase ac48dc23-a6e8-43e4-a94a-79872deb679f/redemption-execution PAY
+PASS saved-wire phase ac48dc23-a6e8-43e4-a94a-79872deb679f/redemption-execution PAY
+PASS saved-wire phase ac48dc23-a6e8-43e4-a94a-79872deb679f/redemption-execution PAY
+PASS saved-wire phase ac48dc23-a6e8-43e4-a94a-79872deb679f/redemption-execution FINALIZE
+PASS complete KASE action {"type":"EARLY_REDEMPTION","scenario":"EARLY_REDEMPTION","actionId":"ac48dc23-a6e8-43e4-a94a-79872deb679f","amountMinor":"7000000000","supplyBefore":"35","supplyAfter":"28","receiptHash":"3b4ee6bf974ff12fcb828f52fd1644fc65e8871c966db8a643e27b6663247e8c","signature":"3ypHsygt9KFutHQWCvMdKvB5UEDWRSW8TuJZ6jwYjRvAFrCh1A5zwQYsiJjpaJFwh88YXV9nrNnvVyXWnyuS3bsC"}
+PASS PostgreSQL exact target, policy, price, dates and instrument are immutable
+PASS saved-wire phase corporate-actions/837ec282-ebfb-487b-a9ad-14f5d45f6074 SCHEDULE
+PASS saved-wire phase 837ec282-ebfb-487b-a9ad-14f5d45f6074/snapshot FUNDING
+PASS v2 rejects legacy instructions and same-total wrong remainder plan; reset preserves immutable target and snapshot supply
+PASS saved-wire phase coupon/funding FUNDING
+PASS saved-wire phase entitlements/onchain REGISTER
+PASS saved-wire phase entitlements/onchain REGISTER
+PASS saved-wire phase entitlements/onchain REGISTER
+PASS saved-wire phase entitlements/onchain FINALIZE
+PASS saved-wire phase 837ec282-ebfb-487b-a9ad-14f5d45f6074/approval RESERVE
+PASS saved-wire phase 837ec282-ebfb-487b-a9ad-14f5d45f6074/approval APPROVE
+PASS saved-wire phase 837ec282-ebfb-487b-a9ad-14f5d45f6074/redemption-execution PAY
+PASS saved-wire phase 837ec282-ebfb-487b-a9ad-14f5d45f6074/redemption-execution PAY
+PASS saved-wire phase 837ec282-ebfb-487b-a9ad-14f5d45f6074/redemption-execution PAY
+PASS saved-wire phase 837ec282-ebfb-487b-a9ad-14f5d45f6074/redemption-execution FINALIZE
+PASS complete KASE action {"type":"EARLY_REDEMPTION","scenario":"EXACT_EARLY_REDEMPTION","actionId":"837ec282-ebfb-487b-a9ad-14f5d45f6074","amountMinor":"8000000000","supplyBefore":"28","supplyAfter":"20","receiptHash":"ac127ce6d3264c53dfe5db6aa453ffdc7d3dc5f477dfb8793c7fddd9fade53c6","signature":"5bhm2totBCTeuHFjuyfpSYpWCJZFSFAbJ6cNX3Asf1DoNQ6yfzwzZLqYwSvk4cAFiuV4kE8KsdSEtiLkHTCehLo8"}
+PASS saved-wire phase corporate-actions/48abe57f-ad15-443f-a56f-05e893cdcd3d SCHEDULE
+PASS saved-wire phase 48abe57f-ad15-443f-a56f-05e893cdcd3d/snapshot FUNDING
+PASS saved-wire phase coupon/funding FUNDING
+PASS saved-wire phase entitlements/onchain REGISTER
+PASS saved-wire phase entitlements/onchain REGISTER
+PASS saved-wire phase entitlements/onchain REGISTER
+PASS saved-wire phase entitlements/onchain FINALIZE
+PASS saved-wire phase 48abe57f-ad15-443f-a56f-05e893cdcd3d/approval RESERVE
+PASS saved-wire phase 48abe57f-ad15-443f-a56f-05e893cdcd3d/approval APPROVE
+PASS saved-wire phase 48abe57f-ad15-443f-a56f-05e893cdcd3d/redemption-execution PAY
+PASS saved-wire phase 48abe57f-ad15-443f-a56f-05e893cdcd3d/redemption-execution PAY
+PASS saved-wire phase 48abe57f-ad15-443f-a56f-05e893cdcd3d/redemption-execution PAY
+PASS saved-wire phase 48abe57f-ad15-443f-a56f-05e893cdcd3d/redemption-execution FINALIZE
+PASS complete KASE action {"type":"BOND_REDEMPTION","scenario":"BOND_REDEMPTION","actionId":"48abe57f-ad15-443f-a56f-05e893cdcd3d","amountMinor":"21000000000","supplyBefore":"20","supplyAfter":"0","receiptHash":"d7296cee87c3a25364e7a2b29e186e0e0c2e92db016870c6abac35df3710d69a","signature":"3pgMV8q1Aj4an9goWZD49hF7yJxEXTCer96n1G8RkRZRNKEBaZoxzCdkSd7mN9DS2VCCmUrPPJwsS8Tjje4E35Ua"}
+PASS coupon → legacy partial20% → exact partial8 → maturity, supply35 →28 →20 →0, HTTP/PostgreSQL, separate approval, exact browser wires, immutable target/receipts and before/after snapshot transfers; evidence: C:\Users\Админ\Documents\ChatGPT\LifecycleKASE\generated\kase-demo-8b69be59-d53e-440e-bac4-ccd071e034af.json
+PASS focused live corporate-action API/database/validator acceptance

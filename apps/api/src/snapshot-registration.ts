@@ -3,11 +3,13 @@ import { isDeepStrictEqual } from "node:util";
 import type { PrismaClient } from "@prisma/client";
 import { createSnapshotV2Commitment, type CanonicalSnapshotV2 } from "@lifecycle-kase/domain";
 import {
-  buildSnapshotRegistrationInstruction,
   decodePublicKey,
   serializeUnsignedSnapshotRegistrationTransaction,
   type SolanaRpc
 } from "@lifecycle-kase/solana-client";
+import { buildPolicySnapshotInstruction, requireControlledSnapshotEvidence } from "./controlled-snapshot.js";
+import { isControlledInstrument, readControlledCaptureState } from "./controlled-capture.js";
+import { requireControlledRegistry } from "./controlled-policy.js";
 
 import { MAX_SNAPSHOT_GRACE_SECONDS, SnapshotPreparationError } from "./snapshot-candidate.js";
 
@@ -15,6 +17,8 @@ export type SnapshotRegistrationOptions = {
   expectedGenesisHash: string;
   now: Date;
   graceSeconds: number;
+  controlledRegistryEnabled?: boolean;
+  cluster?: "localnet" | "devnet";
 };
 
 export function uuidBytes(value: string): Uint8Array {
@@ -74,6 +78,9 @@ export async function preparePendingSnapshotRegistration(
   if (!stored) throw new SnapshotPreparationError("SNAPSHOT_NOT_FOUND", "Snapshot was not found");
   const action = stored.corporateAction;
   const instrument = action.instrument;
+  const controlled = isControlledInstrument(instrument);
+  requireControlledRegistry(instrument, { cluster: options.cluster ?? "localnet", programId: instrument.programId ?? "",
+    controlledRegistryEnabled: options.controlledRegistryEnabled });
   if (stored.status !== "PENDING_REGISTRATION" || action.status !== "SCHEDULED" ||
       instrument.status !== "ACTIVE" || !instrument.programId || !instrument.mintAddress) {
     throw new SnapshotPreparationError("SNAPSHOT_NOT_READY", "Snapshot or action is not ready for registration");
@@ -82,11 +89,12 @@ export async function preparePendingSnapshotRegistration(
   if (elapsed < 0) {
     throw new SnapshotPreparationError("RECORD_DATE_NOT_REACHED", "Snapshot record-date window has not opened");
   }
-  if (elapsed > options.graceSeconds * 1000) {
+  if (!controlled && elapsed > options.graceSeconds * 1000) {
     throw new SnapshotPreparationError("SNAPSHOT_WINDOW_MISSED", "Registration is outside the record-date window");
   }
   const commitment = canonicalCommitment(stored.canonicalJson);
   const payload = commitment.snapshot;
+  if (controlled) requireControlledSnapshotEvidence(stored.captureEvidence, payload);
   if (!isDeepStrictEqual(stored.canonicalJson, payload) ||
       commitment.sha256 !== Buffer.from(stored.snapshotHash).toString("hex") ||
       payload.action_id !== action.id || payload.instrument_id !== instrument.id ||
@@ -114,11 +122,17 @@ export async function preparePendingSnapshotRegistration(
   if (!Number.isSafeInteger(finalizedSlot) || (finalizedSlot as number) < Number(stored.solanaSlot)) {
     throw new SnapshotPreparationError("SNAPSHOT_SLOT_UNFINALIZED", "Snapshot capture slot is not finalized");
   }
-  const blockTime = await rpc.request("getBlockTime", [Number(stored.solanaSlot)]);
+  const lock = controlled ? await readControlledCaptureState(rpc, instrument, action.id, Number(stored.solanaSlot)) : null;
+  if (lock && (!lock.capture || lock.capture.committed || lock.capture.finished || lock.policy.captureAction !== lock.actionAddress ||
+      lock.capture.startedSlot !== stored.solanaSlot || lock.capture.startedAt.toString() !== (stored.blockTime.getTime() / 1000).toString() || !stored.captureEvidence)) {
+    throw new SnapshotPreparationError("CONTROLLED_CAPTURE_CHANGED", "Snapshot requires its original unfinished finalized capture lock");
+  }
+  const blockTime = lock ? Number(lock.capture!.startedAt) : await rpc.request("getBlockTime", [Number(stored.solanaSlot)]);
   if (!Number.isSafeInteger(blockTime) || new Date((blockTime as number) * 1000).toISOString() !== payload.block_time) {
     throw new SnapshotPreparationError("SNAPSHOT_BLOCK_TIME_CHANGED", "Finalized slot block time differs from snapshot");
   }
-  const instruction = await buildSnapshotRegistrationInstruction({
+  const holderTokenAccounts = payload.investors.flatMap(investor => investor.wallets.flatMap(wallet => wallet.token_accounts.map(account => account.address))).sort();
+  const instruction = await buildPolicySnapshotInstruction({
     programId: instrument.programId,
     instrumentId: uuidBytes(instrument.id),
     actionId: uuidBytes(action.id),
@@ -130,7 +144,7 @@ export async function preparePendingSnapshotRegistration(
     walletCount: stored.walletCount,
     totalBalance: stored.totalBalance,
     mintSupply: stored.mintSupply
-  });
+  }, instrument.tokenPolicy, holderTokenAccounts);
   const latest = await rpc.request("getLatestBlockhash", [{ commitment: "finalized" }]);
   const value = latest && typeof latest === "object" && "value" in latest ? latest.value : null;
   if (!value || typeof value !== "object" || !("blockhash" in value) ||
@@ -151,6 +165,15 @@ export async function preparePendingSnapshotRegistration(
   });
   return {
     corporateActionId: action.id,
+    tokenPolicy: instrument.tokenPolicy,
+    bondMint: instrument.mintAddress,
+    investorCount: stored.investorCount,
+    walletCount: stored.walletCount,
+    totalBalance: stored.totalBalance.toString(),
+    mintSupply: stored.mintSupply.toString(),
+    holderTokenAccounts: controlled ? holderTokenAccounts : [],
+    controlledPolicyAddress: lock?.controlledPolicyAddress ?? null,
+    controlledCaptureAddress: lock?.controlledCaptureAddress ?? null,
     cluster: payload.cluster,
     snapshotId,
     snapshotHash: commitment.sha256,

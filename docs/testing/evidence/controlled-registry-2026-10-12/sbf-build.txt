@@ -1,0 +1,8 @@
+   Compiling lifecycle_kase v0.1.0 (/mnt/c/Users/Админ/Documents/ChatGPT/LifecycleKASE/programs/lifecycle_kase)
+    Finished `release` profile [optimized] target(s) in 26.45s
+    Blocking waiting for file lock on build directory
+   Compiling lifecycle_kase v0.1.0 (/mnt/c/Users/Админ/Documents/ChatGPT/LifecycleKASE/programs/lifecycle_kase)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 45.64s
+     Running unittests src/lib.rs (/mnt/c/Users/Админ/Documents/ChatGPT/LifecycleKASE/target/debug/deps/lifecycle_kase-c777ef94140c4d8c)
+772d8217c6395bbcd854f60f743139d756a15e7a0b7bb03396a586dc4b7b407b  /mnt/c/Users/Админ/Documents/ChatGPT/LifecycleKASE/generated/localnet-candidate-controlled-20261012-c/lifecycle_kase.so
+PASS candidate build; owner artifacts and deployed program preserved

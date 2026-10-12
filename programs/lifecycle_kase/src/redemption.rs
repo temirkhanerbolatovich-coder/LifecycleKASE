@@ -159,7 +159,7 @@ pub fn verify_progress(
     Ok(())
 }
 
-fn burn_allocation(sources: &[RedemptionSource], tokens: u64) -> Result<Vec<u64>> {
+pub(crate) fn burn_allocation(sources: &[RedemptionSource], tokens: u64) -> Result<Vec<u64>> {
     let mut remaining = tokens;
     let allocations = sources
         .iter()
@@ -214,10 +214,24 @@ pub fn register_sources(
     ctx: Context<RegisterRedemptionSources>,
     sources: Vec<RedemptionSource>,
 ) -> Result<()> {
+    require_eq!(
+        ctx.accounts.instrument.version,
+        1,
+        ErrorCode::InvalidRedemptionExecution
+    );
+    register_sources_checked(ctx, sources)
+}
+
+pub(crate) fn register_sources_checked(
+    ctx: Context<RegisterRedemptionSources>,
+    sources: Vec<RedemptionSource>,
+) -> Result<()> {
     let action = &ctx.accounts.corporate_action;
     let entitlement = &ctx.accounts.entitlement;
     require!(
         is_redemption(action.action_type)
+            && matches!(action.version, 1 | 2)
+            && entitlement.version == action.version
             && action.status == CorporateActionStatus::Calculated
             && entitlement.executed_at.is_none()
             && entitlement.snapshot_hash == action.snapshot_hash
@@ -339,14 +353,58 @@ pub struct ExecuteRedemption<'info> {
 }
 
 pub fn execute_atomic<'info>(
+    mut ctx: Context<'info, ExecuteRedemption<'info>>,
+    idempotency_hash: [u8; 32],
+) -> Result<()> {
+    require_eq!(
+        ctx.accounts.instrument.version,
+        1,
+        ErrorCode::InvalidRedemptionExecution
+    );
+    execute_atomic_checked(&mut ctx, idempotency_hash, false)
+}
+
+/// Controlled sources are thawed and refrozen only around the atomic cash/burn operation.
+pub fn execute_controlled_atomic<'info>(
     ctx: Context<'info, ExecuteRedemption<'info>>,
     idempotency_hash: [u8; 32],
+) -> Result<()> {
+    require_eq!(
+        ctx.accounts.instrument.version,
+        2,
+        ErrorCode::InvalidRedemptionExecution
+    );
+    let count = ctx.accounts.redemption_sources.sources.len();
+    require_eq!(
+        ctx.remaining_accounts.len(),
+        count * 2 + 2,
+        ErrorCode::InvalidRedemptionSources
+    );
+    let allocations = burn_allocation(
+        &ctx.accounts.redemption_sources.sources,
+        ctx.accounts.entitlement.tokens_to_redeem,
+    )?;
+    let remaining = ctx.remaining_accounts;
+    crate::controlled_registry::prepare_redemption(ctx.accounts, remaining, &allocations)?;
+    let mut source_context =
+        Context::new(ctx.program_id, ctx.accounts, &remaining[..count], ctx.bumps);
+    execute_atomic_checked(&mut source_context, idempotency_hash, true)?;
+    crate::controlled_registry::finish_redemption(source_context.accounts, remaining, &allocations)
+}
+
+fn execute_atomic_checked<'info>(
+    ctx: &mut Context<'info, ExecuteRedemption<'info>>,
+    idempotency_hash: [u8; 32],
+    controlled: bool,
 ) -> Result<()> {
     let now = Clock::get()?.unix_timestamp;
     let action = &mut ctx.accounts.corporate_action;
     let entitlement = &mut ctx.accounts.entitlement;
     require!(
         is_redemption(action.action_type)
+            && matches!(action.version, 1 | 2)
+            && entitlement.version == action.version
+            && (action.version == 1 || action.action_type == CorporateActionType::EarlyRedemption)
             && matches!(
                 action.status,
                 CorporateActionStatus::Approved | CorporateActionStatus::Processing
@@ -390,7 +448,12 @@ pub fn execute_atomic<'info>(
     require!(
         ctx.accounts.bond_mint.decimals == 0
             && ctx.accounts.bond_mint.mint_authority.is_none()
-            && ctx.accounts.bond_mint.freeze_authority.is_none(),
+            && if controlled {
+                ctx.accounts.bond_mint.freeze_authority
+                    == Some(ctx.accounts.instrument_authority.key()).into()
+            } else {
+                ctx.accounts.bond_mint.freeze_authority.is_none()
+            },
         ErrorCode::InvalidMint
     );
     require!(
@@ -421,6 +484,12 @@ pub fn execute_atomic<'info>(
             account.is_writable && source.token_account == account.key(),
             ErrorCode::InvalidRedemptionSources
         );
+        // A zero-assignment source may be closed or recreated after capture.
+        // Its immutable identity remains committed; current bytes affect no burn.
+        if controlled && *amount == 0 {
+            holder_before.push(0);
+            continue;
+        }
         require_keys_eq!(
             *account.owner,
             ctx.accounts.token_2022_program.key(),
@@ -502,6 +571,10 @@ pub fn execute_atomic<'info>(
         .zip(holder_before)
         .zip(&allocations)
     {
+        if controlled && *burned == 0 {
+            require_eq!(before, 0, ErrorCode::InvalidRedemptionSources);
+            continue;
+        }
         let data = account.try_borrow_data()?;
         let holder = StateWithExtensions::<SplTokenAccount>::unpack(&data)
             .map_err(|_| error!(ErrorCode::InvalidHolderAccount))?;
@@ -611,7 +684,7 @@ pub fn finalize_redemption_receipt(
         );
         require!(
             expected == account.key()
-                && entitlement.version == 1
+                && entitlement.version == action.version
                 && entitlement.bump == bump
                 && entitlement.action == action.key()
                 && entitlement.snapshot_hash == action.snapshot_hash,
@@ -655,6 +728,24 @@ pub fn finalize_redemption_receipt(
             && tokens == ctx.accounts.redemption_progress.tokens_redeemed,
         ErrorCode::IncompleteCalculation
     );
+    if action.version == 2 {
+        require!(
+            action.action_type == CorporateActionType::EarlyRedemption,
+            ErrorCode::InvalidRedemptionExecution
+        );
+        let exact_amount = tokens
+            .checked_mul(
+                action
+                    .redemption_price_minor
+                    .ok_or(ErrorCode::InvalidRedemptionParameters)?,
+            )
+            .ok_or(ErrorCode::CalculationOverflow)?;
+        require_eq!(
+            exact_amount,
+            action.total_amount_minor,
+            ErrorCode::IncompleteCalculation
+        );
+    }
     require_current_supply(action.total_balance, tokens, ctx.accounts.bond_mint.supply)?;
     if action.action_type == CorporateActionType::BondRedemption {
         require_eq!(

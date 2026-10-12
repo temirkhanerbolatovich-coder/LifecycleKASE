@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { decodePublicKey } from "@lifecycle-kase/solana-client";
+import { CONTROLLED_TOKEN_POLICY, ControlledRegistryError, controlledRegistryEnabled, LEGACY_TOKEN_POLICY, requireControlledRegistry } from "./controlled-policy.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DISCLAIMER = "SIMULATED ASSET. Not issued by the National Bank of Kazakhstan.";
@@ -17,9 +18,12 @@ export type InstrumentActor = { id: string; walletAddress: string; correlationId
 
 const instrumentSelect = {
   id: true, name: true, ticker: true, assetType: true, network: true, programId: true, mintAddress: true,
-  issuerAuthority: true, faceValueMinor: true, currency: true, settlementDecimals: true, couponRateBps: true,
+  issuerAuthority: true, complianceAuthority: true, corporateActionAuthority: true, tokenPolicy: true,
+  faceValueMinor: true, currency: true, settlementDecimals: true, couponRateBps: true,
   paymentsPerYear: true, issueAt: true, maturityAt: true, totalSupply: true, circulatingSupply: true,
   status: true, createdAt: true,
+  blockchainTransactions: { where: { operationType: "INSTRUMENT_MINT_SETUP", status: "FINALIZED" },
+    orderBy: { createdAt: "desc" }, take: 1, select: { networkGenesisHash: true } },
   issuer: { select: { id: true, legalName: true } },
   settlementAsset: { select: { id: true, code: true, name: true, network: true, mintAddress: true,
     decimals: true, isSimulated: true, disclaimer: true } }
@@ -31,7 +35,7 @@ function invalid(message: string): never {
 
 function objectPayload(body: unknown): Record<string, unknown> {
   const allowed = ["issuerLegalName", "name", "ticker", "faceValueKzt", "couponRateBps",
-    "paymentsPerYear", "issueAt", "maturityAt"];
+    "paymentsPerYear", "issueAt", "maturityAt", "tokenPolicy"];
   if (!body || typeof body !== "object" || Array.isArray(body)) invalid("A JSON object is required");
   const value = body as Record<string, unknown>;
   if (Object.keys(value).some(key => !allowed.includes(key))) invalid("Unsupported request field");
@@ -52,8 +56,9 @@ function utcDate(value: unknown, field: string): Date {
 }
 
 function serializeInstrument(instrument: Prisma.InstrumentGetPayload<{ select: typeof instrumentSelect }>) {
+  const { blockchainTransactions, ...details } = instrument;
   return {
-    ...instrument,
+    ...details, networkGenesisHash: blockchainTransactions?.[0]?.networkGenesisHash ?? null,
     faceValueMinor: instrument.faceValueMinor.toString(),
     totalSupply: instrument.totalSupply.toString(),
     circulatingSupply: instrument.circulatingSupply.toString()
@@ -96,7 +101,13 @@ export async function listInstruments(database: PrismaClient, limit: unknown, cu
     ...(typeof cursor === "string" ? { cursor: { id: cursor }, skip: 1 } : {})
   });
   const page = rows.slice(0, take);
-  return { items: page.map(serializeInstrument), nextCursor: rows.length > take ? page.at(-1)!.id : null };
+  const enabled = controlledRegistryEnabled();
+  const candidateEnabled = enabled && (process.env.SOLANA_CLUSTER || "localnet") === "localnet" &&
+    process.env.PROGRAM_ID === "6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo" && Boolean(process.env.SOLANA_GENESIS_HASH);
+  return { items: page.map(serializeInstrument), nextCursor: rows.length > take ? page.at(-1)!.id : null,
+    controlledRegistryEnabled: candidateEnabled,
+    controlledProgramId: candidateEnabled ? process.env.PROGRAM_ID! : null,
+    controlledNetworkGenesisHash: candidateEnabled ? process.env.SOLANA_GENESIS_HASH! : null };
 }
 
 export async function createInstrumentDraft(
@@ -108,6 +119,18 @@ export async function createInstrumentDraft(
   if (!UUID.test(actor.id) || !UUID.test(actor.correlationId)) invalid("Actor or correlation identifier is invalid");
   try { decodePublicKey(actor.walletAddress); } catch { invalid("Actor wallet must be a Solana public key"); }
   const input = objectPayload(body);
+  const tokenPolicy = input["tokenPolicy"] ?? LEGACY_TOKEN_POLICY;
+  if (tokenPolicy !== LEGACY_TOKEN_POLICY && tokenPolicy !== CONTROLLED_TOKEN_POLICY) invalid("Token policy is unsupported");
+  if (tokenPolicy === CONTROLLED_TOKEN_POLICY) {
+    try {
+      if (network !== "SOLANA_LOCALNET") throw new ControlledRegistryError("CONTROLLED_REGISTRY_DISABLED", "Controlled instruments require Localnet", 503);
+      requireControlledRegistry({ tokenPolicy }, { cluster: "localnet", programId: process.env.PROGRAM_ID || "",
+        controlledRegistryEnabled: controlledRegistryEnabled() });
+    } catch (error) {
+      if (error instanceof ControlledRegistryError) throw new InstrumentRegistryError(error.code, error.message, error.status);
+      throw error;
+    }
+  }
   const issuerLegalName = requiredText(input["issuerLegalName"], 250, "Issuer legal name");
   const name = requiredText(input["name"], 250, "Instrument name");
   const ticker = requiredText(input["ticker"], 20, "Ticker").toUpperCase();
@@ -125,6 +148,9 @@ export async function createInstrumentDraft(
   if (paymentsPerYear !== 1 && paymentsPerYear !== 2 && paymentsPerYear !== 4) invalid("Payments per year must be 1, 2 or 4");
   const issueAt = utcDate(input["issueAt"], "Issue date");
   const maturityAt = utcDate(input["maturityAt"], "Maturity date");
+  if (tokenPolicy === CONTROLLED_TOKEN_POLICY && (issueAt.getTime() % 1000 !== 0 || maturityAt.getTime() % 1000 !== 0)) {
+    invalid("Controlled issuance dates must use whole UTC seconds");
+  }
   if (issueAt >= maturityAt) invalid("Maturity date must be after issue date");
 
   try {
@@ -150,7 +176,7 @@ export async function createInstrumentDraft(
           issuerAuthority: actor.walletAddress, complianceAuthority: actor.walletAddress,
           corporateActionAuthority: actor.walletAddress, faceValueMinor: faceValueKzt * MINOR_UNITS_PER_KZT,
           couponRateBps: couponRateBps as number, paymentsPerYear, issueAt, maturityAt,
-          totalSupply: 35n, circulatingSupply: 0n, status: "DRAFT"
+          totalSupply: 35n, circulatingSupply: 0n, status: "DRAFT", tokenPolicy
         },
         select: instrumentSelect
       });

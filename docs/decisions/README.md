@@ -28,3 +28,6 @@
 - [ADR-026: Walletless UI QA with page-local synthetic state](ADR-026-walletless-qa-sandbox.md)
 - [ADR-027: Locale preference without changing operator routes or transaction state](ADR-027-display-locales.md)
 - [ADR-028: Governed registry review with monotonic versions](ADR-028-registry-review-versioning.md)
+- [ADR-029: Versioned exact-target partial redemption](ADR-029-exact-target-redemption.md)
+- [ADR-030: Controlled registry and assigned-unit reservations](ADR-030-controlled-registry-and-unit-reservations.md)
+- [ADR-031: Versioned controlled issuance and capture workflow](ADR-031-controlled-workflow-integration.md)

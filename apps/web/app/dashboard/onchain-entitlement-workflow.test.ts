@@ -56,3 +56,19 @@ test("reset binds the exact confirmed partial set and amount", () => {
   assert.throws(() => preparedOnchainCalculation({ ...resetPayload, totalAmountMinor: "500000001" }, registered, signer, signer));
   assert.throws(() => preparedOnchainCalculation(resetPayload, view, signer, signer));
 });
+
+test("v2 registration binds policy, target and target PDA and does not accept legacy missing metadata", () => {
+  const exactView = { ...view, actionType: "EARLY_REDEMPTION", redemptionAllocationPolicy: "exact-target-largest-remainder-v2" as const, redemptionTargetTokens: "1",
+    instrumentId: actionId, programId: PROGRAM, network: "SOLANA_LOCALNET", networkGenesisHash: payload.networkGenesisHash, corporateActionAuthority: signer };
+  const exactPayload = { ...payload, redemptionAllocationPolicy: "exact-target-largest-remainder-v2", redemptionTargetTokens: "1", targetAddress: signer };
+  assert.equal(preparedOnchainCalculation(exactPayload, exactView, signer, signer).redemptionTargetTokens, "1");
+  for (const change of [{ redemptionAllocationPolicy: undefined }, { redemptionAllocationPolicy: "integer-entitlements-v1" },
+    { redemptionTargetTokens: undefined }, { redemptionTargetTokens: "2" }, { targetAddress: undefined }, { targetAddress: "invalid" }]) {
+    assert.throws(() => preparedOnchainCalculation({ ...exactPayload, ...change }, exactView, signer, signer));
+  }
+  assert.throws(() => preparedOnchainCalculation(exactPayload, view, signer, signer));
+  for (const changed of [{ programId: signer }, { networkGenesisHash: PROGRAM }, { cluster: "devnet" }, { requiredSigner: PROGRAM }]) {
+    assert.throws(() => preparedOnchainCalculation({ ...exactPayload, ...changed }, exactView, signer, signer));
+  }
+  assert.throws(() => preparedOnchainCalculation(exactPayload, { ...exactView, instrumentId: "invalid" }, signer, signer));
+});

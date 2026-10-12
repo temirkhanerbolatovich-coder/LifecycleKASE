@@ -3,7 +3,8 @@ import { useLocale, useLocalizedTextState } from "./locale-context";
 
 import type { Wallet } from "@wallet-standard/base";
 import { useEffect, useRef, useState } from "react";
-import { reviewChoices, type EntitlementsView } from "./entitlement-workflow";
+import { reviewChoices, validatedCouponSummary, validatedExactRedemptionSummary, type EntitlementsView } from "./entitlement-workflow";
+import { formatLocaleRationalAmount } from "./locale";
 import { preparedOnchainCalculation, type PreparedOnchainCalculation } from "./onchain-entitlement-workflow";
 import { requireRedemptionCalculationTransaction } from "./redemption-calculation-workflow";
 import { resumedDeploymentSignature } from "./snapshot-workflow";
@@ -42,6 +43,9 @@ export function EntitlementPanel({ actionId, canWrite, canOnchainWrite, administ
     if (result.actionId !== actionId || !Number.isSafeInteger(result.actionVersion) || !Array.isArray(result.items) || !Array.isArray(result.investors)) {
       throw new Error("API не вернул начисления выбранного действия.");
     }
+    const couponSummary = validatedCouponSummary(result);
+    result.couponSummary = couponSummary;
+    result.exactRedemptionSummary = validatedExactRedemptionSummary(result);
     setView(result); setReviewed(false);
     if (canOnchainWrite && result.onchainPending) {
       const saved = preparedOnchainCalculation(result.onchainPending, result, corporateActionAuthority, walletAddress);
@@ -72,7 +76,7 @@ export function EntitlementPanel({ actionId, canWrite, canOnchainWrite, administ
     await refresh(); await onChanged(); setNote("");
     setMessage(decision === "APPROVE" ? "APPROVED: решение, автор и время сохранены. Начисления READY; выплат пока не было." : "Решение сохранено в audit.");
   }
-  async function prepareOnchain(phase: "REGISTER" | "FINALIZE" | "RESET", entitlementId?: string) {
+  async function prepareOnchain(phase: "REGISTER" | "FINALIZE" | "RESET" | "RESERVE_UNITS", entitlementId?: string) {
     if (!view) return;
     const response = await request(path + "/onchain/prepare", { method: "POST", body: JSON.stringify({
       phase, version: view.actionVersion, ...(entitlementId ? { entitlementId } : {})
@@ -83,7 +87,8 @@ export function EntitlementPanel({ actionId, canWrite, canOnchainWrite, administ
     setOnchainPlan(prepared); setOnchainSignature(restored ?? ""); setOnchainReviewed(false); setOnchainSendInvoked(Boolean(restored));
     setMessage(restored ? "Подпись on-chain операции восстановлена. Повторите только finalized-проверку." :
       phase === "REGISTER" ? "Проверьте entitlement, signer, snapshot и сумму перед подписью." :
-        phase === "FINALIZE" ? "Проверьте полный итог расчёта перед переводом Action PDA в UNDER_REVIEW." :
+        phase === "FINALIZE" ? "Проверьте полный итог расчёта перед переводом Action PDA в UNDER_REVIEW." : phase === "RESERVE_UNITS" ?
+          (locale === "en" ? "Review only assigned redemption units and their immutable source accounts." : "Проверьте только назначенные к погашению облигации и их исходные счета.") :
           "Проверьте полный список закрываемых PDA. Reset удалит только частичную on-chain регистрацию и не изменит snapshot.");
   }
   async function sendOnchain() {
@@ -102,7 +107,8 @@ export function EntitlementPanel({ actionId, canWrite, canOnchainWrite, administ
     const phase = onchainPlan.phase; setOnchainPlan(null); setOnchainSignature(""); setOnchainReviewed(false); setOnchainSendInvoked(false);
     await refresh(); await onChanged();
     setMessage(phase === "REGISTER" ? "Entitlement FINALIZED: PDA и сохранённые факты сверены." : phase === "FINALIZE" ?
-      "Расчёт FINALIZED: Action PDA перешёл в UNDER_REVIEW. Теперь доступно согласование." :
+      "Расчёт FINALIZED: Action PDA перешёл в UNDER_REVIEW. Теперь доступно согласование." : phase === "RESERVE_UNITS" ?
+      (locale === "en" ? "Assigned redemption units reserved. Free balances remain outside this reservation." : "Назначенные к погашению облигации зарезервированы. Свободные остатки не входят в этот резерв.") :
       "CALCULATION_RESET FINALIZED: частичные entitlement PDA закрыты, snapshot сохранён, можно пересчитать или зарегистрировать заново.");
   }
   const canCalculate = canWrite && view && ["SNAPSHOT_CREATED", "RETURNED_FOR_REVISION"].includes(view.status);
@@ -111,6 +117,23 @@ export function EntitlementPanel({ actionId, canWrite, canOnchainWrite, administ
       <button className={buttonClass} disabled={busy} onClick={() => void run(async () => { await refresh(); await onChanged(); setMessage(financialCopy("Данные обновлены. Повторная финансовая операция не отправлялась.")); })}>{financialCopy("Обновить начисления")}</button></div>
     {view && <>
       <p className="mt-3 text-sm"><strong>{getActionStatuses(locale)[view.status] ?? view.status}</strong> {financialCopy("· Всего:")} {formatAmount(view.totalEntitlementMinor)} {financialCopy("· Получателей:")} {view.eligibleHolders}</p>
+      {view.couponSummary && <div className="mt-3 rounded-lg border border-[#dbe5df] p-3 text-sm" aria-label={financialCopy("Итоги купонного расчёта")}>
+        <dl className="grid gap-2 sm:grid-cols-3">
+          <div><dt className="text-[#61746a]">{financialCopy("Начислено после округления")}</dt><dd className="font-semibold [overflow-wrap:anywhere]">{formatAmount(view.couponSummary.roundedTotalMinor)}</dd></div>
+          <div><dt className="text-[#61746a]">{financialCopy("Теоретическое начисление")}</dt><dd className="[overflow-wrap:anywhere]">{formatLocaleRationalAmount(view.couponSummary.theoreticalTotal, locale)}</dd></div>
+          <div><dt className="text-[#61746a]">{financialCopy("Остаток округления для treasury")}</dt><dd className="[overflow-wrap:anywhere]">{formatLocaleRationalAmount(view.couponSummary.roundingResidual, locale)}</dd></div>
+        </dl><p className="mt-2 text-xs text-[#61746a]">{financialCopy("Округление вниз по каждому инвестору; остаток не распределяется.")}</p>
+        <p className="mt-1 text-xs text-[#61746a]">{financialCopy("До удержаний; налоговый модуль не реализован")}</p>
+      </div>}
+      {view.exactRedemptionSummary && <div className="mt-3 rounded-lg border border-[#dbe5df] p-3 text-sm" aria-label={financialCopy("Итоги точного частичного погашения")}>
+        <dl className="grid gap-2 sm:grid-cols-4">
+          <div><dt className="text-[#61746a]">{financialCopy("Облигаций до погашения")}</dt><dd className="font-semibold [overflow-wrap:anywhere]">{view.exactRedemptionSummary.totalBalance}</dd></div>
+          <div><dt className="text-[#61746a]">{financialCopy("Целевое количество облигаций")}</dt><dd className="font-semibold [overflow-wrap:anywhere]">{view.exactRedemptionSummary.targetTokens}</dd></div>
+          <div><dt className="text-[#61746a]">{financialCopy("Распределено к погашению")}</dt><dd className="font-semibold [overflow-wrap:anywhere]">{view.exactRedemptionSummary.allocatedTokens}</dd></div>
+          <div><dt className="text-[#61746a]">{financialCopy("Облигаций после погашения")}</dt><dd className="font-semibold [overflow-wrap:anywhere]">{view.exactRedemptionSummary.remainingTokens}</dd></div>
+        </dl><p className="mt-2 text-xs text-[#61746a]">{financialCopy("Сумма по инвесторам точно равна цели. Остаточные облигации получают наибольшие дробные доли.")}</p>
+        <p className="mt-1 text-xs text-[#61746a]">{financialCopy("При равных долях первым идёт адрес владельца из snapshot в порядке base58 ASCII.")}</p>
+      </div>}
       {canCalculate && <div className="mt-3 space-y-3">{view.investors.map(row => <label key={row.investorId} className="block text-sm">
         {row.displayName} · {row.balance} bond · {row.snapshotEligibility}
         <select className={inputClass} disabled={busy} value={receivers[row.investorId] ?? ""} onChange={event => setReceivers(previous => ({ ...previous, [row.investorId]: event.target.value }))}>
@@ -119,13 +142,22 @@ export function EntitlementPanel({ actionId, canWrite, canOnchainWrite, administ
       </label>)}<button className={buttonClass} disabled={busy || view.investors.length === 0 || view.investors.some(row => !receivers[row.investorId])} onClick={() => void run(calculate)}>
         {view.status === "RETURNED_FOR_REVISION" ? financialCopy("Пересчитать по прежнему snapshot") : financialCopy("Рассчитать и сохранить начисления")}</button></div>}
       {view.items.length > 0 && <div className="table-scroll mt-4" tabIndex={0} role="region" aria-label={financialCopy("Начисления получателей")}><table className="registry-table"><thead><tr>
-        {[financialCopy("Инвестор / получатель"), financialCopy("Баланс snapshot"), financialCopy("Начисление"), ...(view.actionType === "COUPON_PAYMENT" ? [] : [financialCopy("К погашению")]), financialCopy("Статус / допуск")].map(label => <th key={financialCopy(label)} className={`border-b border-[#dbe5df] p-2${[financialCopy("Баланс snapshot"), financialCopy("Начисление"), financialCopy("К погашению")].includes(label) ? " numeric" : ""}`}>{financialCopy(label)}</th>)}</tr></thead>
+        {[financialCopy("Инвестор / получатель"), financialCopy("Баланс snapshot"), financialCopy("Начисление"), ...(view.actionType === "COUPON_PAYMENT" ? [] : [financialCopy("К погашению"), financialCopy("После погашения")]), financialCopy("Статус / допуск")].map(label => <th key={financialCopy(label)} className={`border-b border-[#dbe5df] p-2${[financialCopy("Баланс snapshot"), financialCopy("Начисление"), financialCopy("К погашению"), financialCopy("После погашения")].includes(label) ? " numeric" : ""}`}>{financialCopy(label)}</th>)}</tr></thead>
         <tbody>{view.items.map(row => <tr key={row.id}><td className="max-w-64 p-2"><strong>{view.investors.find(investor => investor.investorId === row.investorId)?.displayName ?? row.investorId}</strong><details><summary className="table-secondary">{financialCopy("Кошелёк")} {shortWalletAddress(row.settlementWalletAddress)}</summary><p className="technical-id">{row.settlementWalletAddress}</p></details></td>
           <td className="p-2 numeric">{row.balanceAtRecordDate}</td><td className="p-2 numeric"><span className="whitespace-nowrap">{formatAmount(row.amountMinor)}</span>
             <details className="mt-1"><summary>{financialCopy("Формула и округление")}</summary><p>{row.formulaVersion}</p><p>{financialCopy("Номинал:")} {formatAmount(row.calculationInputs.faceValueMinor)} {financialCopy("· Ставка:")} {row.calculationInputs.couponRateBps} {financialCopy("bps · Выплат/год:")} {row.calculationInputs.paymentsPerYear}</p>
               {row.calculationInputs.redemptionPercentageBps !== null && <p>{financialCopy("Доля:")} {row.calculationInputs.redemptionPercentageBps} {financialCopy("bps · Цена:")} {formatAmount(row.calculationInputs.redemptionPriceMinor!)}</p>}
-              <p>{financialCopy("Округление вниз: остаток")} {row.calculationInputs.roundingRemainder} / {row.calculationInputs.denominator}</p></details></td>{view.actionType !== "COUPON_PAYMENT" && <td className="p-2 numeric">{row.tokensToRedeem}</td>}
+              {row.calculationInputs.allocationPolicy === "exact-target-largest-remainder-v2" && <><p>{financialCopy("Целевое количество облигаций")}: {row.calculationInputs.targetTokens} · {financialCopy("Цена:")} {formatAmount(row.calculationInputs.redemptionPriceMinor!)}</p><p className="technical-id">{financialCopy("Адрес владельца для равных долей")}: {row.calculationInputs.tieAddress}</p></>}
+              <p>{financialCopy(row.calculationInputs.allocationPolicy === "exact-target-largest-remainder-v2" ? "Дробная часть пропорциональной квоты" : "Округление вниз: остаток")} {row.calculationInputs.roundingRemainder} / {row.calculationInputs.denominator}</p></details></td>{view.actionType !== "COUPON_PAYMENT" && <><td className="p-2 numeric">{row.tokensToRedeem}</td><td className="p-2 numeric">{row.calculationInputs.remainingTokens ?? (BigInt(row.balanceAtRecordDate) - BigInt(row.tokensToRedeem)).toString()}</td></>}
           <td className="p-2">{financialCopy(entitlementLabels[row.status] ?? row.status)}<span className="table-secondary">{row.currentEligibility.eligible ? financialCopy("Допуск подтверждён") : row.currentEligibility.reason}</span>{row.onchainPda && <details><summary className="table-secondary">{financialCopy("Запись в Solana")}</summary><p className="technical-id">{row.onchainPda}</p></details>}{!row.currentEligibility.eligible && <strong className="block text-[#8a5b18]">{financialCopy("Выплата заблокирована")}</strong>}</td></tr>)}</tbody></table></div>}
+      {view.tokenPolicy === "CONTROLLED_FROZEN_V2" && ["EARLY_REDEMPTION", "BOND_REDEMPTION"].includes(view.actionType ?? "") && view.onchainCalculationFinalized &&
+        ["UNDER_REVIEW", "APPROVED"].includes(view.status) && <div className="mt-4 rounded-xl border border-[#b9dec8] bg-[#f7fbf8] p-4">
+          <h5 className="font-semibold">{locale === "en" ? "Reserve assigned redemption bonds" : "Резерв назначенных облигаций"}</h5>
+          <p className="mt-2 text-sm">{locale === "en" ? "Reserve each entitlement, including zero allocations, before finishing holder capture. Only assigned units are protected; cash funding is a separate step." : "Подтвердите резерв каждого начисления, включая нулевые назначения, перед завершением фиксации держателей. Защищаются только назначенные единицы; денежное обеспечение оформляется отдельно."}</p>
+          <div className="mt-3 flex flex-wrap gap-2">{view.items.map(row => row.unitReservationConfirmed ? <span key={row.id} className="status-ready">{row.tokensToRedeem} · {locale === "en" ? "reserved" : "зарезервировано"}</span> :
+            <button key={row.id} className={buttonClass} disabled={busy || !canOnchainWrite || onchainPlan !== null}
+              onClick={() => void run(() => prepareOnchain("RESERVE_UNITS", row.id))}>{locale === "en" ? "Reserve" : "Зарезервировать"} {row.tokensToRedeem} · {view.investors.find(investor => investor.investorId === row.investorId)?.displayName ?? row.investorId}</button>)}</div>
+        </div>}
       {view.onchainRegistrationEnabled && view.status === "UNDER_REVIEW" && <div className="mt-4 rounded-xl border border-[#b9dec8] bg-[#f7fbf8] p-4">
         <h5 className="font-semibold">{financialCopy("Регистрация расчёта в Solana")}</h5>
         <p className="mt-2 text-xs text-[#61746a]">{financialCopy("Каждый entitlement регистрируется отдельной точной транзакцией. Финальный шаг сверяет количество и общую сумму и переводит Action PDA в UNDER_REVIEW.")}</p>
@@ -139,7 +171,8 @@ export function EntitlementPanel({ actionId, canWrite, canOnchainWrite, administ
         {!canOnchainWrite && <p className="mt-2 text-xs text-[#8a5b18]">{financialCopy("Для этих транзакций подключите кошелёк corporate action authority.")}</p>}
       </div>}
       {onchainPlan && <div className="mt-4 rounded-xl border border-[#efd29d] bg-[#fff8eb] p-4">
-        <strong>{financialCopy("Проверка")} {onchainPlan.phase === "REGISTER" ? "ENTITLEMENT_REGISTER" : onchainPlan.phase === "FINALIZE" ? "CALCULATION_FINALIZE" : "CALCULATION_RESET"}</strong>
+        <strong>{financialCopy("Проверка")} {onchainPlan.phase === "REGISTER" ? "ENTITLEMENT_REGISTER" : onchainPlan.phase === "FINALIZE" ? "CALCULATION_FINALIZE" : onchainPlan.phase === "RESERVE_UNITS" ?
+          (locale === "en" ? "Reserve assigned units" : "Резерв назначенных единиц") : "CALCULATION_RESET"}</strong>
         <p className="mt-2 text-sm">{financialCopy("Сеть:")} {onchainPlan.cluster}. {onchainPlan.phase === "RESET" ? financialCopy("Закрытие записей начислений") : financialCopy("Регистрация расчёта")}{financialCopy("; без выплаты и сжигания.")}</p>
         <p className="technical-id mt-2">{financialCopy("Подписант:")} {onchainPlan.requiredSigner}</p>
         <p className="mt-2">{financialCopy("Сумма регистрации:")} {onchainPlan.paymentAmountMinor !== undefined ? formatAmount(onchainPlan.paymentAmountMinor) : onchainPlan.totalAmountMinor !== undefined ? formatAmount(onchainPlan.totalAmountMinor) : financialCopy("Не применимо")}</p>
@@ -147,6 +180,7 @@ export function EntitlementPanel({ actionId, canWrite, canOnchainWrite, administ
         {onchainPlan.tokenAccounts && <div className="mt-3"><p className="text-sm">{financialCopy("Зафиксированные источники для будущего сжигания. Регистрация сохраняет эти счета, без выплаты и погашения.")}</p>
           <CopyValue value={onchainPlan.bondMint!} label="Bond mint" />{onchainPlan.tokenAccounts.map(source => <div className="evidence-row" key={source.address}>
             <CopyValue value={source.address} label={financialCopy("Счёт bond-токенов в snapshot")} /><CopyValue value={source.walletAddress} label={financialCopy("Владелец счёта")} /><p>{financialCopy("Баланс в snapshot:")} {source.balanceAtSnapshot}</p></div>)}</div>}
+        {onchainPlan.phase === "RESERVE_UNITS" && <p className="mt-3 font-semibold">{locale === "en" ? "Assigned units per source" : "Назначенные единицы по счетам"}: {onchainPlan.allocations?.join(" / ")}. {locale === "en" ? "Cash payment and burn are separate." : "Выплата и сжигание выполняются отдельно."}</p>}
         {onchainSignature && <p className="mt-2 text-sm">{financialCopy("Сохранённая подпись восстановлена. Проверьте её результат.")}</p>}
         <details className="term-help"><summary>{financialCopy("Реквизиты сохранённой попытки")}</summary><dl className="mt-3 space-y-2 text-xs">{Object.entries({ Genesis: onchainPlan.networkGenesisHash,
           Program: onchainPlan.programId, "Action PDA": onchainPlan.actionAddress, "Entitlement PDA": onchainPlan.entitlementAddress ?? "—",

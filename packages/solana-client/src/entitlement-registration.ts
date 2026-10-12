@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { address, getProgramDerivedAddress } from "@solana/kit";
 import { decodePublicKey, encodePublicKey } from "./base58.js";
-import { deriveCorporateActionAddresses } from "./corporate-action.js";
+import { deriveCorporateActionAddresses, deriveExactRedemptionTargetAddress, isExactTargetRedemption,
+  type RedemptionAllocationPolicy } from "./corporate-action.js";
 import { SYSTEM_PROGRAM_ID } from "./instrument-mint-setup.js";
 import type { SolanaInstructionPlan } from "./snapshot-transaction.js";
 
@@ -9,6 +10,7 @@ export const MAX_CALCULATION_INVESTORS = 64;
 export const ENTITLEMENT_STATUSES = ["READY", "NOT_ELIGIBLE", "NOT_ELIGIBLE_ZERO_ROUNDING", "PAID", "REDEEMED"] as const;
 type CalculationIdentity = {
   programId: string; instrumentId: Uint8Array; actionId: Uint8Array; corporateActionAuthority: string;
+  allocationPolicy?: RedemptionAllocationPolicy;
 };
 async function calculationRedemptionAccounts(programId: string, actionAddress: string, entitlementAddresses: string[], redemption?: boolean) {
   if (!redemption) return { sourceAddresses: [] as string[], progressAddress: undefined as string | undefined };
@@ -45,31 +47,37 @@ export async function deriveEntitlementAddress(programId: string, actionAddress:
 /** Encodes immutable integer calculations; no signing, submission or approval. */
 export async function buildEntitlementRegistration(input: CalculationIdentity & EntitlementRegistration) {
   decodePublicKey(input.corporateActionAuthority);
+  const exactTarget = isExactTargetRedemption(input.allocationPolicy);
   const settlementWallet = decodePublicKey(input.settlementWallet);
   if (!/^[0-9a-f]{64}$/i.test(input.snapshotHash) || /^0{64}$/.test(input.snapshotHash) ||
       input.balanceAtSnapshot <= 0n || typeof input.eligible !== "boolean" ||
       (!input.eligible && (input.paymentAmountMinor !== 0n || input.tokensToRedeem !== 0n)) ||
-      (input.eligible && settlementWallet.every(byte => byte === 0))) {
+      (input.eligible && settlementWallet.every(byte => byte === 0)) ||
+      (exactTarget && (!input.eligible || input.tokensToRedeem > input.balanceAtSnapshot))) {
     throw new Error("Entitlement snapshot, balance or eligibility is invalid");
   }
   const addresses = await deriveCorporateActionAddresses(input.programId, input.instrumentId, input.actionId);
   const entitlementAddress = await deriveEntitlementAddress(input.programId, addresses.actionAddress, input.investorId);
+  const targetAddress = exactTarget ? await deriveExactRedemptionTargetAddress(input.programId, addresses.actionAddress) : undefined;
   const instruction: SolanaInstructionPlan = { programId: input.programId, accounts: [
     { address: input.corporateActionAuthority, isSigner: true, isWritable: true },
     { address: addresses.instrumentAddress, isSigner: false, isWritable: false },
     { address: addresses.actionAddress, isSigner: false, isWritable: true },
+    ...(targetAddress ? [{ address: targetAddress, isSigner: false, isWritable: false }] : []),
     { address: entitlementAddress, isSigner: false, isWritable: true },
     { address: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false }
-  ], data: Buffer.concat([discriminator("register_entitlement"), Buffer.from(input.investorId),
+  ], data: Buffer.concat([discriminator(exactTarget ? "register_entitlement_v2" : "register_entitlement"), Buffer.from(input.investorId),
     Buffer.from(input.snapshotHash, "hex"), Buffer.from(settlementWallet),
     u64(input.balanceAtSnapshot), Buffer.from([input.eligible ? 1 : 0]),
     u64(input.paymentAmountMinor), u64(input.tokensToRedeem)]) };
-  return { ...addresses, entitlementAddress, instruction };
+  return { ...addresses, targetAddress, entitlementAddress, instruction };
 }
 
 /** Finalization supplies the complete unique set; account/transaction limits still apply to its wire. */
 export async function buildCalculationFinalization(input: CalculationIdentity & { investorIds: Uint8Array[]; redemption?: boolean }) {
   decodePublicKey(input.corporateActionAuthority);
+  const exactTarget = isExactTargetRedemption(input.allocationPolicy);
+  if (exactTarget && !input.redemption) throw new Error("Exact-target calculation requires redemption source accounts");
   if (input.investorIds.length === 0 || input.investorIds.length > MAX_CALCULATION_INVESTORS) {
     throw new Error("Calculation requires 1 to 64 investors");
   }
@@ -77,20 +85,25 @@ export async function buildCalculationFinalization(input: CalculationIdentity & 
   const entitlementAddresses = await Promise.all(input.investorIds.map(id => deriveEntitlementAddress(input.programId, addresses.actionAddress, id)));
   if (new Set(entitlementAddresses).size !== entitlementAddresses.length) throw new Error("Calculation contains duplicate investors");
   const redemption = await calculationRedemptionAccounts(input.programId, addresses.actionAddress, entitlementAddresses, input.redemption);
+  const targetAddress = exactTarget ? await deriveExactRedemptionTargetAddress(input.programId, addresses.actionAddress) : undefined;
   const instruction: SolanaInstructionPlan = { programId: input.programId, accounts: [
     { address: input.corporateActionAuthority, isSigner: true, isWritable: false },
     { address: addresses.instrumentAddress, isSigner: false, isWritable: false },
     { address: addresses.actionAddress, isSigner: false, isWritable: true },
+    ...(targetAddress ? [{ address: targetAddress, isSigner: false, isWritable: false }] : []),
     ...(redemption.progressAddress ? [{ address: redemption.progressAddress, isSigner: false, isWritable: false }] : []),
     ...entitlementAddresses.flatMap((entitlementAddress, index) => [entitlementAddress,
       ...(input.redemption ? [redemption.sourceAddresses[index]!] : [])].map(value => ({ address: value, isSigner: false, isWritable: false })))
-  ], data: discriminator("finalize_calculation") };
-  return { ...addresses, ...redemption, entitlementAddresses, instruction };
+  ], data: discriminator(exactTarget ? "finalize_calculation_v2" : "finalize_calculation") };
+  return { ...addresses, ...redemption, targetAddress, entitlementAddresses, instruction };
 }
 
 /** Resets only a complete supplied partial set and returns its account rent to the CA authority. */
 export async function buildCalculationReset(input: CalculationIdentity & { investorIds: Uint8Array[]; redemption?: boolean }) {
   decodePublicKey(input.corporateActionAuthority);
+  if (isExactTargetRedemption(input.allocationPolicy) && !input.redemption) {
+    throw new Error("Exact-target calculation reset requires redemption source accounts");
+  }
   if (input.investorIds.length === 0 || input.investorIds.length > MAX_CALCULATION_INVESTORS) {
     throw new Error("Calculation reset requires 1 to 64 registered investors");
   }
@@ -122,7 +135,7 @@ export function decodeConfirmedEntitlement(base64: string): ConfirmedEntitlement
     const result = data.subarray(offset, offset + length); offset += length; return result;
   }
   const version = read(1)[0]!;
-  if (version !== 1) throw new Error("Entitlement version is unsupported");
+  if (version !== 1 && version !== 2) throw new Error("Entitlement version is unsupported");
   const actionAddress = encodePublicKey(read(32)); const investorId = Uint8Array.from(read(16));
   const snapshotHash = read(32).toString("hex"); const settlementWallet = encodePublicKey(read(32));
   const balanceAtSnapshot = read(8).readBigUInt64LE(); const paymentAmountMinor = read(8).readBigUInt64LE();

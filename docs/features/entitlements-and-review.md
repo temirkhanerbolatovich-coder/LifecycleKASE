@@ -1,5 +1,17 @@
 # Investor entitlements and review
 
+Controlled instrument integration — **2026-10-12**: calculations keep their existing versioned integer policies, while immutable instrument token policy requires locked raw capture evidence and assigned-unit registration. Controlled actions require the chain review path; direct legacy off-chain approval/return cannot bypass capture or release reserved units. Entitlement reads provide the independent browser identities and unit-reservation status. [Controlled workflow](controlled-registry.md#integration-limits) and [ADR-031](../decisions/ADR-031-controlled-workflow-integration.md) describe this default-off Localnet path; performed checks are recorded in the [dated integration report](../testing/controlled-workflow-integration-2026-10-12.md).
+
+## BondFlow coupon summary — 2026-10-11
+
+GET `/entitlements` additionally returns `couponSummary` for calculated coupon rows, or `null` before calculation and for redemption. This read-only metadata is derived from saved v1 calculation inputs, not current instrument terms. The server verifies captured snapshot identity/coverage, economic terms, exact per-investor amount/remainder and aggregate total; invalid facts fail with `CALCULATION_CHANGED`. It does not alter amounts, formula versions, persisted inputs, review/execution, program accounts or canonical receipt hashes.
+
+`roundedTotalMinor` is gross entitlement after per-investor floor rounding, including rows whose payment may currently be blocked. It does not mean paid or net of taxes. `theoreticalTotal` and `roundingResidual` contain exact integer-string `{numerator, denominator}` values **in payment minor units**. Their relationship is `theoreticalTotal = roundedTotalMinor + roundingResidual`. The residual may exceed one minor unit when fractional remainders from several investors add up; it remains undistributed under `FLOOR_PER_INVESTOR`/`TREASURY`. This metadata does not report the current treasury balance or a separate transfer of the residual.
+
+The RU/EN panel reconciles summary metadata with saved rows and shows fractional minor units as an exact fraction when required. An older API response without the optional summary preserves the existing panel and does not invent summary totals. Tax treatment is `NOT_IMPLEMENTED`, displayed as “Before withholding; the tax module is not implemented.” QA uses the shared arithmetic with page-local synthetic data; it creates no Solana evidence. See [phase checks](../testing/bondflow-coupon-summary-2026-10-11.md) and the [BondFlow plan](bondflow-implementation-plan.md).
+
+## Original application slice
+
 Implemented locally on 2026-10-02. This application slice calculates and approves obligations; it does not fund, transfer, burn, create execution receipts or change the program's review status. See [ADR-017](../decisions/ADR-017-stored-entitlements-and-demo-approval.md).
 
 ## Flow

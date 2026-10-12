@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import test from "node:test";
 import { createSnapshotV2Commitment } from "@lifecycle-kase/domain";
-import { decodePublicKey, deriveCorporateActionAddresses, deriveEntitlementAddress, encodePublicKey } from "@lifecycle-kase/solana-client";
+import { buildControlledUnitReservation, decodeControlledTokenPosition, decodePublicKey, deriveControlledCaptureAddress, deriveControlledPolicyAddress, deriveCorporateActionAddresses, deriveEntitlementAddress, encodePublicKey, TOKEN_2022_PROGRAM_ID } from "@lifecycle-kase/solana-client";
 import { onchainCalculationEnabled, prepareOnchainCalculation } from "./onchain-entitlements.js";
 import { TransactionWorkflowError } from "./transaction-workflow.js";
 import { entitlementAmounts, getEntitlements, requireCouponFundingCalculation, requireCouponExecutionCalculation, reviewEntitlements } from "./entitlements.js";
@@ -21,7 +21,8 @@ function actionAccount(input: { actionId: string; instrumentAddress: string; has
   createHash("sha256").update("account:CorporateAction").digest().copy(data, offset, 0, 8); offset += 8;
   data[offset++] = 1; Buffer.from(input.actionId.replaceAll("-", ""), "hex").copy(data, offset); offset += 16;
   Buffer.from(decodePublicKey(input.instrumentAddress)).copy(data, offset); offset += 32; data[offset++] = 0;
-  data.writeBigInt64LE(1_790_000_000n, offset); offset += 8; data.writeBigInt64LE(1_790_000_060n, offset); offset += 8;
+  const recordAt = BigInt(new Date("2026-10-02T12:00:00.000Z").getTime() / 1000);
+  data.writeBigInt64LE(recordAt, offset); offset += 8; data.writeBigInt64LE(recordAt + 60n, offset); offset += 8;
   data[offset++] = 0; data[offset++] = 0; Buffer.from(input.hash, "hex").copy(data, offset); offset += 32;
   data.writeBigUInt64LE(10n, offset); offset += 8; data.writeUInt32LE(input.count ?? 1, offset); offset += 4;
   data.writeUInt32LE(input.count ?? 1, offset); offset += 4; data.writeBigUInt64LE(input.balance ?? 10n, offset); offset += 8;
@@ -272,4 +273,79 @@ test("mixed coupon receipt preserves zero rows, excludes their settlement and co
     { code: "ENTITLEMENT_ALREADY_EXECUTED" });
   Object.assign(value.action, { processedEntitlements: 2 });
   await assert.rejects(couponReceiptDraft(database as never, value.action.id), { code: "RECONCILIATION_REQUIRED" });
+});
+
+test("controlled coupon receipt binds finalized capture, exact frozen raw accounts and persisted UTF-8 registry despite JSONB order", async () => {
+  const value = await fixture(); const positive = value.entitlement; const signature = "2".repeat(64);
+  Object.assign(value.action, { status: "SETTLED", processedEntitlements: 1, approvedById: actor.id,
+    approvedAt: new Date("2026-10-02T12:01:00Z"), sourceType: "ISSUER_NOTICE", sourceReference: "controlled-proof", sourceDocument: null });
+  Object.assign(value.action.instrument, { tokenPolicy: "CONTROLLED_FROZEN_V2" }); Object.assign(positive, { status: "PAID", settlementSignature: signature });
+  const raw = Buffer.alloc(170); Buffer.from(decodePublicKey(KEY)).copy(raw, 0); Buffer.from(decodePublicKey(KEY)).copy(raw, 32);
+  raw.writeBigUInt64LE(10n, 64); raw[108] = 2; raw[165] = 2; raw.writeUInt16LE(7, 166);
+  const position = decodeControlledTokenPosition({ address: KEY, owner: TOKEN_2022_PROGRAM_ID, executable: false, dataBase64: raw.toString("base64") }, KEY);
+  const registry = JSON.parse(JSON.stringify({ mintAddress: KEY, slot: 11, supply: 10n, totalBalance: 10n, positions: [position], positivePositions: [position] },
+    (_, item) => typeof item === "bigint" ? item.toString() : item));
+  const registryCanonicalJson = JSON.stringify(registry);
+  const captureAddress = await deriveControlledCaptureAddress(PROGRAM, value.addresses.actionAddress);
+  const captureEvidence = { schema: "controlled-capture-v1", controlledPolicyAddress: await deriveControlledPolicyAddress(PROGRAM, value.addresses.instrumentAddress),
+    controlledCaptureAddress: captureAddress, startedSlot: "10", startedAt: String(value.action.snapshot.blockTime.getTime() / 1000), readSlot: 11,
+    registry: JSON.parse(JSON.stringify(registry, Object.keys(registry).sort())), registryCanonicalJson, registrySha256: createHash("sha256").update(registryCanonicalJson).digest("hex") };
+  // Reorder top-level JSONB keys while retaining all nested values.
+  captureEvidence.registry = Object.fromEntries(Object.entries(registry).sort(([left], [right]) => left.localeCompare(right)));
+  Object.assign(value.action.snapshot, { captureEvidence });
+  const capture = { signature: "3".repeat(64), networkGenesisHash: GENESIS, preparedPayload: { controlledCaptureAddress: captureAddress } };
+  const paymentProof = { tokenPolicy: "CONTROLLED_FROZEN_V2", entitlementReceiptAddress: KEY, executedAt: "1790942460", finalizedSlot: 11 };
+  const database = { corporateAction: { findUnique: async () => value.action },
+    blockchainTransaction: { findFirst: async ({ where }: { where: { operationType: string } }) => where.operationType === "CONTROLLED_CAPTURE_FINISH" ? capture : { signature } },
+    settlement: { findUnique: async () => ({ status: "FINALIZED", reconciliationStatus: "MATCHED", amountMinor: positive.amountMinor, actualAmountMinor: positive.amountMinor,
+      legs: [{ type: "CASH", required: true, status: "CONFIRMED", expectedAmountMinor: positive.amountMinor, actualAmountMinor: positive.amountMinor,
+        blockchainTransaction: { signature, status: "FINALIZED", operationType: "COUPON_PAYMENT", entitlementId: positive.id, corporateActionId: value.action.id,
+          networkGenesisHash: GENESIS, preparedPayload: paymentProof } },
+      { type: "ASSET", required: false, status: "NOT_APPLICABLE", expectedAmountMinor: 0n, actualAmountMinor: null }] }) } };
+  const draft = await couponReceiptDraft(database as never, value.action.id); const payload = JSON.parse(draft.json);
+  assert.equal(payload.schemaVersion, "coupon-controlled-action-receipt-v1"); assert.equal(payload.tokenPolicy, "CONTROLLED_FROZEN_V2");
+  assert.equal(payload.controlledRegistry.captureFinishSignature, capture.signature); assert.equal(payload.controlledRegistry.captureAddress, captureAddress);
+  assert.equal(payload.controlledRegistry.captureEvidence.registryCanonicalJson, registryCanonicalJson);
+  capture.networkGenesisHash = "another";
+  await assert.rejects(couponReceiptDraft(database as never, value.action.id), { code: "RECONCILIATION_REQUIRED" }); capture.networkGenesisHash = GENESIS;
+  paymentProof.tokenPolicy = "LEGACY_UNRESTRICTED_V1";
+  await assert.rejects(couponReceiptDraft(database as never, value.action.id), { code: "RECONCILIATION_REQUIRED" }); paymentProof.tokenPolicy = "CONTROLLED_FROZEN_V2";
+  captureEvidence.registryCanonicalJson = registryCanonicalJson.replace('"FROZEN"', '"INITIALIZED"');
+  await assert.rejects(couponReceiptDraft(database as never, value.action.id), { code: "CONTROLLED_CAPTURE_MISMATCH" });
+});
+
+test("controlled entitlement review cannot bypass separate on-chain approval or revise assigned-unit reservations", async () => {
+  const value = await fixture(); Object.assign(value.action.instrument, { tokenPolicy: "CONTROLLED_FROZEN_V2" });
+  const review = reviewDatabase(value); let queries = 0;
+  review.database.blockchainTransaction.findFirst = async () => { queries++; return null; };
+  await assert.rejects(reviewEntitlements(review.database as never, value.action.id,
+    { version: 3, decision: "APPROVE", note: "Attempt direct approval" }, actor), { code: "ONCHAIN_REVIEW_REQUIRED" });
+  assert.equal(review.updates.length, 0); assert.equal(review.audits.length, 0); assert.equal(queries, 1);
+});
+
+test("controlled entitlement reservation markers require matched finalized identities, source commitments and Holding proof", async () => {
+  const value = await fixture(); Object.assign(value.action.instrument, { tokenPolicy: "CONTROLLED_FROZEN_V2" });
+  Object.assign(value.action, { type: "EARLY_REDEMPTION" }); Object.assign(value.entitlement, { tokensToRedeem: 2n });
+  const tokenAccounts = [{ address: KEY, wallet: KEY, balanceAtSnapshot: 10n }];
+  const plan = await buildControlledUnitReservation({ programId: PROGRAM, instrumentId: Buffer.from(value.action.instrumentId.replaceAll("-", ""), "hex"),
+    actionId: Buffer.from(value.action.id.replaceAll("-", ""), "hex"), investorId: Buffer.from(value.entitlement.investorId.replaceAll("-", ""), "hex"),
+    corporateActionAuthority: KEY, bondMint: KEY, tokenAccounts, snapshotHash: Buffer.from(value.action.snapshot.snapshotHash).toString("hex") });
+  value.entitlement.onchainPda = plan.entitlementAddress;
+  const reservation = { unitReservationAddress: plan.unitReservationAddress, sourceHash: plan.sourceHash, allocations: ["2"], consumed: false,
+    holdings: [{ address: plan.holdingAddresses[0], tokenAccount: KEY, walletAddress: KEY, reservedTokens: "2" }] };
+  const operation = { entitlementId: value.entitlement.id, investorId: value.entitlement.investorId, instrumentId: value.action.instrumentId,
+    requiredSigner: KEY, networkGenesisHash: GENESIS, signature: "2".repeat(64), preparedPayload: {
+      tokenPolicy: "CONTROLLED_FROZEN_V2", snapshotHash: Buffer.from(value.action.snapshot.snapshotHash).toString("hex"),
+      entitlementAddress: plan.entitlementAddress, tokensToRedeem: "2", confirmedReservation: reservation,
+    } };
+  const database = { corporateAction: { findUnique: async () => value.action }, blockchainTransaction: { findMany: async () => [operation] } };
+  const result = await getEntitlements(database as never, value.action.id);
+  assert.equal(result.tokenPolicy, "CONTROLLED_FROZEN_V2"); assert.equal(result.programId, PROGRAM);
+  assert.equal(result.items[0]!.unitReservationAddress, plan.unitReservationAddress); assert.equal(result.items[0]!.unitReservationConfirmed, true);
+  for (const field of ["investorId", "instrumentId", "networkGenesisHash", "requiredSigner"] as const) {
+    const mutable = operation as Record<string, unknown>; const prior = mutable[field]; mutable[field] = "wrong";
+    assert.equal((await getEntitlements(database as never, value.action.id)).items[0]!.unitReservationConfirmed, false); mutable[field] = prior;
+  }
+  reservation.holdings[0]!.reservedTokens = "1";
+  assert.equal((await getEntitlements(database as never, value.action.id)).items[0]!.unitReservationConfirmed, false);
 });
