@@ -1,0 +1,21 @@
+{
+  "schema": "operator-overview-database-acceptance-v1",
+  "scope": "DISPOSABLE_POSTGRESQL_SYNTHETIC_RECORDS",
+  "chainExecution": false,
+  "investors": 10000,
+  "actions": 10000,
+  "assertions": [
+    "complete 10000-action counts independently of seven visible rows",
+    "foreign network excluded",
+    "old unknown operation remains highest priority outside latest twenty transactions",
+    "uncalculated and unqueried amounts remain null",
+    "10000-investor bounded cursor pages have no duplicates",
+    "server search finds a record outside loaded pages"
+  ],
+  "timingsMs": {
+    "overview10000Actions": 198.71,
+    "registryFirst100": 26.4,
+    "registryNext100": 37.34,
+    "registryServerSearch": 36.75
+  }
+}

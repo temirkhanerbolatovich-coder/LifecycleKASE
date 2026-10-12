@@ -11,9 +11,11 @@ import { InvestorController } from "./investor.controller.js";
 import { InstrumentController } from "./instrument.controller.js";
 import { CorporateActionController } from "./corporate-action.controller.js";
 import { EvidenceController } from "./evidence.controller.js";
+import { ActionEvidenceExportController } from "./action-evidence-export.controller.js";
+import { OperatorOverviewController } from "./operator-overview.controller.js";
 
 @Module({
-  controllers: [HealthController, AuthController, SnapshotController, InvestorController, InstrumentController, CorporateActionController, ProgramUpgradeController, EvidenceController],
+  controllers: [HealthController, AuthController, SnapshotController, InvestorController, InstrumentController, CorporateActionController, ProgramUpgradeController, EvidenceController, ActionEvidenceExportController, OperatorOverviewController],
   providers: [PrismaService, AuthRateLimitService, { provide: APP_GUARD, useClass: ProgramUpgradeMaintenanceGuard }],
 })
 export class AppModule {}

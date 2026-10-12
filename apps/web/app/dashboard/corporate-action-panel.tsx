@@ -9,7 +9,7 @@ import { OperatorApiError } from "./operator-api";
 import { CorporateActionDetail } from "./corporate-action-detail";
 import { getActionTypes, getActionStatuses, filterRegistry, INITIAL_FILTERS, statusTone, actionPresentation, formatWorkspaceDate, workspaceTimeZone } from "./workspace-presentation";
 import { RegistrySkeleton, RegistryToolbar, RequestNotice } from "./workspace-controls";
-import { workspaceSelectionFromHash, workspaceSectionHash } from "./workspace-navigation";
+import { workspaceSelectionFromHash, workspaceSectionFromHash, workspaceSectionHash } from "./workspace-navigation";
 type Request = (path: string, init?: RequestInit) => Promise<Record<string, unknown>>;
 type ActiveInstrument = { id: string; name: string; ticker: string; status: string; issuerAuthority: string };
 const inputClass = "mt-1 w-full rounded-lg border border-[#cbd8d0] bg-white px-3 py-2 text-sm disabled:opacity-60";
@@ -31,6 +31,7 @@ export function CorporateActionPanel({ role, request, wallet, walletAddress, onB
   const [error, setError] = useState<string | null>(null); const [pendingDraftId, setPendingDraftId] = useState("");
   const pendingDraft = useRef<Record<string, unknown> | null>(null); const inFlight = useRef(false);
   const listView = useRef<HTMLDivElement>(null);
+  const openedRef = useRef<Record<string, CorporateActionView>>({});
   useEffect(() => {
     requestAnimationFrame(() => {
       if (selectedId) document.getElementById(`action-${selectedId}`)?.focus({ preventScroll: true });
@@ -39,7 +40,11 @@ export function CorporateActionPanel({ role, request, wallet, walletAddress, onB
   }, [selectedId]);
   const listPosition = useRef(0); const chosen = useRef(""); const administrator = role === "ADMINISTRATOR";
   // Each visited detail stays mounted. Its exact plan/signature survives returning to the list.
-  function rememberAction(action: CorporateActionView) { setOpened(previous => ({...previous,[action.id]:action})); setSelectedId(action.id); chosen.current = action.id; window.history.replaceState(null,"",workspaceSectionHash("actions",action.id)); }
+  function rememberAction(action: CorporateActionView) {
+    openedRef.current = { ...openedRef.current, [action.id]: action };
+    setOpened(previous => ({...previous,[action.id]:action})); setSelectedId(action.id); chosen.current = action.id;
+    if (workspaceSelectionFromHash(window.location.hash, "actions") !== action.id) window.history.pushState(null,"",workspaceSectionHash("actions",action.id));
+  }
   async function run(task: () => Promise<void>) {
     if (inFlight.current) return; inFlight.current = true; setBusy(true); setError(null); onBusyChange(true);
     try { await task(); } catch(error) { setError(error instanceof Error ? error.message : t("core.request.failed")); }
@@ -52,11 +57,20 @@ export function CorporateActionPanel({ role, request, wallet, walletAddress, onB
     setNextCursor(typeof result["nextCursor"] === "string" ? result["nextCursor"] : null);
   }
   async function openAction(id: string) { const action = await request("/api/v1/corporate-actions/"+id); if (action["id"] !== id) throw new Error(t("core.the.api.returned.a.different.action")); rememberAction(action as unknown as CorporateActionView); }
-  function backToList() { setSelectedId(""); chosen.current=""; window.history.replaceState(null,"",workspaceSectionHash("actions")); requestAnimationFrame(()=>window.scrollTo({top:listPosition.current,behavior:"instant"})); }
+  function backToList() { setSelectedId(""); chosen.current=""; window.history.pushState(null,"",workspaceSectionHash("actions")); requestAnimationFrame(()=>window.scrollTo({top:listPosition.current,behavior:"instant"})); }
   useEffect(()=> {
-    const sync = () => { const id = workspaceSelectionFromHash(window.location.hash,"actions"); if (id && id !== chosen.current) void run(()=>openAction(id)); };
+    const sync = () => {
+      if (workspaceSectionFromHash(window.location.hash) !== "actions") return;
+      const id = workspaceSelectionFromHash(window.location.hash,"actions");
+      if (!id) { setSelectedId(""); chosen.current = ""; return; }
+      if (id !== chosen.current) {
+        const retained = openedRef.current[id];
+        if (retained) { setSelectedId(id); chosen.current = id; } else void run(()=>openAction(id));
+      }
+    };
     void run(async()=>{await load(); const result=await request("/api/v1/instruments?limit=100"); const rows=Array.isArray(result["items"])?result["items"] as ActiveInstrument[]:[]; setInstruments(rows.filter(row=>row.status==="ACTIVE"&&row.issuerAuthority===walletAddress)); const id=workspaceSelectionFromHash(window.location.hash,"actions"); if(id) await openAction(id); setMessage("");});
-    window.addEventListener("hashchange",sync); return ()=>window.removeEventListener("hashchange",sync);
+    window.addEventListener("hashchange",sync); window.addEventListener("popstate",sync);
+    return ()=>{ window.removeEventListener("hashchange",sync); window.removeEventListener("popstate",sync); };
   },[request,walletAddress]);
   function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const form = new FormData(event.currentTarget);

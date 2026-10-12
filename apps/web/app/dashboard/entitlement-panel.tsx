@@ -14,6 +14,7 @@ import { ActionApprovalPanel } from "./action-approval-panel";
 import { CopyValue, RequestNotice } from "./workspace-controls";
 import { getActionStatuses } from "./workspace-presentation";
 import { shortWalletAddress } from "./wallet-account-selection";
+import type { ApprovalView } from "./action-approval-workflow";
 
 type Request = (path: string, init?: RequestInit) => Promise<Record<string, unknown>>;
 const buttonClass = "rounded-lg border border-[#cbd8d0] px-4 py-2 text-sm font-semibold disabled:opacity-50";
@@ -21,12 +22,14 @@ const inputClass = "mt-1 w-full rounded-lg border border-[#cbd8d0] bg-white px-3
 const labels = { SUBMIT: "Передать на согласование", APPROVE: "Согласовать начисления", RETURN: "Вернуть на доработку", REJECT: "Отклонить действие" };
 const entitlementLabels: Record<string, string> = { CALCULATED: "Рассчитано", READY: "К выплате", PAID: "Выплачено", REDEEMED: "Погашено", NOT_ELIGIBLE_ZERO_ROUNDING: "Нулевая сумма" };
 
-export function EntitlementPanel({ actionId, canWrite, canOnchainWrite, administrator, corporateActionAuthority, wallet, walletAddress, request, onBusyChange, onChanged, onSummary }: {
+export function EntitlementPanel({ actionId, canWrite, canOnchainWrite, administrator, corporateActionAuthority, wallet, walletAddress, request, onBusyChange, onChanged, onSummary, onState, onApprovalState, displayStage = "all" }: {
   actionId: string; canWrite: boolean; canOnchainWrite: boolean; corporateActionAuthority: string;
   wallet: Wallet | undefined; walletAddress: string; request: Request;
   administrator: boolean;
   onBusyChange: (busy: boolean) => void; onChanged: () => Promise<void>;
   onSummary?: (amountMinor: string | null) => void;
+  onState?: (view: EntitlementsView) => void; onApprovalState?: (view: ApprovalView) => void;
+  displayStage?: "all" | "calculation" | "readiness" | "approval";
 }) {
   const { locale, displayMessage: financialCopy, formatAmount, formatDate } = useLocale();
   const [view, setView] = useState<EntitlementsView | null>(null);
@@ -46,7 +49,7 @@ export function EntitlementPanel({ actionId, canWrite, canOnchainWrite, administ
     const couponSummary = validatedCouponSummary(result);
     result.couponSummary = couponSummary;
     result.exactRedemptionSummary = validatedExactRedemptionSummary(result);
-    setView(result); setReviewed(false);
+    setView(result); onState?.(result); setReviewed(false);
     if (canOnchainWrite && result.onchainPending) {
       const saved = preparedOnchainCalculation(result.onchainPending, result, corporateActionAuthority, walletAddress);
       await requireRedemptionCalculationTransaction(saved, result);
@@ -134,6 +137,7 @@ export function EntitlementPanel({ actionId, canWrite, canOnchainWrite, administ
         </dl><p className="mt-2 text-xs text-[#61746a]">{financialCopy("Сумма по инвесторам точно равна цели. Остаточные облигации получают наибольшие дробные доли.")}</p>
         <p className="mt-1 text-xs text-[#61746a]">{financialCopy("При равных долях первым идёт адрес владельца из snapshot в порядке base58 ASCII.")}</p>
       </div>}
+      <div hidden={displayStage !== "all" && displayStage !== "calculation"}>
       {canCalculate && <div className="mt-3 space-y-3">{view.investors.map(row => <label key={row.investorId} className="block text-sm">
         {row.displayName} · {row.balance} bond · {row.snapshotEligibility}
         <select className={inputClass} disabled={busy} value={receivers[row.investorId] ?? ""} onChange={event => setReceivers(previous => ({ ...previous, [row.investorId]: event.target.value }))}>
@@ -141,6 +145,7 @@ export function EntitlementPanel({ actionId, canWrite, canOnchainWrite, administ
         {row.receiverWallets.length === 0 && <span className="text-xs text-[#8a5b18]">{financialCopy("Активного проверенного кошелька нет — расчёт заблокирован.")}</span>}
       </label>)}<button className={buttonClass} disabled={busy || view.investors.length === 0 || view.investors.some(row => !receivers[row.investorId])} onClick={() => void run(calculate)}>
         {view.status === "RETURNED_FOR_REVISION" ? financialCopy("Пересчитать по прежнему snapshot") : financialCopy("Рассчитать и сохранить начисления")}</button></div>}
+      </div>
       {view.items.length > 0 && <div className="table-scroll mt-4" tabIndex={0} role="region" aria-label={financialCopy("Начисления получателей")}><table className="registry-table"><thead><tr>
         {[financialCopy("Инвестор / получатель"), financialCopy("Баланс snapshot"), financialCopy("Начисление"), ...(view.actionType === "COUPON_PAYMENT" ? [] : [financialCopy("К погашению"), financialCopy("После погашения")]), financialCopy("Статус / допуск")].map(label => <th key={financialCopy(label)} className={`border-b border-[#dbe5df] p-2${[financialCopy("Баланс snapshot"), financialCopy("Начисление"), financialCopy("К погашению"), financialCopy("После погашения")].includes(label) ? " numeric" : ""}`}>{financialCopy(label)}</th>)}</tr></thead>
         <tbody>{view.items.map(row => <tr key={row.id}><td className="max-w-64 p-2"><strong>{view.investors.find(investor => investor.investorId === row.investorId)?.displayName ?? row.investorId}</strong><details><summary className="table-secondary">{financialCopy("Кошелёк")} {shortWalletAddress(row.settlementWalletAddress)}</summary><p className="technical-id">{row.settlementWalletAddress}</p></details></td>
@@ -150,6 +155,7 @@ export function EntitlementPanel({ actionId, canWrite, canOnchainWrite, administ
               {row.calculationInputs.allocationPolicy === "exact-target-largest-remainder-v2" && <><p>{financialCopy("Целевое количество облигаций")}: {row.calculationInputs.targetTokens} · {financialCopy("Цена:")} {formatAmount(row.calculationInputs.redemptionPriceMinor!)}</p><p className="technical-id">{financialCopy("Адрес владельца для равных долей")}: {row.calculationInputs.tieAddress}</p></>}
               <p>{financialCopy(row.calculationInputs.allocationPolicy === "exact-target-largest-remainder-v2" ? "Дробная часть пропорциональной квоты" : "Округление вниз: остаток")} {row.calculationInputs.roundingRemainder} / {row.calculationInputs.denominator}</p></details></td>{view.actionType !== "COUPON_PAYMENT" && <><td className="p-2 numeric">{row.tokensToRedeem}</td><td className="p-2 numeric">{row.calculationInputs.remainingTokens ?? (BigInt(row.balanceAtRecordDate) - BigInt(row.tokensToRedeem)).toString()}</td></>}
           <td className="p-2">{financialCopy(entitlementLabels[row.status] ?? row.status)}<span className="table-secondary">{row.currentEligibility.eligible ? financialCopy("Допуск подтверждён") : row.currentEligibility.reason}</span>{row.onchainPda && <details><summary className="table-secondary">{financialCopy("Запись в Solana")}</summary><p className="technical-id">{row.onchainPda}</p></details>}{!row.currentEligibility.eligible && <strong className="block text-[#8a5b18]">{financialCopy("Выплата заблокирована")}</strong>}</td></tr>)}</tbody></table></div>}
+      <div hidden={displayStage !== "all" && displayStage !== "calculation"}>
       {view.tokenPolicy === "CONTROLLED_FROZEN_V2" && ["EARLY_REDEMPTION", "BOND_REDEMPTION"].includes(view.actionType ?? "") && view.onchainCalculationFinalized &&
         ["UNDER_REVIEW", "APPROVED"].includes(view.status) && <div className="mt-4 rounded-xl border border-[#b9dec8] bg-[#f7fbf8] p-4">
           <h5 className="font-semibold">{locale === "en" ? "Reserve assigned redemption bonds" : "Резерв назначенных облигаций"}</h5>
@@ -196,10 +202,15 @@ export function EntitlementPanel({ actionId, canWrite, canOnchainWrite, administ
         <button className={`mt-3 ${buttonClass}`} disabled={busy || !/^[1-9A-HJ-NP-Za-km-z]{64,88}$/.test(onchainSignature)}
           onClick={() => void run(confirmOnchain)}>{financialCopy("Проверить finalized и PDA")}</button>
       </div>}
-      {view.actionApprovalEnabled && view.onchainCalculationFinalized && ["UNDER_REVIEW", "APPROVED"].includes(view.status) && <ActionApprovalPanel actionId={actionId} administrator={administrator} wallet={wallet} walletAddress={walletAddress} request={request} onBusyChange={value => { inFlight.current = value; setBusy(value); onBusyChange(value); }} onChanged={async () => { await refresh(); await onChanged(); }} />}
+      </div>
+      <div hidden={displayStage === "calculation"}>
+      {view.actionApprovalEnabled && view.onchainCalculationFinalized && ["UNDER_REVIEW", "APPROVED"].includes(view.status) && <ActionApprovalPanel actionId={actionId} administrator={administrator} wallet={wallet} walletAddress={walletAddress} request={request}
+        displayStage={displayStage === "all" ? "all" : displayStage === "approval" ? "approval" : "readiness"} onState={onApprovalState}
+        onBusyChange={value => { inFlight.current = value; setBusy(value); onBusyChange(value); }} onChanged={async () => { await refresh(); await onChanged(); }} />}
+      </div>
       {view.actionApprovalEnabled && !view.onchainCalculationFinalized && <p className="mt-3 text-sm">{financialCopy("Согласование и резерв доступны после подтверждённого FINALIZE расчёта.")}</p>}
       {view.status === "CALCULATED" && BigInt(view.totalEntitlementMinor) === 0n && <p className="mt-3 text-sm text-[#8a5b18]" role="status">{financialCopy("Все начисления округлились до нуля. Согласование и резерв недоступны. Расчёт сохранён; проверьте условия и округление.")}</p>}
-      {canWrite && reviewChoices(view.status).length > 0 && (!view.actionApprovalEnabled || view.status === "CALCULATED") && <div className="mt-4">
+      {canWrite && reviewChoices(view.status).length > 0 && (!view.actionApprovalEnabled || view.status === "CALCULATED") && <div className="mt-4" hidden={displayStage !== "all" && displayStage !== (view.status === "CALCULATED" ? "calculation" : "approval")}>
         <label className="block text-sm">{financialCopy("Комментарий к решению")}<textarea className={inputClass} minLength={3} maxLength={1000} disabled={busy} value={note} onChange={event => setNote(event.target.value)} /></label>
         {view.status === "UNDER_REVIEW" && <label className="mt-3 flex gap-2 text-sm"><input type="checkbox" disabled={busy} checked={reviewed} onChange={event => setReviewed(event.target.checked)} />{financialCopy("Проверил источник, snapshot, допуск, получателей, суммы и ожидаемые выплаты/погашение")}</label>}
         <div className="mt-3 flex flex-wrap gap-2">{reviewChoices(view.status).map(decision => <button key={decision} className={buttonClass}

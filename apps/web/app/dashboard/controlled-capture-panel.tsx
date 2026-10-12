@@ -10,9 +10,10 @@ import { CopyValue, RequestNotice } from "./workspace-controls";
 import { useLocale, useLocalizedTextState } from "./locale-context";
 
 type Request = (path: string, init?: RequestInit) => Promise<Record<string, unknown>>;
-export function ControlledCapturePanel({ action, administrator, wallet, walletAddress, request, onBusyChange, onChanged }: {
+export function ControlledCapturePanel({ action, administrator, wallet, walletAddress, request, onBusyChange, onChanged, onState }: {
   action: CorporateActionView; administrator: boolean; wallet: Wallet | undefined; walletAddress: string; request: Request;
   onBusyChange: (busy: boolean) => void; onChanged: () => Promise<void>;
+  onState?: (view: ControlledCaptureView) => void;
 }) {
   const { locale } = useLocale(); const copy = (ru: string, en: string) => locale === "en" ? en : ru;
   const path = `/api/v1/corporate-actions/${action.id}/snapshot/capture`;
@@ -42,7 +43,7 @@ export function ControlledCapturePanel({ action, administrator, wallet, walletAd
     if (recovered.sent) setMessage(copy("Исходная подпись восстановлена. Проверьте только финализацию.", "Original signature restored. Check finalization only."));
   }
   async function load() {
-    const current = await controlledCaptureView(await request(path), action); setView(current);
+    const current = await controlledCaptureView(await request(path), action); setView(current); onState?.(current);
     if (administrator && current.enabled && current.pending && current.requiredSigner === walletAddress) await accept(current.pending, current);
     return current;
   }

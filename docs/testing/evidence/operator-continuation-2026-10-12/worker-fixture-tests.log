@@ -1,0 +1,19 @@
+✔ reconciliation is default off without requiring or reading any environment target (3.9561ms)
+✔ worker rejects owner database, public RPC, Devnet, implicit DB and missing execution capabilities (0.9503ms)
+✔ durable worker configuration accepts only bounded integer delays and capped retry counts (0.9957ms)
+✔ wrong network is rejected before sweeper or claim mutates the database (0.8157ms)
+✔ connected DB must match the explicit disposable target before any job mutation (0.3619ms)
+✔ worker RPC permits only reads and cannot send, simulate, rebuild or request airdrops (0.3541ms)
+✔ retry backoff grows then stays capped, and secret-bearing error text is never saved (0.3144ms)
+✔ only recognized RPC/database transport and serialization failures qualify for automatic retry (0.3599ms)
+✔ system observer audit preserves original signer and initiator while keeping interactive actor attribution (0.3569ms)
+✔ projection lease is mandatory for worker context and rejects mismatched operation/signature (0.7365ms)
+✔ job completion cannot commit when its ownership token changed (0.2964ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 416.772

@@ -31,3 +31,4 @@
 - [ADR-029: Versioned exact-target partial redemption](ADR-029-exact-target-redemption.md)
 - [ADR-030: Controlled registry and assigned-unit reservations](ADR-030-controlled-registry-and-unit-reservations.md)
 - [ADR-031: Versioned controlled issuance and capture workflow](ADR-031-controlled-workflow-integration.md)
+- [ADR-032: Durable reconciliation of submitted transactions](ADR-032-durable-submitted-transaction-reconciliation.md)

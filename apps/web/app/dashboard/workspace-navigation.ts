@@ -1,4 +1,5 @@
 import { getDisplayLocale, translateStoredMessage, type Locale } from "./locale";
+import { ACTION_MASTER_STEPS, type ActionMasterStep } from "./action-master-workflow";
 export const WORKSPACE_SECTIONS = [
   { id: "overview", label: "Обзор", shortLabel: "Обзор", description: "Текущий этап и быстрый переход к работе" },
   { id: "actions", label: "Корпоративные действия", shortLabel: "Действия", description: "Фиксация держателей, начисления и выплаты" },
@@ -24,8 +25,16 @@ export function workspaceSelectionFromHash(hash: string, section: WorkspaceSecti
   return value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) ? value : null;
 }
 
-export function workspaceSectionHash(section: WorkspaceSection, selected?: string | null): string {
-  return `#${section}${selected && workspaceSelectionFromHash(`#${section}?selected=${selected}`, section) ? `?selected=${selected}` : ""}`;
+export function workspaceSectionHash(section: WorkspaceSection, selected?: string | null, step?: ActionMasterStep | null): string {
+  const selection = selected && workspaceSelectionFromHash(`#${section}?selected=${selected}`, section) ? `?selected=${selected}` : "";
+  return `#${section}${selection}${section === "actions" && selection && step && ACTION_MASTER_STEPS.includes(step) ? `&step=${step}` : ""}`;
+}
+
+/** A step deep link only applies to the selected action; unknown values cannot select controls. */
+export function workspaceActionStepFromHash(hash: string, actionId: string): ActionMasterStep | null {
+  if (workspaceSelectionFromHash(hash, "actions")?.toLowerCase() !== actionId.toLowerCase()) return null;
+  const value = new URLSearchParams(hash.split("?")[1] ?? "").get("step");
+  return value && ACTION_MASTER_STEPS.includes(value as ActionMasterStep) ? value as ActionMasterStep : null;
 }
 
 export function getWorkspaceSections(locale: Locale = getDisplayLocale()) {

@@ -13,6 +13,7 @@ import { requireControlledRegistry } from "./controlled-policy.js";
 import { controlledCaptureState } from "./controlled-settlement.js";
 import { reserveTokenDelta } from "./action-approval.js";
 import { assertCouponReceiptIntegrity, couponReceiptDraft } from "./coupon-receipt.js";
+import { confirmationAuditActor, completeReconciliationJob, reconciliationProjectionError, requireReconciliationLease } from "./reconciliation-context.js";
 import { uuidBytes } from "./snapshot-registration.js";
 import { ACTIVE_TRANSACTION_STATUSES, requireAttemptSigner, requireWorkflowNetwork, resumeWorkflowAttempt, rpcNumber, rpcObject,
   submitWorkflowTransaction, TransactionWorkflowError, verifyWorkflowFinalization, workflowBlockhash, workflowProgramAccount, WORKFLOW_UUID } from "./transaction-workflow.js";
@@ -257,6 +258,7 @@ export async function confirmCouponExecution(database: PrismaClient, rpc: Solana
   try {
     await database.$transaction(async tx => {
       const current = await source(tx, id, options);
+      await requireReconciliationLease(tx, actor, op.id, signature);
       if (current.action.version !== action.version) throw new TransactionWorkflowError("ACTION_CONFLICT", "Coupon changed during confirmation");
       const changed = await tx.blockchainTransaction.updateMany({ where: { id: op.id, status: active, OR: [{ signature: null }, { signature }] },
         data: { signature, status: "FINALIZED", submittedAt: op.submittedAt ?? now, finalizedAt: now, lastErrorCode: null,
@@ -285,11 +287,13 @@ export async function confirmCouponExecution(database: PrismaClient, rpc: Solana
         if (receipt.count !== 1) throw new TransactionWorkflowError("RECEIPT_INTEGRITY", "Receipt was changed or already finalized");
         await tx.corporateAction.update({ where: { id }, data: { status: "FINALIZED", version: { increment: 1 } } satisfies Prisma.CorporateActionUpdateInput });
       }
-      await tx.auditLog.create({ data: { actorId: actor.id, actorWallet: actor.walletAddress, correlationId: actor.correlationId,
+      const observer = confirmationAuditActor(actor);
+      await tx.auditLog.create({ data: { actorId: observer.actorId, actorWallet: observer.actorWallet, correlationId: actor.correlationId,
         event: op.entitlementId ? "COUPON_PAYMENT_FINALIZED" : "COUPON_ACTION_FINALIZED", entityType: "CorporateAction", entityId: id, corporateActionId: id,
         blockchainTransactionId: op.id, metadataJson: { phase: payload["phase"] as string, signature, finalizedSlot: slot, amountMinor: payload["amountMinor"] as string,
-          executedAt: executedAt!.toString(), snapshotHash: state.hash, reconciliation: "MATCHED" } } });
+          executedAt: executedAt!.toString(), snapshotHash: state.hash, reconciliation: "MATCHED", ...observer.metadata } } });
+      await completeReconciliationJob(tx, actor, now);
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-  } catch (error) { return workflowDatabaseError(error); }
+  } catch (error) { return workflowDatabaseError(reconciliationProjectionError(error, actor)); }
   return { operationId: op.id, signature, status: "FINALIZED" as const, finalizedSlot: slot };
 }

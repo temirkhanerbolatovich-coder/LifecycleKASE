@@ -10,10 +10,11 @@ import { waitForFinalizedCheck } from "./finalized-check";
 
 type Request = (path: string, init?: RequestInit) => Promise<Record<string, unknown>>;
 const button = "rounded-lg border border-[#cbd8d0] px-4 py-2 text-sm font-semibold disabled:opacity-50";
-export function CouponFundingPanel({ actionId, canWrite, wallet, walletAddress, request, onBusyChange, onChanged, redemption = false }: {
+export function CouponFundingPanel({ actionId, canWrite, wallet, walletAddress, request, onBusyChange, onChanged, redemption = false, onState }: {
   actionId: string; canWrite: boolean; wallet: Wallet | undefined; walletAddress: string; request: Request;
   onBusyChange: (busy: boolean) => void; onChanged: () => Promise<void>;
   redemption?: boolean;
+  onState?: (view: CouponBudget) => void;
 }) {
   const { locale, displayMessage: financialCopy, formatAmount, formatDate } = useLocale();
   const [budget, setBudget] = useState<CouponBudget | null>(null); const [plan, setPlan] = useState<CouponFundingPlan | null>(null);
@@ -28,7 +29,7 @@ export function CouponFundingPanel({ actionId, canWrite, wallet, walletAddress, 
   }
   async function refreshBudget() {
     const result = await request(path + "/budget");
-    const current = couponBudget(result, actionId); setBudget(current);
+    const current = couponBudget(result, actionId); setBudget(current); onState?.(current);
     if (canWrite && current.fundingAttempt) {
       if (unsignedFundingPlanIsStale(current.fundingAttempt, current)) {
         // Preserve any locally signed attempt after a lost response; it still needs confirmation.
@@ -45,7 +46,7 @@ export function CouponFundingPanel({ actionId, canWrite, wallet, walletAddress, 
   useEffect(() => { void run(async () => { await refreshBudget(); }); }, [actionId, request]);
   async function prepare() {
     const { budget: current, plan: next } = await refreshCouponFundingPlan(request, path, actionId, walletAddress);
-    setBudget(current); const restored = couponFundingSignature(next);
+    setBudget(current); onState?.(current); const restored = couponFundingSignature(next);
     setPlan(next); setSignature(restored ?? ""); setSendInvoked(Boolean(restored)); setReviewed(false);
     setMessage(restored ? "Сохранённая подпись восстановлена. Повторите только проверку finalized." : "План пополняет treasury ровно на показанную сумму. Выплат инвесторам не будет.");
     await onChanged();

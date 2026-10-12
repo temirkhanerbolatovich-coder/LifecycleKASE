@@ -4,7 +4,9 @@ import { operatorApiRewrites } from "../apps/web/next.config.mjs";
 
 test("proxies only the implemented operator routes to the fixed server origin", () => {
   const allRoutes = operatorApiRewrites({ API_SERVER_URL: "https://api.example.com", NEXT_PUBLIC_API_URL: "https://ignored.example" });
-  assert.equal(allRoutes.length, 63);
+  assert.equal(allRoutes.length, 65);
+  const reports = allRoutes.filter(route => route.source.endsWith("/evidence-export") || route.source.endsWith("/operator-overview"));
+  assert.deepEqual(reports.map(route => route.destination), ["https://api.example.com/api/v1/corporate-actions/:id/evidence-export", "https://api.example.com/api/v1/operator-overview"]);
   const captures = allRoutes.filter(route => route.source.includes("/snapshot/capture"));
   assert.deepEqual(captures.map(route => route.destination), ["", "/prepare", "/submit", "/confirm"]
     .map(path => "https://api.example.com/api/v1/corporate-actions/:id/snapshot/capture" + path));
@@ -14,7 +16,7 @@ test("proxies only the implemented operator routes to the fixed server origin", 
   const profiles = allRoutes.filter(route => route.source === "/api/v1/investors/:id([0-9a-fA-F-]{36})" || route.source.endsWith("/profile"));
   assert.deepEqual(profiles.map(route => route.destination), ["https://api.example.com/api/v1/investors/:id",
     "https://api.example.com/api/v1/investors/:id/profile"]);
-  const routes = allRoutes.filter(route => !governance.includes(route) && !profiles.includes(route) && !captures.includes(route));
+  const routes = allRoutes.filter(route => !governance.includes(route) && !profiles.includes(route) && !captures.includes(route) && !reports.includes(route));
   assert.equal(routes.length, 55);
   assert.equal(routes.find((route) => route.source === "/api/v1/auth/session").destination, "https://api.example.com/api/v1/auth/session");
   assert.ok(routes.every((route) => !route.source.includes(":path")));

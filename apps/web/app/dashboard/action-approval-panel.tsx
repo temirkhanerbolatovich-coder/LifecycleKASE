@@ -10,12 +10,13 @@ import { CopyValue, RequestNotice } from "./workspace-controls";
 const button = "rounded-lg border border-[#cbd8d0] px-4 py-2 text-sm font-semibold disabled:opacity-50";
 const input = "mt-1 w-full rounded-lg border border-[#cbd8d0] bg-white px-3 py-2 text-sm";
 const labels = { ASSIGN_APPROVER: "Назначить отдельного согласующего", RESERVE: "Зарезервировать бюджет действия", RELEASE: "Вернуть резерв до согласования", APPROVE: "Согласовать в Solana" };
-export function ActionApprovalPanel({ actionId, administrator, walletAddress, wallet, request, onBusyChange, onChanged }: {
+export function ActionApprovalPanel({ actionId, administrator, walletAddress, wallet, request, onBusyChange, onChanged, onState, displayStage = "all" }: {
   actionId: string; administrator: boolean; walletAddress: string; wallet: Wallet | undefined;
   request: (path: string, init?: RequestInit) => Promise<Record<string, unknown>>;
   onBusyChange: (value: boolean) => void; onChanged: () => Promise<void>;
+  onState?: ((view: ApprovalView) => void) | undefined; displayStage?: "all" | "readiness" | "approval";
 }) {
-  const { locale, displayMessage: financialCopy, formatAmount, formatDate } = useLocale();
+  const { t, locale, displayMessage: financialCopy, formatAmount, formatDate } = useLocale();
   const [view, setView] = useState<ApprovalView | null>(null); const [plan, setPlan] = useState<ApprovalPlan | null>(null);
   const [approver, setApprover] = useState(""); const [note, setNote] = useState(""); const [signature, setSignature] = useState("");
   const [sendInvoked, setSendInvoked] = useState(false);
@@ -26,16 +27,18 @@ export function ActionApprovalPanel({ actionId, administrator, walletAddress, wa
   useEffect(() => {
     let active = true;
     request(path).then(payload => {
-      if (!active) return; const current = approvalView(payload); setView(current); setMessage("");
+      if (!active) return; const current = approvalView(payload); setView(current); onState?.(current); setMessage("");
       if (current.pending?.["requiredSigner"] === walletAddress) {
         const pending = preparedActionApproval(current.pending, current, walletAddress, String(current.pending["approver"]));
-        setPlan(pending); setSignature(resumedDeploymentSignature(current.pending) ?? "");
-        setSendInvoked(Boolean(pending.signature) || pending.status !== "PREPARED");
+        if (plan && (sendInvoked || signature) && (plan.operationId !== pending.operationId || plan.serializedTransactionBase64 !== pending.serializedTransactionBase64 ||
+            pending.signature && signature && pending.signature !== signature)) throw new Error(t("master.pending.changed"));
+        setPlan(pending); setSignature(previous => resumedDeploymentSignature(current.pending!) ?? previous);
+        setSendInvoked(previous => previous || Boolean(pending.signature) || pending.status !== "PREPARED");
       }
     }).catch(error => { if (active) { setMessage(""); setError(error instanceof Error ? error.message : "Не удалось прочитать резерв."); } });
     return () => { active = false; };
-  }, [path, request, walletAddress]);
-  async function refresh() { setView(approvalView(await request(path))); }
+  }, [path, request, walletAddress, displayStage]);
+  async function refresh() { const current = approvalView(await request(path)); setView(current); onState?.(current); }
   async function run(task: () => Promise<void>) {
     if (inFlight.current) return; inFlight.current = true;
     setBusy(true); onBusyChange(true); setError(null);
@@ -74,12 +77,12 @@ export function ActionApprovalPanel({ actionId, administrator, walletAddress, wa
       <details className="term-help"><summary>{financialCopy("Реквизиты резерва")}</summary><CopyValue value={view.reserveAddress} label={financialCopy("Резерв")} /><CopyValue value={view.vaultAddress} label={financialCopy("Хранилище")} /></details>
       {view.approved && <p className="mt-2 font-semibold">{financialCopy("Согласовано в Solana. Бюджет закреплён за действием.")}</p>}
       {!plan && !view.approved && <div className="mt-3 space-y-3">
-        {issuer && !view.approver && <label className="block text-sm">{financialCopy("Кошелёк отдельного согласующего")}<input className={input} value={approver} maxLength={44} onChange={event => setApprover(event.target.value)} /></label>}
-        {canApprove && <label className="block text-sm">{financialCopy("Основание согласования")}<textarea className={input} value={note} maxLength={1000} onChange={event => setNote(event.target.value)} /></label>}
+        {issuer && !view.approver && <label hidden={displayStage === "approval"} className="block text-sm">{financialCopy("Кошелёк отдельного согласующего")}<input className={input} value={approver} maxLength={44} onChange={event => setApprover(event.target.value)} /></label>}
+        {canApprove && <label hidden={displayStage === "readiness"} className="block text-sm">{financialCopy("Основание согласования")}<textarea className={input} value={note} maxLength={1000} onChange={event => setNote(event.target.value)} /></label>}
         <div className="flex flex-wrap gap-2">
-          {issuer && !view.approver && <button className={button} disabled={busy || Boolean(view.pending) || approver.length < 32} onClick={() => void run(() => prepare("ASSIGN_APPROVER"))}>{financialCopy(labels.ASSIGN_APPROVER)}</button>}
-          {issuer && view.approver && <button className={button} disabled={busy || Boolean(view.pending)} onClick={() => void run(() => prepare(view.reserveExists ? "RELEASE" : "RESERVE"))}>{financialCopy(labels[view.reserveExists ? "RELEASE" : "RESERVE"])}</button>}
-          {canApprove && <button className={button} disabled={busy || Boolean(view.pending) || !view.reserveExists || BigInt(view.reservedMinor) < BigInt(view.amountMinor) || note.trim().length < 3} onClick={() => void run(() => prepare("APPROVE"))}>{financialCopy(labels.APPROVE)}</button>}
+          {issuer && !view.approver && <button hidden={displayStage === "approval"} className={button} disabled={busy || Boolean(view.pending) || approver.length < 32} onClick={() => void run(() => prepare("ASSIGN_APPROVER"))}>{financialCopy(labels.ASSIGN_APPROVER)}</button>}
+          {issuer && view.approver && <button hidden={displayStage === "approval"} className={button} disabled={busy || Boolean(view.pending)} onClick={() => void run(() => prepare(view.reserveExists ? "RELEASE" : "RESERVE"))}>{financialCopy(labels[view.reserveExists ? "RELEASE" : "RESERVE"])}</button>}
+          {canApprove && <button hidden={displayStage === "readiness"} className={button} disabled={busy || Boolean(view.pending) || !view.reserveExists || BigInt(view.reservedMinor) < BigInt(view.amountMinor) || note.trim().length < 3} onClick={() => void run(() => prepare("APPROVE"))}>{financialCopy(labels.APPROVE)}</button>}
           <button className={button} disabled={busy} onClick={() => void run(refresh)}>{financialCopy("Обновить резерв")}</button>
         </div>
         {view.pending && <p className="text-xs">{financialCopy("Сохранённая попытка:")} {String(view.pending["operationId"])} · {String(view.pending["status"])}{financialCopy(". Требуется её исходный signer.")}</p>}

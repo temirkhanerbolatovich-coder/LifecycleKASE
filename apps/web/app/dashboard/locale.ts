@@ -2,6 +2,7 @@ import { coreMessages } from "./core-messages";
 import { financialMessages } from "./financial-messages";
 import { registryMessages } from "./registry-messages";
 import { qaMessages } from "./qa-messages";
+import { masterMessages } from "./master-messages";
 import type { RationalMinorAmount } from "./entitlement-workflow";
 
 export type Locale = "ru" | "en";
@@ -9,8 +10,8 @@ export const LOCALE_COOKIE = "lifecyclekase_locale";
 export const DEFAULT_LOCALE: Locale = "ru";
 export const LOCALE_FORMATS: Record<Locale, string> = { ru: "ru-RU", en: "en-GB" };
 export const messages = {
-  ru: { ...coreMessages.ru, ...financialMessages.ru, ...registryMessages.ru, ...qaMessages.ru },
-  en: { ...coreMessages.en, ...financialMessages.en, ...registryMessages.en, ...qaMessages.en }
+  ru: { ...coreMessages.ru, ...financialMessages.ru, ...registryMessages.ru, ...qaMessages.ru, ...masterMessages.ru },
+  en: { ...coreMessages.en, ...financialMessages.en, ...registryMessages.en, ...qaMessages.en, ...masterMessages.en }
 };
 export type MessageKey = keyof typeof messages.ru;
 export type MessageValues = Record<string, string | number>;

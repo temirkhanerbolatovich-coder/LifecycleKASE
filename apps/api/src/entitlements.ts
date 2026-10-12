@@ -15,7 +15,10 @@ import { rpcObject } from "./transaction-workflow.js";
 
 export const FORMULA_VERSION = "integer-entitlements-v1";
 export const ELIGIBILITY_RULE_VERSION = "eligibility-v1-local-demo-explicit";
-export type EntitlementActor = InstrumentActor & { operationSource?: "HTTP" | "CONTROLLED_LOCALNET_CLI" };
+export type EntitlementActor = InstrumentActor & {
+  operationSource?: "HTTP" | "CONTROLLED_LOCALNET_CLI";
+  reconciliationContext?: import("./reconciliation-context.js").ReconciliationContext;
+};
 const MAX_DB_INTEGER = (1n << 63n) - 1n;
 const include = {
   instrument: true,

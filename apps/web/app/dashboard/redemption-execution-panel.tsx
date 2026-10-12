@@ -10,11 +10,12 @@ import { CopyValue, RequestNotice } from "./workspace-controls";
 import { shortWalletAddress } from "./wallet-account-selection";
 type Request = (path: string, init?: RequestInit) => Promise<Record<string, unknown>>;
 
-export function RedemptionExecutionPanel({ actionId, actionType, administrator, wallet, walletAddress, request, onBusyChange, onChanged }: {
+export function RedemptionExecutionPanel({ actionId, actionType, administrator, wallet, walletAddress, request, onBusyChange, onChanged, onState }: {
   actionId: string; actionType: string; administrator: boolean; wallet: Wallet | undefined; walletAddress: string; request: Request;
   onBusyChange: (busy: boolean) => void; onChanged: () => Promise<void>;
+  onState?: (view: RedemptionExecutionView) => void;
 }) {
-  const { locale, displayMessage: financialCopy, formatAmount, formatDate } = useLocale();
+  const { t, locale, displayMessage: financialCopy, formatAmount, formatDate } = useLocale();
   const path = `/api/v1/corporate-actions/${actionId}/redemption-execution`;
   const [view, setView] = useState<RedemptionExecutionView | null>(null);
   const [plan, setPlan] = useState<RedemptionExecutionPlan | null>(null); const [signature, setSignature] = useState("");
@@ -28,7 +29,7 @@ export function RedemptionExecutionPanel({ actionId, actionType, administrator, 
     finally { inFlight.current = false; setBusy(false); onBusyChange(false); }
   }
   async function load() {
-    const current = redemptionExecutionView(await request(path), actionId, actionType); setView(current);
+    const current = redemptionExecutionView(await request(path), actionId, actionType); setView(current); onState?.(current);
     if (administrator && current.enabled && current.pending && current.requiredSigner === walletAddress) {
       const restored = await preparedRedemptionExecution(current.pending, current, walletAddress);
       const saved = redemptionExecutionSignature(current.pending);
@@ -80,7 +81,7 @@ export function RedemptionExecutionPanel({ actionId, actionType, administrator, 
   if (view && !view.enabled) return <p className="access-note mt-4">{financialCopy("Исполнение погашений не включено в текущей среде. Расчёт доступен в карточке действия.")}</p>;
   return <section className="workflow-section" aria-label={financialCopy("Выплаты и погашение токенов")}>
     <div className="registry-heading"><div><h3>{actionType === "BOND_REDEMPTION" ? financialCopy("Погашение по сроку") : financialCopy("Частичное досрочное погашение")}</h3>
-      <p>{view ? financialCopy(`Подтверждено ${view.paid} из ${view.payable} · ${formatAmount(view.totalAmountMinor)} · Supply: ${view.currentTokenSupply} токенов`) : financialCopy("Загрузка погашений…")}</p></div>
+      <p>{view ? `${t("master.execution.progress", { paid: view.paid, payable: view.payable })} · ${formatAmount(view.totalAmountMinor)} · Supply: ${view.currentTokenSupply}` : financialCopy("Загрузка погашений…")}</p></div>
       <button className="secondary-button" disabled={busy} onClick={() => void run(load)}>{financialCopy("Обновить")}</button></div>
     <p className="mt-3 text-sm">{financialCopy("Одна транзакция переводит KZT-Test из резерва и сжигает указанное количество bond-токенов. При ошибке выплата и сжигание отменяются вместе.")}</p>
     {view && !canWrite && <div className="access-note mt-3"><p>{administrator ? financialCopy("Погашение подписывает назначенный кошелёк corporate action authority.") : financialCopy("Аудитор просматривает выплаты, погашение и доказательства. Подготовка и подпись недоступны.")}</p><CopyValue label={financialCopy("Подписант погашения")} value={view.requiredSigner} /></div>}

@@ -12,9 +12,12 @@ import { RedemptionExecutionPanel } from "./redemption-execution-panel";
 import { ControlledCapturePanel } from "./controlled-capture-panel";
 import { requireFinalizedResponse, resumedDeploymentSignature } from "./snapshot-workflow";
 import { signAndSubmitPrepared, supportsPreparedTransaction } from "./wallet-transaction";
-import { actionPresentation, statusTone, getActionTypes, getActionStatuses, formatWorkspaceDate } from "./workspace-presentation";
+import { statusTone, getActionTypes, getActionStatuses, formatWorkspaceDate } from "./workspace-presentation";
 import { CopyValue, DetailTabs, RequestNotice } from "./workspace-controls";
 import { formatMinorKzt } from "./entitlement-workflow";
+import { actionMaster, ACTION_MASTER_STEPS, type ActionMasterFacts, type ActionMasterStep } from "./action-master-workflow";
+import { workspaceActionStepFromHash, workspaceSectionHash, workspaceSelectionFromHash } from "./workspace-navigation";
+import { downloadActionEvidence } from "./action-evidence-download";
 type Request = (path: string, init?: RequestInit) => Promise<Record<string, unknown>>;
 const inputClass = "mt-1 w-full rounded-lg border border-[#cbd8d0] bg-white px-3 py-2 text-sm disabled:opacity-60";
 const buttonClass = "rounded-lg border border-[#cbd8d0] px-4 py-2 text-sm font-semibold disabled:opacity-50";
@@ -42,8 +45,12 @@ export function CorporateActionDetail({ action: selected, role, wallet, walletAd
   const [message, setMessage] = useLocalizedTextState("");
   const [error, setError] = useState<string | null>(null); const [tab, setTab] = useState("workflow");
   const [amountMinor, setAmountMinor] = useState<string | null>(null);
+  const [masterFacts, setMasterFacts] = useState<ActionMasterFacts>({});
+  const [chosenStep, setChosenStep] = useState<ActionMasterStep | null>(null);
+  const fundingMounted = useRef(false);
+  if (selected.status === "UNDER_REVIEW" && (selected.instrument.tokenPolicy !== "CONTROLLED_FROZEN_V2" ||
+      selected.blockchainTransactions.some(tx => tx.operationType === "CONTROLLED_CAPTURE_FINISH" && tx.status === "FINALIZED"))) fundingMounted.current = true;
   const inFlight = useRef(false);
-  const progress = useRef<HTMLOListElement>(null);
   async function run(task: () => Promise<void>) {
     if (inFlight.current) return; inFlight.current = true; setBusy(true); setError(null); onBusyChange(true);
     try { await task(); } catch (error) { setError(error instanceof Error ? error.message : t("core.operation.did.not.complete")); }
@@ -93,23 +100,24 @@ export function CorporateActionDetail({ action: selected, role, wallet, walletAd
   }
 
 
-  const context = actionPresentation(selected, canWrite);
-  const activeStep = context.steps.findIndex(step => step.state === "current");
-  const currentStep = activeStep >= 0 ? activeStep : context.steps.reduce((last, step, index) => step.state === "done" ? index : last, 0);
+  const master = actionMaster(selected, masterFacts, locale);
+  const selectedStep = chosenStep ?? master.recommended;
+  const currentStep = ACTION_MASTER_STEPS.indexOf(selectedStep);
+  const currentMasterStep = master.steps[currentStep]!;
+  const nextStep = master.pending ? master.recommended : currentMasterStep.state === "completed" && currentStep < 5 ? master.steps[currentStep + 1]!.target : master.recommended;
+  function openStep(step: ActionMasterStep) {
+    setChosenStep(step); setTab("workflow");
+    window.history.pushState(null, "", workspaceSectionHash("actions", selected.id, step));
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+  }
   useEffect(() => {
-    const strip = progress.current;
-    if (!strip) return;
-    const showCurrent = () => {
-      const target = strip.children[currentStep];
-      if (!target || strip.clientWidth === 0) return;
-      const bounds = target.getBoundingClientRect(); const container = strip.getBoundingClientRect();
-      strip.scrollLeft += bounds.left + bounds.width / 2 - container.left - container.width / 2;
+    const sync = () => {
+      if (workspaceSelectionFromHash(window.location.hash, "actions")?.toLowerCase() !== selected.id.toLowerCase()) return;
+      setChosenStep(workspaceActionStepFromHash(window.location.hash, selected.id));
     };
-    showCurrent();
-    const resize = new ResizeObserver(showCurrent); resize.observe(strip);
-    return () => resize.disconnect();
-  }, [selected.id, currentStep]);
-  const nextStep = plan ? signature ? t("core.check.finalization.using.the.saved.signature") : reviewed ? t("core.sign.the.prepared.plan") : t("core.review.the.prepared.plan") : context.next;
+    sync(); window.addEventListener("hashchange", sync); window.addEventListener("popstate", sync);
+    return () => { window.removeEventListener("hashchange", sync); window.removeEventListener("popstate", sync); };
+  }, [selected.id]);
   return <article id={`action-${selected.id}`} tabIndex={-1} className="action-detail" aria-label={selected.instrument.ticker + t("core.action.details.2")}>
     <div className="object-toolbar"><button type="button" className="secondary-button" disabled={busy} onClick={onBack}>{t("core.back.to.actions")}</button>
       <button type="button" className="secondary-button" disabled={busy} onClick={() => void run(onReload)}>{t("core.refresh.details")}</button></div>
@@ -139,17 +147,32 @@ export function CorporateActionDetail({ action: selected, role, wallet, walletAd
       <dd>{amountMinor !== null ? formatAmount(amountMinor) : ["CALCULATED", "UNDER_REVIEW", "APPROVED"].includes(selected.status) ? t("core.amount.not.loaded.yet") : t("core.after.calculation")}</dd>
       </div>
       </dl>
-    {!qaMode && <ol ref={progress} className="action-progress" aria-label={t("core.action.stages")} tabIndex={0}>{context.steps.map((step, index) => <li key={step.label} data-state={step.state} aria-current={step.state === "current" ? "step" : undefined}>
-      <span className="progress-number">{step.state === "done" ? "✓" : index + 1}</span>
-      <strong>{step.label}</strong>
-      <span>{({done:t("core.done"),current:t("core.current.stage"),blocked:t("core.blocked"),unavailable:t("core.unavailable")})[step.state]}</span>
-      <small>{step.detail}</small>
-      </li>)}</ol>}
-    {qaMode ? <p className="access-note mt-4">{t("core.simulation.steps.are.in.the.qa.panel.above.this.card.shows.test.terms")}</p> : <div className="next-step"><p className="section-kicker">{t("core.next.step")}</p><strong>{nextStep}</strong><p>{context.explanation}</p>
-      {context.pending && <><p className="technical-id">{t("core.attempt.uuid")} {context.pending.id}</p><button type="button" className="secondary-button mt-2" onClick={() => setTab("history")}>{t("core.open.evidence.for.this.attempt")}</button></>}
+    {!qaMode && <nav className="action-master" aria-label={t("master.title")}>
+      <h3>{t("master.title")}</h3><p>{t("master.help")}</p>
+      <ol className="master-steps">{master.steps.map((step, index) => <li key={step.id} data-state={step.state}>
+        <button type="button" disabled={busy} aria-current={selectedStep === step.id ? "step" : undefined} onClick={() => openStep(step.id)}>
+          <span className="progress-number">{step.state === "completed" ? "✓" : index + 1}</span>
+          <strong>{step.label}</strong><span>{t(`master.${step.state}`)}</span>
+        </button>
+      </li>)}</ol>
+      <p className="master-navigation-note">{t("master.navigation.only")}</p>
+    </nav>}
+    {qaMode ? <p className="access-note mt-4">{t("core.simulation.steps.are.in.the.qa.panel.above.this.card.shows.test.terms")}</p> : <div className="next-step" data-master-step={selectedStep}>
+      <p className="section-kicker">{t("master.step", { current: currentStep + 1, total: master.steps.length })} · {t(`master.${currentMasterStep.state}`)}</p>
+      <strong>{currentMasterStep.label}</strong><p>{currentMasterStep.detail}</p>
+      {!administrator && <p>{t("master.read.only")}</p>}
+      <div className="master-actions">
+        {currentStep > 0 && <button type="button" className="secondary-button" disabled={busy} onClick={() => openStep(ACTION_MASTER_STEPS[currentStep - 1]!)}>{t("master.previous")}</button>}
+        <button type="button" className="primary-button" disabled={busy} onClick={() => openStep(nextStep)}>
+          {!master.pending && currentMasterStep.state === "completed" && currentStep < 5 && nextStep === ACTION_MASTER_STEPS[currentStep + 1] ? t("master.continue") : t("master.open.required", { step: master.steps.find(step => step.id === nextStep)!.label })}
+        </button>
+        <button type="button" className="secondary-button" disabled={busy} onClick={() => setTab("history")}>{t("master.open.history")}</button>
+      </div>
+      {master.pending && <><p className="technical-id">{t("core.attempt.uuid")} {master.pending.id}</p>{master.pending.signature && <CopyValue label={t("core.original.transaction.signature")} value={master.pending.signature} />}</>}
     </div>}
     <DetailTabs idPrefix={`action-${selected.id}`} selected={tab} onChange={setTab} tabs={[{id:"workflow",label:t("core.action.workflow")},{id:"terms",label:t("core.terms.and.source")},{id:"history",label:qaMode ? t("core.simulation.history") : t("core.history.and.evidence")}]} />
     <div id={`action-${selected.id}-workflow`} aria-labelledby={`action-${selected.id}-workflow-tab`} hidden={tab !== "workflow"} role="tabpanel" aria-label={t("core.action.workflow")}>
+      <div hidden={!qaMode && selectedStep !== "terms"} data-master-panel="terms">
       {canWrite && !plan && selected.status === "DRAFT" && <button className="primary-button mt-4" disabled={busy} onClick={() => void run(() => prepare("SCHEDULE"))}>{t("core.prepare.scheduling.transaction")}</button>}
       {canWrite && !plan && !selected.snapshot && (selected.status === "DRAFT" || selected.status === "SCHEDULED" && selected.instrument.tokenPolicy !== "CONTROLLED_FROZEN_V2") && <details className="danger-details mt-4"><summary>{t("core.cancel.action")}</summary>
         <label className="text-sm">{t("core.cancellation.reason")}<textarea className={inputClass} maxLength={1000} value={reason} onChange={event => setReason(event.target.value)} /></label>
@@ -160,8 +183,6 @@ export function CorporateActionDetail({ action: selected, role, wallet, walletAd
         <strong>{t("core.this.action.can.no.longer.capture.a.snapshot")}</strong>
         <p className="mt-2">{qaMode ? t("core.the.missed.window.is.simulated.create.a.new.test.action.through.back.to") : t("core.create.a.new.action.with.a.future.record.date.through.back.to.actions")}</p>
       </div>}
-      {canWrite && !plan && selected.status === "SCHEDULED" && <button type="button" className={`mt-4 ${buttonClass}`} disabled={busy}
-        onClick={() => void run(checkWindow)}>{t("core.check.the.holder.capture.window")}</button>}
       {plan && <div className="transaction-review mt-4">
         <strong>{plan.phase === "SCHEDULE" ? t("core.schedule.action") : t("core.cancel.action")}</strong><p className="mt-2 text-sm">{t("core.network")} {plan.cluster}. {plan.phase === "SCHEDULE" ? t("core.action.terms.will.be.registered.on.chain.no.payment.or.token.movement.occurs") : t("core.the.action.will.be.cancelled.on.chain")}</p>
         <p className="mt-2">{selected.instrument.ticker} · {TYPES[selected.type]} · {selected.intent}</p>
@@ -178,28 +199,54 @@ export function CorporateActionDetail({ action: selected, role, wallet, walletAd
         <label className="mt-3 block text-sm">{t("core.transaction.signature")}<input className={inputClass} maxLength={88} value={signature} disabled={busy} onChange={event => setSignature(event.target.value.trim())} /></label>
         <button className={`mt-3 ${buttonClass}`} disabled={busy || !/^[1-9A-HJ-NP-Za-km-z]{64,88}$/.test(signature)} onClick={() => void run(confirm)}>{t("core.verify.the.network.and.database.result")}</button>
       </div>}
+      </div>
+      <div hidden={!qaMode && selectedStep !== "snapshot"} data-master-panel="snapshot">
+      {canWrite && !plan && selected.status === "SCHEDULED" && <button type="button" className={`mt-4 ${buttonClass}`} disabled={busy}
+        onClick={() => void run(checkWindow)}>{t("core.check.the.holder.capture.window")}</button>}
       {!qaMode && selected.instrument.tokenPolicy === "CONTROLLED_FROZEN_V2" && !["DRAFT", "CANCELLED", "REJECTED"].includes(selected.status) && <ControlledCapturePanel
         action={selected} administrator={administrator} wallet={wallet} walletAddress={walletAddress} request={request}
+        onState={capture => setMasterFacts(previous => ({ ...previous, capture }))}
         onBusyChange={value => { setBusy(value); onBusyChange(value); }} onChanged={onReload} />}
-      {canWrite && !plan && selected.status === "SCHEDULED" && selected.instrument.tokenPolicy !== "CONTROLLED_FROZEN_V2" && <SnapshotPanel key={selected.id} selectedActionId={selected.id} wallet={wallet} walletAddress={walletAddress} request={request} onBusyChange={value => { setBusy(value); onBusyChange(value); }}
+      {canWrite && selected.status === "SCHEDULED" && selected.instrument.tokenPolicy !== "CONTROLLED_FROZEN_V2" && <SnapshotPanel key={selected.id} selectedActionId={selected.id} wallet={wallet} walletAddress={walletAddress} request={request} onBusyChange={value => { setBusy(value); onBusyChange(value); }}
         onWindowMissed={async () => { await onReload(); setMessage(t("core.capture.closed.check.the.snapshot.window.or.recover.the.saved.attempt")); }}
         onConfirmed={() => void run(async () => { await onReload(); setMessage(t("core.snapshot.created.finalized.commitment.and.database.match.no.payments.occurred")); })} />}
-      {selected.snapshot?.status === "FINALIZED" && !plan && <details className="term-help workflow-section" open={!couponExecutionStage && !redemptionExecutionStage}><summary>{t("core.entitlements.and.approval")}</summary><EntitlementPanel key={`entitlements-${selected.id}${qaMode ? `-${selected.version}` : ""}`} actionId={selected.id} canWrite={Boolean(canWrite)} administrator={administrator} request={request} onSummary={setAmountMinor}
+      {selected.snapshot?.status === "FINALIZED" && <p className="access-note mt-3">{t("core.capture.finalized.on.chain")}</p>}
+      </div>
+      <div hidden={!qaMode && !["calculation", "readiness", "approval"].includes(selectedStep)} data-master-panel="calculation-readiness-approval">
+      {selected.snapshot?.status === "FINALIZED" && <EntitlementPanel key={`entitlements-${selected.id}${qaMode ? `-${selected.version}` : ""}`} actionId={selected.id} canWrite={Boolean(canWrite)} administrator={administrator} request={request} onSummary={setAmountMinor}
+        displayStage={qaMode ? "all" : selectedStep === "readiness" ? "readiness" : selectedStep === "approval" ? "approval" : "calculation"}
+        onState={entitlements => setMasterFacts(previous => ({ ...previous, entitlements }))}
+        onApprovalState={approval => setMasterFacts(previous => ({ ...previous, approval }))}
         canOnchainWrite={administrator && selected.instrument.corporateActionAuthority === walletAddress}
         corporateActionAuthority={selected.instrument.corporateActionAuthority} wallet={wallet} walletAddress={walletAddress}
-        onBusyChange={value => { setBusy(value); onBusyChange(value); }} onChanged={async () => { await onReload(); }} /></details>}
-      {!qaMode && (selected.type === "COUPON_PAYMENT" || redemption && selected.redemptionExecutionEnabled) && selected.status === "UNDER_REVIEW" && !plan && <details className="term-help workflow-section"><summary>{t("core.budget.and.test.funding")}</summary><CouponFundingPanel
-        key={`funding-${selected.id}`} actionId={selected.id} canWrite={Boolean(canWrite)} wallet={wallet} walletAddress={walletAddress} request={request}
+        onBusyChange={value => { setBusy(value); onBusyChange(value); }} onChanged={async () => { await onReload(); }} />}
+      <div hidden={selectedStep !== "readiness"}>
+      {!qaMode && (selected.type === "COUPON_PAYMENT" || redemption && selected.redemptionExecutionEnabled) && fundingMounted.current && <CouponFundingPanel
+        key={`funding-${selected.id}`} actionId={selected.id} canWrite={Boolean(canWrite && selected.status === "UNDER_REVIEW")} wallet={wallet} walletAddress={walletAddress} request={request}
+        onState={budget => setMasterFacts(previous => ({ ...previous, budget }))}
         redemption={redemption}
-        onBusyChange={value => { setBusy(value); onBusyChange(value); }} onChanged={async () => { await onReload(); }} /></details>}
-
-      {!qaMode && couponExecutionStage && !plan &&
+        onBusyChange={value => { setBusy(value); onBusyChange(value); }} onChanged={async () => { await onReload(); }} />}
+      </div></div>
+      <div hidden={!qaMode && selectedStep !== "execution"} data-master-panel="execution">
+      {!qaMode && couponExecutionStage &&
         <CouponExecutionPanel actionId={selected.id} administrator={administrator} wallet={wallet} walletAddress={walletAddress} request={request}
+          onState={execution => setMasterFacts(previous => ({ ...previous, execution }))}
           onBusyChange={value => { setBusy(value); onBusyChange(value); }} onChanged={onReload} />}
-      {!qaMode && redemptionExecutionStage && !plan &&
+      {!qaMode && redemptionExecutionStage &&
         <RedemptionExecutionPanel actionId={selected.id} actionType={selected.type} administrator={administrator} wallet={wallet} walletAddress={walletAddress} request={request}
+          onState={execution => setMasterFacts(previous => ({ ...previous, execution }))}
           onBusyChange={value => { setBusy(value); onBusyChange(value); }} onChanged={onReload} />}
-
+      {!qaMode && !couponExecutionStage && !redemptionExecutionStage && <p className="access-note mt-4">{t("master.details.unavailable")}</p>}
+      {!qaMode && <div className="workflow-section">
+        <h3>{t("core.history.and.evidence")}</h3><p className="access-note">{t("core.history.and.evidence.are.separate.from.operation.controls")}</p>
+        <div className="master-actions">
+          {(["json", "csv"] as const).map(format => <button type="button" className="secondary-button" disabled={busy} key={format}
+            onClick={() => void run(async () => { const downloaded = await downloadActionEvidence(selected.id, format);
+              setMessage(t("master.export.done", { filename: downloaded.filename, hash: downloaded.sha256 })); })}>{t(format === "json" ? "master.export.json" : "master.export.csv")}</button>)}
+          <button type="button" className="secondary-button" disabled={busy} onClick={() => setTab("history")}>{t("master.open.history")}</button>
+        </div>
+      </div>}
+      </div>
     </div>
     <div id={`action-${selected.id}-terms`} aria-labelledby={`action-${selected.id}-terms-tab`} hidden={tab !== "terms"} role="tabpanel" aria-label={t("core.terms.and.source")}><CopyValue label={t("core.action.uuid")} value={selected.id} />
       {selected.snapshot && <div className="evidence-row">

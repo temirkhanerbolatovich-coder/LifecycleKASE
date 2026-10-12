@@ -167,6 +167,14 @@ enum ExecutionJobStatus {
   FAILED_FINAL
 }
 
+enum ReconciliationJobStatus {
+  PENDING
+  RUNNING
+  RETRY_SCHEDULED
+  COMPLETED
+  BLOCKED
+}
+
 model User {
   id              String            @id @default(uuid()) @db.Uuid
   normalizedEmail String?           @unique @map("normalized_email") @db.VarChar(320)
@@ -553,6 +561,7 @@ model BlockchainTransaction {
   entitlement               Entitlement?                @relation(fields: [entitlementId], references: [id], onDelete: Restrict)
   investor                  Investor?                   @relation(fields: [investorId], references: [id], onDelete: Restrict)
   settlementLegs            SettlementLeg[]
+  reconciliationJob        ReconciliationJob?
 
   @@index([corporateActionId, status])
   @@index([instrumentId, status])
@@ -594,6 +603,28 @@ model ExecutionJob {
   @@unique([corporateActionId, entitlementId, jobType])
   @@index([status, nextAttemptAt])
   @@map("execution_jobs")
+}
+
+model ReconciliationJob {
+  id                       String                  @id @default(uuid()) @db.Uuid
+  blockchainTransactionId  String                  @unique @map("blockchain_transaction_id") @db.Uuid
+  originalSignature        String                  @map("original_signature") @db.VarChar(88)
+  networkGenesisHash       String                  @map("network_genesis_hash") @db.VarChar(44)
+  status                   ReconciliationJobStatus @default(PENDING)
+  attemptCount             Int                     @default(0) @map("attempt_count")
+  nextAttemptAt            DateTime                @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  leaseToken               String?                 @map("lease_token") @db.Uuid
+  leaseExpiresAt           DateTime?               @map("lease_expires_at") @db.Timestamptz(6)
+  runnerId                 String?                 @map("runner_id") @db.VarChar(100)
+  lastErrorCode            String?                 @map("last_error_code") @db.VarChar(100)
+  completedAt              DateTime?               @map("completed_at") @db.Timestamptz(6)
+  createdAt                DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+  blockchainTransaction    BlockchainTransaction   @relation(fields: [blockchainTransactionId], references: [id], onDelete: Restrict)
+
+  @@index([status, nextAttemptAt])
+  @@index([status, leaseExpiresAt])
+  @@map("reconciliation_jobs")
 }
 
 model IdempotencyRecord {

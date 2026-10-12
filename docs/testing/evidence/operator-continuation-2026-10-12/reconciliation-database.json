@@ -1,0 +1,14 @@
+{
+  "scope": "DISPOSABLE_POSTGRESQL_ONLY",
+  "realChainExecution": false,
+  "assertions": [
+    "signed sweeper is idempotent after a submission/queue crash",
+    "two PostgreSQL runners claim one job exactly once",
+    "expired runner is fenced after persisted restart reclaim",
+    "audit failure rolls back projection and job completion together",
+    "atomic completion removes job from claim queue and attributes observation to system",
+    "migration prevents changing queued original signature",
+    "unsigned, unsupported and foreign-genesis operations are excluded",
+    "missing original submission audit blocks worker while preserving unknown signature"
+  ]
+}

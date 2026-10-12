@@ -9,11 +9,12 @@ import { waitForFinalizedCheck } from "./finalized-check";
 import { CopyValue, RequestNotice } from "./workspace-controls";
 import { shortWalletAddress } from "./wallet-account-selection";
 type Request = (path: string, init?: RequestInit) => Promise<Record<string, unknown>>;
-export function CouponExecutionPanel({ actionId, administrator, wallet, walletAddress, request, onBusyChange, onChanged }: {
+export function CouponExecutionPanel({ actionId, administrator, wallet, walletAddress, request, onBusyChange, onChanged, onState }: {
   actionId: string; administrator: boolean; wallet: Wallet | undefined; walletAddress: string; request: Request;
   onBusyChange: (busy: boolean) => void; onChanged: () => Promise<void>;
+  onState?: (view: CouponExecutionView) => void;
 }) {
-  const { locale, displayMessage: financialCopy, formatAmount, formatDate } = useLocale();
+  const { t, locale, displayMessage: financialCopy, formatAmount, formatDate } = useLocale();
   const path = `/api/v1/corporate-actions/${actionId}/coupon/execution`;
   const [view, setView] = useState<CouponExecutionView | null>(null);
   const [plan, setPlan] = useState<CouponExecutionPlan | null>(null); const [signature, setSignature] = useState("");
@@ -27,7 +28,7 @@ export function CouponExecutionPanel({ actionId, administrator, wallet, walletAd
     finally { inFlight.current = false; setBusy(false); onBusyChange(false); }
   }
   async function load() {
-    const current = await request(path) as unknown as CouponExecutionView; setView(current);
+    const current = await request(path) as unknown as CouponExecutionView; setView(current); onState?.(current);
     if (current.pending && current.requiredSigner === walletAddress) {
       const restored = await preparedCouponExecution(current.pending, current, walletAddress);
       const savedSignature = resumedDeploymentSignature(current.pending);
@@ -73,7 +74,7 @@ export function CouponExecutionPanel({ actionId, administrator, wallet, walletAd
   }
   if (view && !view.enabled) return <p className="access-note mt-4">{financialCopy("Исполнение купона недоступно в текущей конфигурации. Начисления и доказательства доступны в карточке.")}</p>;
   return <section className="workflow-section" aria-label={financialCopy("Выплаты купона")}>
-    <div className="registry-heading"><div><h3>{financialCopy("Выплаты купона")}</h3><p>{view ? financialCopy(`Подтверждено ${view.paid} из ${view.payable} · ${formatAmount(view.totalAmountMinor)}`) : financialCopy("Загрузка выплат…")}</p></div>
+    <div className="registry-heading"><div><h3>{financialCopy("Выплаты купона")}</h3><p>{view ? `${t("master.execution.progress", { paid: view.paid, payable: view.payable })} · ${formatAmount(view.totalAmountMinor)}` : financialCopy("Загрузка выплат…")}</p></div>
       <button className="secondary-button" disabled={busy} onClick={() => void run(load)}>{financialCopy("Обновить")}</button></div>
     {view?.pending && !canWrite && <p className="access-note mt-3">{financialCopy("Есть сохранённая попытка. Её проверяет назначенный подписант.")}</p>}
     {view && !canWrite && <div className="access-note mt-3"><p>{administrator ? financialCopy("Выплаты подписывает назначенный кошелёк. Роль администратора не заменяет эти полномочия.") : financialCopy("Аудитор просматривает выплаты. Подготовка и подпись доступны назначенному администратору.")}</p><CopyValue label={financialCopy("Подписант выплат")} value={view.requiredSigner} /></div>}

@@ -13,6 +13,8 @@ import { buildCalculationFinalization, buildCalculationReset, buildEntitlementRe
 // Only the disposable validator wrapper can supply this fixture and temporary signer.
 const fixture = JSON.parse(process.argv[2] ?? "null");
 const controlledWorkflow = process.env.KASE_CONTROLLED_WORKFLOW === "true";
+const reconciliationAcceptance = process.env.KASE_RECONCILIATION_ACCEPTANCE === "true";
+assert.ok(!reconciliationAcceptance || controlledWorkflow, "Worker acceptance requires the controlled disposable workflow");
 const administratorPath = process.argv[3];
 assert.ok(fixture?.kaseDemo && process.send, "Use the isolated KASE demo wrapper");
 assert.match(fixture.rpcUrl, /^http:\/\/127\.0\.0\.1:\d+$/);
@@ -86,7 +88,10 @@ if (controlledWorkflow) {
     "apps/api/src/controlled-capture.ts", "apps/api/src/controlled-snapshot.ts", "apps/api/src/onchain-entitlements.ts",
     "apps/api/src/snapshot-persistence.ts", "apps/api/src/coupon-execution.ts", "apps/api/src/coupon-receipt.ts",
     "apps/api/src/controlled-settlement.ts", "apps/api/src/redemption-receipt.ts", "apps/api/src/action-approval.ts", "apps/api/src/entitlements.ts",
-    "apps/api/src/redemption-execution.ts", "packages/solana-client/dist/controlled-registry.js",
+    "apps/api/src/redemption-execution.ts", "apps/api/src/reconciliation-worker.ts", "apps/api/src/reconciliation-context.ts",
+    "prisma/migrations/20261012110000_reconciliation_jobs/migration.sql", "scripts/run-reconciliation-worker.mjs",
+    "apps/api/src/action-evidence-export.ts", "apps/api/src/operator-overview.ts", "packages/solana-client/dist/controlled-registry.js",
+    "apps/web/.test-dist/action-evidence-download.js", "apps/web/.test-dist/overview-summary.js",
     "apps/web/.test-dist/instrument-deployment-workflow.js", "apps/web/.test-dist/controlled-capture-workflow.js",
     "apps/web/.test-dist/onchain-entitlement-workflow.js", "apps/web/.test-dist/redemption-calculation-workflow.js",
     "apps/web/.test-dist/coupon-execution-workflow.js", "apps/web/.test-dist/redemption-execution-workflow.js"]) {
@@ -135,6 +140,20 @@ try {
     return { ...user, ...key, cookie: result.headers.getSetCookie()[0].split(";")[0] };
   }
   const administrator = await login("ADMINISTRATOR", issuerKey), approver = await login("ADMINISTRATOR"), auditor = await login("AUDITOR");
+  let worker;
+  if (reconciliationAcceptance) {
+    const { reconciliationWorkerOptionsFromEnvironment, runReconciliationTick } = await import("../apps/api/dist/reconciliation-worker.js");
+    const options = reconciliationWorkerOptionsFromEnvironment({ ...process.env, RECONCILIATION_WORKER_ENABLED: "true",
+      RECONCILIATION_DATABASE_URL: databaseUrl.toString(), RECONCILIATION_BASE_BACKOFF_MS: "100", RECONCILIATION_MAX_BACKOFF_MS: "1000" });
+    assert.equal(options.enabled, true);
+    const methods = new Set();
+    const readRpc = { request: (method, params) => {
+      assert.ok(!["sendTransaction", "requestAirdrop", "getLatestBlockhash"].includes(method), "Worker attempted a write or rebuild");
+      methods.add(method); return rpc.request(method, params);
+    } };
+    worker = { options, runReconciliationTick, runnerId: randomUUID(), missingHistoryChecked: false, methods, rpc: readRpc };
+    evidence.reconciliationAcceptance = { scope: "DISPOSABLE_LOCALNET", originalSignatureOnly: true, financialSendsByWorker: 0, confirmations: [], observedRpcMethods: [] };
+  }
   await finalized(await rpc.request("requestAirdrop", [approver.walletAddress, 2_000_000_000]));
   let instrument;
   if (controlledWorkflow) {
@@ -189,6 +208,35 @@ try {
       assert.equal(repeated.status, 409);
     }
     if (afterSubmission) await afterSubmission(plan, signature);
+    const workerPhase = worker && ["PAY", "FINALIZE"].includes(body.phase) &&
+      (path.endsWith("/coupon/execution") || path.endsWith("/redemption-execution"));
+    if (workerPhase) {
+      await finalized(signature);
+      if (!worker.missingHistoryChecked && body.phase === "PAY") {
+        const missingHistory = { request: (method, params) => method === "getTransaction" && params[0] === signature ? Promise.resolve(null) : worker.rpc.request(method, params) };
+        const retry = await worker.runReconciliationTick(database, missingHistory, worker.options, worker.runnerId);
+        assert.equal(retry.status, "RETRY_SCHEDULED");
+        const pending = await database.blockchainTransaction.findUniqueOrThrow({ where: { id: plan.operationId } });
+        assert.equal(pending.signature, signature); assert.equal(pending.status, "UNKNOWN_CONFIRMATION");
+        assert.equal(await database.settlement.count({ where: { entitlement: { blockchainTransactions: { some: { id: plan.operationId } } } } }), 0);
+        await sleep(150); worker.missingHistoryChecked = true;
+        evidence.reconciliationAcceptance.missingHistory = { operationId: plan.operationId, signature, status: retry.status };
+      }
+      const result = await worker.runReconciliationTick(database, worker.rpc, worker.options, worker.runnerId);
+      assert.equal(result.status, "COMPLETED", JSON.stringify(result)); assert.equal(result.operationId, plan.operationId);
+      const operation = await database.blockchainTransaction.findUniqueOrThrow({ where: { id: plan.operationId } });
+      const job = await database.reconciliationJob.findUniqueOrThrow({ where: { blockchainTransactionId: operation.id } });
+      assert.equal(operation.status, "FINALIZED"); assert.equal(operation.signature, signature); assert.equal(job.status, "COMPLETED");
+      const audit = await database.auditLog.findFirstOrThrow({ where: { blockchainTransactionId: operation.id,
+        event: path.endsWith("/coupon/execution") ? body.phase === "PAY" ? "COUPON_PAYMENT_FINALIZED" : "COUPON_ACTION_FINALIZED" :
+          body.phase === "PAY" ? "REDEMPTION_PAYMENT_FINALIZED" : "REDEMPTION_ACTION_FINALIZED" } });
+      assert.equal(audit.actorId, null); assert.equal(audit.actorWallet, null);
+      assert.equal(audit.metadataJson.confirmationSource, "SYSTEM_RECONCILIATION");
+      evidence.reconciliationAcceptance.confirmations.push({ operationId: operation.id, jobId: job.id, phase: body.phase,
+        operationType: operation.operationType, signature, systemAuditVerified: true });
+      evidence.reconciliationAcceptance.observedRpcMethods = [...worker.methods].sort();
+      console.log("PASS worker original-signature chain reconciliation", operation.operationType);
+    }
     const deadline = Date.now() + 90_000;
     let lastConfirmationCode;
     while (true) {
@@ -584,6 +632,21 @@ try {
       const module = await import(type === "COUPON_PAYMENT" ? "../apps/web/.test-dist/coupon-execution-workflow.js" : "../apps/web/.test-dist/redemption-execution-workflow.js");
       await (type === "COUPON_PAYMENT" ? module.finalizedCouponReceipt : module.finalizedRedemptionReceipt)(receipt.payload, await state(executionPath));
     }
+    let evidenceExports;
+    if (reconciliationAcceptance) {
+      const { readActionEvidenceFile } = await import("../apps/web/.test-dist/action-evidence-download.js");
+      const auditorFetch = (path, options) => fetch(host + path, { ...options, headers: { ...options.headers, cookie: auditor.cookie } });
+      const json = await readActionEvidenceFile(actionId, "json", auditorFetch);
+      const csv = await readActionEvidenceFile(actionId, "csv", auditorFetch);
+      assert.equal(json.payloadSha256, csv.payloadSha256);
+      const exported = JSON.parse(json.text).payload;
+      assert.equal(exported.action.id, actionId);
+      assert.equal(exported.receipt.canonicalJson, receipt.payload.canonicalJson);
+      assert.equal(exported.receipt.sha256, receipt.payload.sha256);
+      evidenceExports = { jsonSha256: json.sha256, csvSha256: csv.sha256, payloadSha256: json.payloadSha256,
+        browserIntegrityVerified: true, originalReceiptCanonicalBytesIncluded: true };
+      console.log("PASS authenticated JSON/CSV export with browser file/payload integrity", actionId);
+    }
     const supplyAfter = await mintSupply();
     assert.equal(supplyAfter, type === "COUPON_PAYMENT" ? 35n : exact ? 20n : legacyEarly ? 28n : 0n);
     if (exact) assert.equal(await programAccount(targetAddress), targetData);
@@ -606,7 +669,8 @@ try {
       effectiveBlockTime: captured.blockTime.toISOString(), amountMinor: expectedTotal.toString(),
       supplyBefore: supplyBefore.toString(), supplyAfter: supplyAfter.toString(), fundingSignature: funding.signature,
       approvalSignature: approval.signature, payments, actionReceipt: receipt.payload.onchainPda,
-      receiptHash: receipt.payload.sha256, finalizedSignature: finalization.signature, canonicalJson: receipt.payload.canonicalJson });
+      receiptHash: receipt.payload.sha256, finalizedSignature: finalization.signature, canonicalJson: receipt.payload.canonicalJson,
+      ...(evidenceExports ? { evidenceExports } : {}) });
     console.log("PASS complete KASE action", JSON.stringify({ type, scenario, actionId, amountMinor: expectedTotal.toString(),
       supplyBefore: supplyBefore.toString(), supplyAfter: supplyAfter.toString(), receiptHash: receipt.payload.sha256, signature: finalization.signature }));
   }
@@ -625,6 +689,19 @@ try {
         receiptHash: downloaded.payload.sha256, currentTokenSupply: "0", originalCanonicalBytesMatched: true, browserVerified: true });
     }
     console.log("PASS historical percentage/exact receipt downloads remain unchanged and verified after maturity supply0");
+  }
+  if (reconciliationAcceptance) {
+    const { validatedOverviewSummary } = await import("../apps/web/.test-dist/overview-summary.js");
+    const result = await request("/operator-overview", { cookie: auditor.cookie });
+    assert.equal(result.status, 200, JSON.stringify(result.payload));
+    const summary = validatedOverviewSummary(result.payload);
+    assert.equal(summary.openActions, 0); assert.equal(summary.activeInstruments, 0);
+    assert.equal(summary.unknownOperations, 0); assert.equal(summary.assets.length, 1);
+    assert.equal(summary.assets[0].actionCount, 4); assert.equal(summary.assets[0].calculatedActions, 4);
+    assert.equal(summary.assets[0].payableMinor, "0");
+    assert.equal(summary.assets[0].paidMinor, evidence.actions.reduce((total, action) => total + BigInt(action.amountMinor), 0n).toString());
+    evidence.operatorOverviewAcceptance = summary;
+    console.log("PASS complete PostgreSQL overview agrees with all four finalized financial settlements");
   }
   evidence.completedAt = new Date().toISOString();
   const evidencePath = fileURLToPath(new URL("../generated/" + (controlledWorkflow ? "controlled-workflow-" : "kase-demo-") + randomUUID() + ".json", import.meta.url));

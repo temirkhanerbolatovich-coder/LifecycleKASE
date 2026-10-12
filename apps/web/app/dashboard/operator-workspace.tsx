@@ -14,7 +14,8 @@ import { SnapshotPanel } from "./snapshot-panel";
 import { workspaceTimeZone } from "./workspace-presentation";
 import type { CorporateActionView } from "./action-workflow";
 import { shortWalletAddress } from "./wallet-account-selection";
-import { getWorkspaceSections, workspaceSectionFromHash, workspaceSectionHash, workspaceSelectionFromHash, type WorkspaceSection } from "./workspace-navigation";
+import { getWorkspaceSections, workspaceSectionFromHash, workspaceSectionHash, workspaceSelectionFromHash, workspaceActionStepFromHash, type WorkspaceSection } from "./workspace-navigation";
+import type { ActionMasterStep } from "./action-master-workflow";
 
 type Request = (path: string, init?: RequestInit) => Promise<Record<string, unknown>>;
 type OperatorUser = { id: string; displayName: string; role: string };
@@ -50,6 +51,7 @@ export function OperatorWorkspace({ user, walletAddress, selectedAccountAddress,
   const [activeSection, setActiveSection] = useState<WorkspaceSection>("overview");
   const [visitedSections, setVisitedSections] = useState<Set<WorkspaceSection>>(() => new Set(["overview"]));
   const sectionSelections = useRef<Partial<Record<WorkspaceSection, string>>>({});
+  const actionSteps = useRef<Record<string, ActionMasterStep>>({});
   const menu = useRef<HTMLDetailsElement>(null);
   const main = useRef<HTMLElement>(null);
 
@@ -59,18 +61,26 @@ export function OperatorWorkspace({ user, walletAddress, selectedAccountAddress,
       setActiveSection(section);
       setVisitedSections(previous => new Set(previous).add(section));
     };
-    sync(); window.addEventListener("hashchange", sync);
-    return () => window.removeEventListener("hashchange", sync);
+    sync(); window.addEventListener("hashchange", sync); window.addEventListener("popstate", sync);
+    return () => { window.removeEventListener("hashchange", sync); window.removeEventListener("popstate", sync); };
   }, []);
 
   function navigate(section: WorkspaceSection, selected?: string) {
     const previousSection = workspaceSectionFromHash(window.location.hash);
     const previousSelection = workspaceSelectionFromHash(window.location.hash, previousSection);
-    if (previousSelection) sectionSelections.current[previousSection] = previousSelection;
+    if (previousSelection) {
+      sectionSelections.current[previousSection] = previousSelection;
+      if (previousSection === "actions") {
+        const step = workspaceActionStepFromHash(window.location.hash, previousSelection);
+        if (step) actionSteps.current[previousSelection] = step;
+      }
+    }
     else delete sectionSelections.current[previousSection];
     setActiveSection(section);
     setVisitedSections(previous => new Set(previous).add(section));
-    window.history.replaceState(null, "", workspaceSectionHash(section, selected ?? sectionSelections.current[section]));
+    const selection = selected ?? sectionSelections.current[section];
+    const hash = workspaceSectionHash(section, selection, section === "actions" && selection ? actionSteps.current[selection] : undefined);
+    if (window.location.hash !== hash) window.history.pushState(null, "", hash);
     window.dispatchEvent(new HashChangeEvent("hashchange"));
     if (menu.current) menu.current.open = false;
     window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
