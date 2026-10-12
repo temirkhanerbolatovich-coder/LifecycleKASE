@@ -2,6 +2,8 @@
 
 This follow-up supersedes the unpushed-source and unmerged-master items in the [earlier stop checkpoint](CHECKPOINT_2026-10-12.md). It does not constitute competition submission.
 
+**Application completion, 2026-10-13:** the owner subsequently confirmed both Colosseum and Superteam applications submitted. The [completion record](SUBMITTED_2026-10-13.md) supersedes the pending-upload/submission state below and links the verified [YouTube pitch](https://youtu.be/1aAaaKw2n_Q). Hosting/publication evidence here remains unchanged.
+
 ## GitHub publication
 
 The documentation and Benjamin judge media were pushed as `87ad59e646a84867424cf4b916f3ddbea1fa2ea5`. The owner then explicitly authorized merging [PR #1](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/pull/1) after checks. It merged into `master` as `6b05441a3cc3d99833931df99401133fa967366f`.
@@ -28,10 +30,10 @@ Before updating, the current release was `f51be252295af181ed931f00dba1ee89c35aed
 
 The checked `87ad59e` archive was uploaded with SHA-256 `72f80d320aa0ef7b94efa4354630399bf93b91be04d34f047cb1067ff633a7d8`. Its dependency-image build did not finish; the last observed step was `npm ci`, before environment rewriting, migrations or switching `current`. HTTPS probes and SSH diagnostic execution timed out. This attempt did not establish a completed deployment. Application/dependencies/migrations are unchanged from `f51be25`, apart from README files.
 
-Both complete Benjamin MP4s and their SRT/TXT files were copied to `/opt/lifecyclekase/submission`; all six remote SHA-256 checks matched the local originals. Pitch: **9,636,953 bytes**, SHA-256 `4bf339eca3a79089d5726da9944fc1e2e73518592e858e51d1d0f8bb287e8771`. Demo: **31,204,749 bytes**, SHA-256 `2ad90c3577af82d223038c37e9158428ed960775cad87342c82d92a63b627e48`. External range/access checks passed after recovery; complete external playback was not repeated. YouTube upload belongs to the owner and is still pending.
+Both complete Benjamin MP4s and their SRT/TXT files were copied to `/opt/lifecyclekase/submission`; all six remote SHA-256 checks matched the local originals. Pitch: **9,636,953 bytes**, SHA-256 `4bf339eca3a79089d5726da9944fc1e2e73518592e858e51d1d0f8bb287e8771`. Demo: **31,204,749 bytes**, SHA-256 `2ad90c3577af82d223038c37e9158428ed960775cad87342c82d92a63b627e48`. External range/access checks passed after recovery; complete external playback was not repeated. The owner later supplied the uploaded YouTube pitch and confirmed both final submissions; see the completion record.
 
 The installer now bounds future legacy image builds to 384MiB RAM, no additional swap and half a CPU. Shell syntax, Docker flag support and document links were checked; the bounded copy build passed on the VPS, while full dependency installation was not repeated. The [runbook](../deployment/oracle-duckdns.md) and [ADR-033](../decisions/ADR-033-oracle-submission-hosting.md) explain resource limits and the shared-port constraint when AssetGuard resumes.
 
 ## Remaining work
 
-The website update, direct media copies and retained-project checks are complete. Accepted-host video publication and final main/side-track submission remain open. No owner financial state or flags were changed and no AssetGuard data/volume deletion was issued. Incident root cause, complete external video playback, load/fault acceptance and backup restore remain unverified. Future full image builds should run away from this shared 1GB host.
+The website update, direct media copies and retained-project checks are complete. The YouTube pitch is published and both final submissions are owner-confirmed complete. The separate accepted-host demo URL and organizer receipts are not archived here. No owner financial state or flags were changed and no AssetGuard data/volume deletion was issued. Incident root cause, complete external video playback, load/fault acceptance and backup restore remain unverified. Future full image builds should run away from this shared 1GB host.

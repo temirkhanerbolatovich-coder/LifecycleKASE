@@ -1,5 +1,7 @@
 # English pitch and live interface demo — submission record
 
+**Delivery update, 2026-10-13:** the owner uploaded the [Benjamin pitch to YouTube](https://youtu.be/1aAaaKw2n_Q). The browser showed playback, 1:55 duration and Unlisted visibility; complete signed-out playback was not repeated. Both applications are owner-confirmed submitted. The separate accepted-host demo URL was not supplied in this conversation. See [submission completion](SUBMITTED_2026-10-13.md).
+
 Prepared **2026-10-12**, Asia/Qyzylorda, against [source `f51be25`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/f51be252295af181ed931f00dba1ee89c35aedef). This pin identifies the recorded application; the later submission-package commit adds the videos and documentation. Financial evidence is the separately fingerprinted [completed controlled workflow](../testing/evidence/controlled-workflow-2026-10-12/README.md).
 
 ## Actual portal requirements
@@ -72,7 +74,7 @@ Validation checks helper syntax, original receipt hashes before rendering, capti
 
 ## Selected Benjamin revision
 
-The [original pitch](lifecyclekase-pitch-en.mp4), [original demo](lifecyclekase-demo-en.mp4) and [original validation](video-validation-2026-10-12.json) are retained. The new voice preserves the recorded source, scenario order, captions and evidence claims. The existing Oracle pitch backup still contains Zira until deliberately replaced; it is not the final Benjamin upload.
+The [original pitch](lifecyclekase-pitch-en.mp4), [original demo](lifecyclekase-demo-en.mp4) and [original validation](video-validation-2026-10-12.json) are retained. The new voice preserves the recorded source, scenario order, captions and evidence claims. The original Oracle pitch URL retains Zira; complete Benjamin copies are published under their distinct filenames, as recorded in [publication](PUBLICATION_2026-10-12.md), and the owner uploaded the Benjamin pitch to YouTube.
 
 The revoice used 102 existing free Runway credits for final narration, plus 12 for two comparison samples. No subscription or credit purchase occurred. Generation is not deterministic; preserve the approved outputs and hashes. Private asset URLs and per-clip inputs remain in the ignored `.local-submission-benjamin-20261012/` directory.
 
@@ -92,6 +94,6 @@ These commands do not generate remote speech or spend credits. If ignored interm
 
 Generation and validation are separate from upload. Preserve the original historical [WebM](kase-three-actions.webm) and [captioned copy](kase-three-actions-captioned.webm); Russian UI and older source remain historical media.
 
-Use an accepted host, wait for processing, test both videos while signed out, and enter actual playable links. Recheck English content, current constraints, prior-work disclosure, member eligibility and exact source access. Save actual submission confirmation/project URL and separately verify the KASE side-track application.
+Both applications are owner-confirmed submitted. The pitch link and observed playback are retained above. Archive the separate accepted-host demo URL, final field values and organizer receipts when available; do not repeat submission. Complete signed-out video playback and organizer receipt capture have not been independently recorded here.
 
 Real KYC, custody, fiat settlement, public-network financial acceptance, exchange/CSD integration, native wallet/manual accessibility acceptance and measured demand remain separate milestones. **LifecycleKASE is not affiliated with or approved by KASE.**

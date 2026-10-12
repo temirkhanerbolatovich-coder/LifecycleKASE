@@ -1,5 +1,7 @@
 # Colosseum application snapshot — 2026-10-12
 
+**Later completion, 2026-10-13:** the owner confirmed Colosseum and Superteam applications submitted. The [completion record](SUBMITTED_2026-10-13.md) supersedes the historical **Not submitted** state and older branch/media instructions below. This document preserves the inspected 2026-10-12 preparation fields.
+
 Authenticated portal inspected on 2026-10-12, Asia/Qyzylorda. Existing project: [LifecycleKASE](https://colosseum.com/arena/projects/lifecyclekase); existing founder profile: [Temirkhan Erbolatovich](https://colosseum.com/arena/profiles/temirkhan4). The portal showed project details complete, team **1 of 1 complete**, media **2 fields need attention**, and **Not submitted yet**. Existing registration/profile creation is not final submission.
 
 Deadline shown in the portal: **October 12, 2026, 11:59 PM PDT**, equivalent to **October 13, 2026, 11:59 Asia/Qyzylorda**. [Official rules](https://colosseum.com/legal/Crypto%20World%27s%20Fair%20Hackathon%20Rules.pdf), retrieved 2026-10-12, agree. English materials are required. This record does not independently verify personal eligibility.

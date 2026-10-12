@@ -1,4 +1,6 @@
-# Superteam KASE submission draft
+# Historical Superteam KASE submission draft
+
+**Submitted, 2026-10-13:** the owner confirmed both Superteam and Colosseum applications submitted. See the [completion record](SUBMITTED_2026-10-13.md) and [uploaded YouTube pitch](https://youtu.be/1aAaaKw2n_Q). The draft fields and final-review steps below preserve the 2026-10-12 preparation state, not pending actions. Do not submit again.
 
 Updated **2026-10-12**. This is the separate Superteam side-track form, not the authenticated main-Colosseum application. Official [KASE listing](https://superteam.fun/earn/listing/superteam-kazakhstan-x-kase-side-track-corporate-actions-on-blockchain/).
 
