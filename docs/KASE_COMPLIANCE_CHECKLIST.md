@@ -1,8 +1,12 @@
 # LifecycleKASE — чек-лист соответствия кейсу KASE
 
+Текущая подготовка сдачи — **2026-10-12**: [матрица официального кейса](submission/KASE_REQUIREMENTS_MATRIX.md), [judge guide](submission/JUDGE_README.md), [technical overview](submission/TECHNICAL_OVERVIEW.md) и [финальный чек-лист](submission/SUBMISSION_CHECKLIST_2026-10-12.md) соответствуют source `f51be25`. Controlled v2 API/PostgreSQL/Localnet принял четыре действия: coupon 1 750; partial 20% 7 000 / burn 7; exact 8 8 000 / burn 8; maturity 21 000 / burn 20; supply 35 → 35 → 28 → 20 → 0. [Оригинальные receipts/fingerprints](testing/evidence/controlled-workflow-2026-10-12/README.md) сохраняют точный runtime. Последующий [операторский этап](testing/operator-continuation-2026-10-12.md) имеет 684-test source/23-migration DB checks, но fresh worker chain recovery/financial export downloads ещё открыты.
+
+В authenticated main portal видны существующие project/profile и complete details/team 1/1; final state — **Not submitted**, видео пусты. Actual form: pitch **до 2 минут**, separate live-product demo **до 3 минут**, ссылки YouTube/Loom/Vimeo; не использовать общий FAQ 2–3 минуты вместо этого лимита. Deadline — **13 октября 2026, 11:59 Asia/Qyzylorda**. Регистрация не равна отправке. Нижние разделы — исторические checkpoints, не сегодняшняя готовность.
+
 Пакет подачи — **2026-10-11**: актуальная [матрица требований](submission/KASE_REQUIREMENTS_MATRIX.md), [форма](submission/COLLOSSEUM_SUBMISSION.md) и видео с английскими титрами собраны в [submission](submission/README.md). Владелец подтвердил регистрацию и прохождение этапов, но проект ещё не отправлен в основной Colosseum. Сначала завершить main submission, затем вручную подать side track; точные сроки и поля приведены в форме. Нижние датированные разделы сохраняют историю аудита.
 
-## Актуальное соответствие после реализации погашений — 2026-10-10
+## Историческое соответствие после реализации погашений — 2026-10-10
 
 Все три финансовых сценария исполнены в изолированном Localnet-кандидате. [Подтверждения и воспроизведение](testing/kase-three-actions-2026-10-10.md). Owner ledger/program не обновлялись; KZT-Test и eligibility симулируются, переводы и сжигание выполняются на Solana. Нижняя историческая таблица описывает состояние до реализации погашений.
 

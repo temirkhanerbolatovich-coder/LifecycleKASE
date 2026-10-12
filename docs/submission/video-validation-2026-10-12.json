@@ -1,0 +1,246 @@
+{
+  "schema": "lifecyclekase-submission-video-validation-v1",
+  "checkedAt": "2026-10-12T15:29:28.451Z",
+  "applicationSourceCommit": "f51be252295af181ed931f00dba1ee89c35aedef",
+  "narration": "Installed Windows Microsoft Zira Desktop English synthetic voice",
+  "encoding": "Chrome MediaRecorder H.264 avc1.420028 + AAC mp4a.40.2, fragmented MP4",
+  "limitsSeconds": {
+    "pitch": 120,
+    "demo": 180
+  },
+  "evidenceRuntime": "docs/testing/evidence/controlled-workflow-2026-10-12/runtime.json",
+  "scope": "Actual running /qa interface interactions; all financial effects simulated. Separate saved disposable Localnet results card. No new wallet signing or RPC/database financial acceptance.",
+  "results": [
+    {
+      "id": "pitch",
+      "file": "lifecyclekase-pitch-en.mp4",
+      "bytes": 9456881,
+      "sha256": "891e82cd5fdf037d74ff38660879f998a414ca1eb0cda88caad9e67429bd742f",
+      "videoSeconds": 115.090688,
+      "videoWidth": 1920,
+      "videoHeight": 1080,
+      "audioSeconds": 115.093,
+      "audioChannels": 2,
+      "audioSampleRate": 48000,
+      "audioRms": 0.08771096680103141,
+      "audioPeak": 0.8129485845565796,
+      "audibleFraction": 0.6007469683936758,
+      "sampledPlaybackSeconds": [
+        2,
+        40,
+        74,
+        113.090688
+      ]
+    },
+    {
+      "id": "demo",
+      "file": "lifecyclekase-demo-en.mp4",
+      "bytes": 30894496,
+      "sha256": "f626c8df9ceded5639c17e96d23b2ac4259ca5db3c38bb26a3834c60817dd771",
+      "videoSeconds": 164.903854,
+      "videoWidth": 1920,
+      "videoHeight": 1080,
+      "audioSeconds": 164.90633333333332,
+      "audioChannels": 2,
+      "audioSampleRate": 48000,
+      "audioRms": 0.09212919401937256,
+      "audioPeak": 0.7507349252700806,
+      "audibleFraction": 0.6591944113729208,
+      "sampledPlaybackSeconds": [
+        2,
+        43,
+        67,
+        93,
+        114,
+        133,
+        162.903854
+      ]
+    }
+  ],
+  "capture": {
+    "scope": "RECORDED_RUNNING_QA_APP; PAGE_LOCAL_SIMULATION; NO_WALLET_API_DB_RPC_WRITE",
+    "viewport": {
+      "width": 1440,
+      "height": 850
+    },
+    "durationSeconds": 122.759,
+    "offsetSeconds": 0.854,
+    "operations": [
+      {
+        "seconds": 16.233,
+        "name": "Instruments"
+      },
+      {
+        "seconds": 23.712,
+        "name": "Investors"
+      },
+      {
+        "seconds": 34.465,
+        "name": "Schedule action"
+      },
+      {
+        "seconds": 35.964,
+        "name": "Capture holders"
+      },
+      {
+        "seconds": 37.497,
+        "name": "Calculate entitlements"
+      },
+      {
+        "seconds": 39.004,
+        "name": "Submit for approval"
+      },
+      {
+        "seconds": 40.437,
+        "name": "Fund test budget"
+      },
+      {
+        "seconds": 41.993,
+        "name": "Reserve budget"
+      },
+      {
+        "seconds": 43.039,
+        "name": "Distinct APPROVER, action 1"
+      },
+      {
+        "seconds": 44.873,
+        "name": "Approve calculation"
+      },
+      {
+        "seconds": 47.86,
+        "name": "Pay the next holder"
+      },
+      {
+        "seconds": 49.297,
+        "name": "Pay the next holder"
+      },
+      {
+        "seconds": 50.793,
+        "name": "Pay the next holder"
+      },
+      {
+        "seconds": 52.269,
+        "name": "Finalize action and create receipt"
+      },
+      {
+        "seconds": 57.005,
+        "name": "Schedule action"
+      },
+      {
+        "seconds": 58.898,
+        "name": "Capture holders"
+      },
+      {
+        "seconds": 60.646,
+        "name": "Calculate entitlements"
+      },
+      {
+        "seconds": 62.431,
+        "name": "Submit for approval"
+      },
+      {
+        "seconds": 64.186,
+        "name": "Fund test budget"
+      },
+      {
+        "seconds": 65.993,
+        "name": "Reserve budget"
+      },
+      {
+        "seconds": 67.276,
+        "name": "Distinct APPROVER, action 2"
+      },
+      {
+        "seconds": 69.423,
+        "name": "Approve calculation"
+      },
+      {
+        "seconds": 73.018,
+        "name": "Pay the next holder"
+      },
+      {
+        "seconds": 75.017,
+        "name": "Pay the next holder"
+      },
+      {
+        "seconds": 76.56,
+        "name": "Pay the next holder"
+      },
+      {
+        "seconds": 78.472,
+        "name": "Finalize action and create receipt"
+      },
+      {
+        "seconds": 83.552,
+        "name": "Schedule action"
+      },
+      {
+        "seconds": 84.952,
+        "name": "Capture holders"
+      },
+      {
+        "seconds": 86.504,
+        "name": "Calculate entitlements"
+      },
+      {
+        "seconds": 88.074,
+        "name": "Submit for approval"
+      },
+      {
+        "seconds": 89.516,
+        "name": "Fund test budget"
+      },
+      {
+        "seconds": 91.073,
+        "name": "Reserve budget"
+      },
+      {
+        "seconds": 92.122,
+        "name": "Distinct APPROVER, action 3"
+      },
+      {
+        "seconds": 94.049,
+        "name": "Approve calculation"
+      },
+      {
+        "seconds": 97.128,
+        "name": "Pay the next holder"
+      },
+      {
+        "seconds": 98.618,
+        "name": "Pay the next holder"
+      },
+      {
+        "seconds": 100.162,
+        "name": "Pay the next holder"
+      },
+      {
+        "seconds": 101.663,
+        "name": "Finalize action and create receipt"
+      },
+      {
+        "seconds": 104.677,
+        "name": "Download simulated receipt"
+      },
+      {
+        "seconds": 110.664,
+        "name": "Transactions"
+      },
+      {
+        "seconds": 115.675,
+        "name": "Audit"
+      }
+    ],
+    "browserErrors": []
+  },
+  "checks": {
+    "canonicalReceiptHashes": "Four original controlled receipts verified before rendering",
+    "captionFit": "Every generated caption fits in at most three lines",
+    "helperSyntax": "Node syntax for capture/encode/verify; Python compilation; System.Speech executed",
+    "localAudioVideoDecode": "PASS; complete duration and actual scene seeks; decoded audio waveform measured",
+    "visualPlaybackReview": "Pitch 2/40/74/113s and demo 2/43/67/93/114/133/163s sampled; overlays and simulation labels inspected",
+    "externalUpload": "NOT_PERFORMED_BY_VIDEO_TASK",
+    "acceptedHostPlayback": "PENDING_PARENT_UPLOAD_CHECK",
+    "humanWalletRecording": "NOT_PERFORMED"
+  }
+}

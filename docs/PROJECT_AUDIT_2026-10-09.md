@@ -1,5 +1,7 @@
 # Project audit — 2026-10-09
 
+Historical audit checkpoint: this document preserves its original dates, source and environment observations. Current source/remaining scope is in [implemented versus simulated](IMPLEMENTED_VS_SIMULATED.md); current judge materials and actual submission gates are in the [2026-10-12 checklist](submission/SUBMISSION_CHECKLIST_2026-10-12.md). Later completion does not rewrite this audit's recorded results.
+
 Historical audit and continuation record. Current status, fresh validation and next priorities are in the [2026-10-10 full audit](PROJECT_AUDIT_2026-10-10.md). Earlier counts, pending states and publication results below retain their original dates.
 
 Subsequent feature continuation implements [separate approver and action reserve](features/action-approval-and-reserve.md) in a new isolated Localnet candidate: immutable authority distinct from issuer/CA, full action vault custody, pre-approval refund, RESERVED/APPROVED chain states and finalized atomic application/audit projection. [Acceptance](testing/action-approval-reserve-2026-10-09.md) separates source/fixture/browser/real-chain evidence. The retained owner artifact/manifest and UNKNOWN_CONFIRMATION FINALIZE remain unchanged; owner rollout, coupon payout/receipt and redemptions stay open. Earlier audit checkpoints below retain their historical scope.

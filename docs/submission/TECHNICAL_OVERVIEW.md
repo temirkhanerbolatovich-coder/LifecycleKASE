@@ -1,39 +1,50 @@
 # LifecycleKASE — technical overview
 
-LifecycleKASE services a test tokenized bond after issuance: holders → finalized snapshot → integer entitlements → separate approval and reserve → Solana settlement/redemption → reconciliation and verifiable receipt. This is a prototype; it is not affiliated with or approved by KASE.
+LifecycleKASE services test tokenized bonds after issuance: holders → locked finalized capture → integer entitlements → separate approval/full reserve → Solana payment or redemption → reconciliation → verifiable receipt. It is a prototype and is not affiliated with or approved by KASE.
 
-## Architecture
+Reviewed **2026-10-12**, implementation [source `f51be25`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/f51be252295af181ed931f00dba1ee89c35aedef). Runtime acceptance is fingerprinted separately from later operator additions.
 
-Next.js operator terminal and same-origin API proxy; NestJS wallet-authenticated API; PostgreSQL/Prisma for investors, immutable snapshots, attempts, cash/asset legs and append-only audit; TypeScript domain/client packages; Anchor program on Solana with Token-2022.
+## Components and authority
 
-Operators authenticate by a one-time signed wallet message. Financial instructions require an explicit signature over the exact saved transaction. The API checks message bytes/signer/signature and broadcasts once on Localnet. A separate instrument approver reserves the whole action amount and approves before payment. Auditors can inspect without signing or writing.
+Next.js operator terminal and fixed same-origin API proxy; NestJS wallet-authenticated API; PostgreSQL/Prisma projection for investors, immutable captures/calculations, attempts, legs and append-only audit; shared TypeScript domain/client packages; Anchor program with Token-2022.
 
-## Instrument and holder registry
+Login uses a one-time domain/Origin-bound wallet message. Administrator mutations and issuer/approver authority are checked server-side and on-chain. A financial plan persists exact bytes, signer and expiry; the external wallet signs. Localnet API verifies the saved message/signature, records the original signature before broadcast, and confirms finalized transaction/account proof before serializable projection/audit. Auditor reads cannot sign/write. Full role/issuer tenant isolation is separate.
 
-A fixed 35-bond test mint has zero decimals, revoked mint/freeze authority and an instrument PDA as PermanentDelegate. Initial holders own 10/20/5. One investor may map to multiple verified wallets; holder scanning enumerates all positive Token-2022 accounts and requires complete supply coverage. Eligibility is synthetic demo data, not real KYC.
+## Token policy and record date
 
-## Record date
+A test issuance creates 35 zero-decimal bonds with initial balances 10/20/5 and a synthetic six-decimal KZT-Test settlement asset. The instrument PDA is PermanentDelegate.
 
-The configured record_at opens a bounded capture window. The effective ownership cutoff is the actual finalized snapshot slot/block time. Before-cutoff transfers change captured holdings; later transfers cannot change its immutable rows/hash or entitlements. Planned and effective timestamps appear separately. This prototype does not reconstruct historical balances at an earlier planned date and does not restrict ordinary transfers with a Transfer Hook.
+Legacy mints retain revoked mint/freeze authority and unrestricted token transfers. New controlled instrument v2 uses a default-frozen mint, instrument PDA freeze authority, immutable holder accounts and authorized atomic thaw → transfer → refreeze. Direct transfer/burn/approve bypass is rejected. It cannot retrofit these extensions to a legacy mint.
 
-## Entitlements
+A planned `record_at` opens the capture window. V2 begin-capture locks movement; collection records complete finalized raw token-account bytes, wallets, investor mappings, amounts and supply; canonical snapshot and raw provenance are immutable. The effective cutoff is the actual finalized lock/capture slot/time. Historical balances at an arbitrary earlier date are not reconstructed. Investor grouping/eligibility remains a trusted registry input, not real KYC.
 
-Use integer minor units and shared TypeScript/Rust parity vectors. Coupon = balance × face value × coupon basis points ÷10000 ÷payments per year, rounded down. Partial redemption first floors investor balance ×redemption basis points ÷10000, then multiplies redeemed tokens by price. Maturity pays remaining principal plus the final coupon.
+Redemption reserves only assigned units, leaving free holdings movable under the controlled protocol. General holder/operator dual-signature transfer UI and scalable capture remain open.
 
-For face value 1000, annual coupon 10%, semiannual payment:50 per bond. Demonstration coupon pays 1750 total; partial 20% redeems 7 and pays 7000; maturity redeems 28 and pays 29400 including final coupon.
+## Calculation and settlement
 
-## Settlement and Solana records
+Financial arithmetic uses checked integer minor units with TypeScript/Rust parity. Coupon uses face value × annual basis points ÷ payments per year, floored per investor; theoretical total/residual and unimplemented withholding are disclosed. Percentage partial floors each investor's assigned units. Exact-target v2 distributes a fixed integer total by largest remainder with a stable snapshot-owner-address tie. Maturity combines remaining principal and final coupon; period-specific separate coupon uniqueness is unfinished.
 
-Authority-registered snapshot and entitlements are finalized before approval. The action-specific PDA vault holds the full KZT-Test reserve. Coupon transfers create immutable per-entitlement receipts. Redemption additionally registers immutable source accounts/wallets/balances and a supply progress PDA; payment and PermanentDelegate burns occur atomically. Wrong/insufficient sources and stale supply roll back the entire transaction.
+Action calculation/inputs are immutable for execution. Separate approval requires a fully funded action-specific PDA vault. Coupon transfers the exact entitlement and creates replay-protected receipt state. Redemption atomically transfers KZT-Test and burns assigned bonds from committed sources, with supply progression and on-chain receipt. Failed burn rolls back payment. Confirmation checks exact finalized wire, token/cash history, receipt identity and supply before projecting both legs as matched. Zero final supply retires the instrument.
 
-Finalized signature, exact wire, receipt, cash/token history and supply deltas precede a serializable database projection. Both cash and asset legs share the same redemption signature. Failed audit projection can recover by checking the same signature; signed pending attempts are never automatically replaced or rebroadcast.
+Canonical versioned JSON contains capture/input/approval/entitlement/signature/burn/reconciliation evidence. Exact UTF-8 SHA-256 is committed in an ActionReceipt PDA. Canonical hashes prove byte integrity; a snapshot hash alone is not settlement proof.
 
-A canonical versioned JSON ActionReceipt contains inputs, planned/effective cutoff, approval, entitlements, signatures, source/burn proof and reconciliation. Its exact UTF-8 SHA-256 is committed to an ActionReceipt PDA. Checking snapshot commitment alone is not evidence of settlement.
+## Accepted demonstration and newer source
 
-## Implemented versus simulated
+The [controlled HTTP/PostgreSQL/Localnet runtime](../testing/controlled-workflow-integration-2026-10-12.md) completed at **2026-10-12 14:19:06 Asia/Qyzylorda** with all 22 migrations:
 
-Implemented candidate: issuance, verified-wallet registry, snapshot, three calculations, separate approval/custody, coupon execution, atomic partial/maturity payment+burn, reconciliation, canonical receipts and operator views. KZT-Test funding, investor eligibility and accelerated test maturity are simulated domain inputs; Solana instructions themselves execute on a real isolated local validator.
+| Scenario | KZT-Test | Burn | Supply |
+| --- | ---: | ---: | --- |
+| Coupon | 1,750 | 0 | 35 → 35 |
+| 20% partial | 7,000 | 7 | 35 → 28 |
+| Exact partial 8, allocation 2/5/1 | 8,000 | 8 | 28 → 20 |
+| Maturity: 20,000 principal + 1,000 final coupon | 21,000 | 20 | 20 → 0 |
 
-Current validation/evidence and environment limits: [three-action acceptance](../testing/kase-three-actions-2026-10-10.md), [captioned Auditor demo](kase-three-actions-captioned.webm), [original recording](kase-three-actions.webm) and [saved signatures/canonical receipts](../testing/evidence/kase-three-actions-2026-10-10.json). Run `npm run demo:verify` with Docker and the documented non-root WSL toolchain; it creates and removes only its disposable ledger/database. This is reproducible Localnet evidence, not a public Explorer deployment or installation on the retained owner program.
+All four original receipts/signatures/raw captures and fingerprints are in the [evidence package](../testing/evidence/controlled-workflow-2026-10-12/README.md). Original-signature recovery after burn/source closure and historical receipt verification at later supply zero passed. The disposable ledger is removed; signatures are not public Explorer transactions. Reproduce with `npm run test:controlled:workflow`; verify saved consistency with `npm run controlled:evidence:verify -- docs/testing/evidence/controlled-workflow-2026-10-12/runtime.json`.
 
-The owner confirmed main Colosseum registration on 2026-10-10 and on 2026-10-11 clarified that registration/stages are complete but project submission has not yet occurred. These are user-provided confirmations, not independent organizer-site checks. The source/video/overview package is assembled; main and side-track submissions remain. Public-network rollout, owner wallet acceptance, production operations, legal ownership, real fiat/KYC and KASE/CSD integrations are separate.
+Later source adds a six-step action master, consistent JSON/CSV stored evidence export with browser hashes, complete database overview and a default-off original-signature observation worker. [Operator acceptance](../testing/operator-continuation-2026-10-12.md) records 684 tests, build/proxy, 23-migration PostgreSQL leases/rollback and 10,000-record synthetic queries. Worker fresh chain recovery and authenticated export download against fresh settlement were not rerun. Export reports `liveRpcRevalidated=false`; the worker cannot sign/broadcast.
+
+## Boundaries
+
+KZT-Test, eligibility, disposable test signers and accelerated maturity are synthetic. Public QA is a page-local simulation. Current [Oracle/DuckDNS QA](https://lifecyclekase.assetguard-temirkhan.duckdns.org/qa) returned 200 with hydrated English UI on 2026-10-12; source f51be25, isolated database 23 migrations, API ready 200 and protected denials 401/no-store. Financial flags remain off; Docker/systemd serves the website independently of chat. [Hosting observations](../deployment/oracle-duckdns.md) establish interface availability/access boundaries, not hosted financial execution or guaranteed uptime. Default-off capabilities require reviewed Localnet configuration.
+
+Real money/KYC/custody/KASE/CSD, public-network financial acceptance, retained-owner rollout of the newer candidate, multi-instrument settlement-mint reuse, period-bound coupons, full roles/issuer isolation, scalable capture and full manual accessibility/usability remain open. Current source status and application gates are in [implemented versus simulated](../IMPLEMENTED_VS_SIMULATED.md) and the [submission checklist](SUBMISSION_CHECKLIST_2026-10-12.md).

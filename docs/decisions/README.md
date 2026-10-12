@@ -32,3 +32,4 @@
 - [ADR-030: Controlled registry and assigned-unit reservations](ADR-030-controlled-registry-and-unit-reservations.md)
 - [ADR-031: Versioned controlled issuance and capture workflow](ADR-031-controlled-workflow-integration.md)
 - [ADR-032: Durable reconciliation of submitted transactions](ADR-032-durable-submitted-transaction-reconciliation.md)
+- [ADR-033: Isolated Oracle VPS hosting for the submission demo](ADR-033-oracle-submission-hosting.md)

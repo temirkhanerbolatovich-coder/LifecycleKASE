@@ -1,5 +1,7 @@
 # Domain package
 
+Current source/checkpoint — **2026-10-12**: [implemented versus simulated](../../docs/IMPLEMENTED_VS_SIMULATED.md), [controlled financial acceptance](../../docs/testing/controlled-workflow-integration-2026-10-12.md) and [subsequent operator/export/overview/worker acceptance](../../docs/testing/operator-continuation-2026-10-12.md) define the current scope. Source has 23 migrations; recorded financial runtime used 22. New worker fresh-chain recovery and financial export download remain open; hosted/owner/public-network acceptance is separate. Earlier dated workflow observations below retain their original scope.
+
 `@lifecycle-kase/domain` contains deterministic business rules shared by the API, web application, test fixtures, and the future generated Solana client.
 
 It currently provides:

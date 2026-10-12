@@ -1,12 +1,14 @@
 # Testing strategy and acceptance levels
 
-Current profile/detail/search continuation — **2026-10-11**: [profile acceptance](registry-profiles-2026-10-11.md) records its own checks and publication boundary. Registry tests cover profile field/reason/version validation, no-op/stale/concurrent rejection, capture locks, atomic audit rollback/privacy, preserved historical obligations, server search and wallet pagination beyond the 20-row preview. Existing migration 20 applies; these application changes add no chain instruction.
+Current checkpoint — **2026-10-12**: [operator continuation](operator-continuation-2026-10-12.md) records 684 Node tests, types, Prisma, production build/proxy and disposable worker/overview PostgreSQL acceptance with all 23 migrations. The earlier [controlled four-action runtime](controlled-workflow-integration-2026-10-12.md) has its own source/binary fingerprints, 640-test checkpoint and 22 migrations. Fresh new-worker chain recovery and authenticated export download against fresh settlement remain open. The older paragraphs below are dated history.
+
+Earlier profile/detail/search continuation — **2026-10-11**: [profile acceptance](registry-profiles-2026-10-11.md) records its own checks and publication boundary. Registry tests cover profile field/reason/version validation, no-op/stale/concurrent rejection, capture locks, atomic audit rollback/privacy, preserved historical obligations, server search and wallet pagination beyond the 20-row preview. Existing migration 20 applies; these application changes add no chain instruction.
 
 Earlier governed registry checkpoint — **2026-10-11**: 378 Node tests (155 API / 95 web / 27 domain / 54 Solana client / 47 repository) passed, together with clean production/proxy build and isolated HTTP/PostgreSQL acceptance on all 20 migrations. See [governed registry acceptance](registry-governance-2026-10-11.md). Rust/SBF and real-chain tests were not rerun locally for that registry-only phase; their dated evidence remains in [submission readiness](submission-readiness-2026-10-11.md).
 
 Earlier redemption continuation — **2026-10-10**: 320 Node tests (126 API / 66 web / 27 domain / 54 client / 47 root) passed. Both Rust profiles passed the same 18 host tests with Rustfmt/Clippy; the 663968-byte SBF candidate built. Real-chain/runtime evidence and reproduction are in [three-action acceptance](kase-three-actions-2026-10-10.md). Earlier SQL, build, audit and publication checkpoints remain in the [dated audit](../PROJECT_AUDIT_2026-10-10.md).
 
-Reviewed: 2026-10-10. Commands below define repeatable checks; dated results belong in acceptance records and the [current audit](../PROJECT_AUDIT_2026-10-10.md). A test pass proves only the exercised behavior and environment.
+Reviewed: 2026-10-12. Commands below define repeatable checks; results belong in their dated acceptance records and the [current submission checklist](../submission/SUBMISSION_CHECKLIST_2026-10-12.md). A test pass proves only the exercised behavior and environment.
 
 ## Validation layers
 
@@ -27,6 +29,11 @@ Reviewed: 2026-10-10. Commands below define repeatable checks; dated results bel
 | Coupon execution and receipts | Set `APPROVAL_HTTP_ACCEPTANCE_ONLY=true`, `COUPON_ACCEPTANCE=true`, then run the disposable validator harness with the reviewed coupon artifact as shown in [acceptance](coupon-execution-2026-10-10.md) | Real 500/1000/250 transfers, exact browser/API instructions, immutable receipts, two-leg reconciliation, canonical JSON/hash/PDA, roles/Origin, same-signature recovery and atomic audit rollback; never imports the owner `.env` |
 | Rust host logic | Pinned Rustfmt, both profile tests and both Clippy profiles below | Program compilation/logic/identity and linting; does not execute SBF in a validator |
 | Solana runtime | Isolated build and `npm run test:solana:integration` | Actual instructions/accounts/Token-2022 behavior in a disposable validator |
+| Controlled protocol | `npm run test:controlled:integration` | New default-frozen mint, authorized transfers, direct bypass rejection, capture and assigned-unit reservations on a disposable validator |
+| Controlled application | `npm run test:controlled:workflow` | Real authenticated issuance/capture/approval/reserve/payment/burn and four canonical receipts; exact captured fixture and fingerprints |
+| Saved financial evidence | `npm run controlled:evidence:verify -- <runtime.json>` | Offline original hashes, raw captures, allocation and financial/supply consistency; no live RPC/database/provenance authentication |
+| Observation worker DB | `npm run test:reconciliation:database` | Disposable migrated database, original-signature job identity, leases/fencing, restart and audit rollback; synthetic RPC, no fresh chain worker acceptance |
+| Complete overview DB | `npm run test:overview:database` | 10,000 synthetic actions/investors, complete counts/search/cursor pages, unknown amounts and one-run local timing |
 | Owner acceptance | Reviewed Phantom flow plus finalized RPC/account/database/audit read-back | Only the specific retained-ledger operation actually signed and reconciled |
 
 ## Standard repository check

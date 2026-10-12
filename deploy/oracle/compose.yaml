@@ -1,0 +1,80 @@
+name: lifecyclekase
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    mem_limit: 128m
+    environment:
+      POSTGRES_DB: lifecyclekase_submission
+      POSTGRES_USER: lifecyclekase_submission
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Set the new isolated database password}
+    command: ["postgres", "-c", "shared_buffers=24MB", "-c", "max_connections=20", "-c", "work_mem=2MB"]
+    ports: ["127.0.0.1:65432:5432"]
+    volumes: ["lifecyclekase_postgres:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lifecyclekase_submission -d lifecyclekase_submission"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: &logs
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+
+  migrate:
+    image: lifecyclekase-runtime:${RELEASE_SHA:?Set the checked source SHA}
+    network_mode: host
+    env_file: ["runtime.env"]
+    command: ["node", "scripts/run-prisma.mjs", "migrate-deploy"]
+    mem_limit: 192m
+    profiles: ["maintenance"]
+    logging: *logs
+
+  api:
+    image: lifecyclekase-runtime:${RELEASE_SHA:?Set the checked source SHA}
+    network_mode: host
+    env_file: ["runtime.env"]
+    command: ["node", "--max-old-space-size=128", "apps/api/dist/main.js"]
+    restart: unless-stopped
+    mem_limit: 192m
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/v1/health/ready',{signal:AbortSignal.timeout(2000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *logs
+
+  web:
+    image: lifecyclekase-runtime:${RELEASE_SHA:?Set the checked source SHA}
+    network_mode: host
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      API_SERVER_URL: http://127.0.0.1:4000
+    command: ["node", "--max-old-space-size=160", "node_modules/next/dist/bin/next", "start", "apps/web", "--hostname", "127.0.0.1", "--port", "3000"]
+    restart: unless-stopped
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/live',{signal:AbortSignal.timeout(2000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *logs
+
+  caddy:
+    image: caddy:2-alpine
+    network_mode: host
+    environment:
+      PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME:?Set the approved public hostname}
+    restart: unless-stopped
+    mem_limit: 64m
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - /opt/lifecyclekase/submission:/srv/submission:ro
+      - lifecyclekase_caddy_data:/data
+      - lifecyclekase_caddy_config:/config
+    logging: *logs
+
+volumes:
+  lifecyclekase_postgres:
+  lifecyclekase_caddy_data:
+  lifecyclekase_caddy_config:

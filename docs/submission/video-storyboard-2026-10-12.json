@@ -1,0 +1,232 @@
+{
+  "schema": "lifecyclekase-submission-video-v1",
+  "date": "2026-10-12",
+  "sourceCommit": "f51be252295af181ed931f00dba1ee89c35aedef",
+  "runtime": "docs/testing/evidence/controlled-workflow-2026-10-12/runtime.json",
+  "narration": "Microsoft Zira Desktop, installed Windows English synthetic voice",
+  "videos": [
+    {
+      "id": "pitch",
+      "title": "LifecycleKASE — Judge pitch",
+      "minimumSeconds": 115,
+      "maximumSeconds": 119,
+      "scenes": [
+        {
+          "title": "A bond's lifecycle continues after issuance",
+          "eyebrow": "CORPORATE ACTIONS ON SOLANA",
+          "kind": "title",
+          "display": [
+            "LifecycleKASE",
+            "From holder records to a verifiable action result"
+          ],
+          "sentences": [
+            "Tokenizing a bond is only the beginning.",
+            "Lifecycle KASE brings holder capture, calculation, approval, payment, and proof into one operator terminal."
+          ]
+        },
+        {
+          "title": "Start with the corporate-action operator",
+          "eyebrow": "PRODUCT HYPOTHESIS",
+          "kind": "ui",
+          "image": "docs/testing/evidence/action-master-2026-10-12/master-desktop-en.png",
+          "crop": [
+            224,
+            130,
+            1440,
+            820
+          ],
+          "sentences": [
+            "Our first user hypothesis is the corporate action operator.",
+            "We support coupon payments, partial redemption, and maturity.",
+            "The interface fixture is synthetic; financial evidence is disposable Localnet."
+          ]
+        },
+        {
+          "title": "A controlled path from terms to proof",
+          "eyebrow": "IMPLEMENTED PROTOTYPE",
+          "kind": "workflow",
+          "display": [
+            "Prepare terms",
+            "Capture holders",
+            "Calculate rights",
+            "Reserve funding",
+            "Separate approval",
+            "Execute and reconcile"
+          ],
+          "sentences": [
+            "A wallet authenticated API, PostgreSQL, and Solana support the terminal.",
+            "Finalized capture fixes entitlements; full reserve and separate approval precede execution.",
+            "Each redemption payment and burn share one transaction."
+          ]
+        },
+        {
+          "title": "Four completed actions. Final supply: zero.",
+          "eyebrow": "DISPOSABLE LOCALNET · 12 OCTOBER 2026",
+          "kind": "results",
+          "sentences": [
+            "Our completed test pays seventeen hundred fifty K Z T test in coupon, seven thousand for percentage redemption, and eight thousand for exact redemption.",
+            "Maturity pays twenty one thousand and burns the remaining twenty bonds.",
+            "Final supply is zero."
+          ]
+        },
+        {
+          "title": "Make the exact result checkable",
+          "eyebrow": "TECHNICAL EVIDENCE",
+          "kind": "proof",
+          "display": [
+            "Finalized signatures",
+            "Reconciled cash and token effects",
+            "Canonical JSON → SHA-256 → Solana receipt account"
+          ],
+          "sentences": [
+            "Canonical receipt hashes are committed on chain.",
+            "Cash and token effects are reconciled; an unknown confirmation preserves the original signature.",
+            "Evidence is reproducible from the repository."
+          ]
+        },
+        {
+          "title": "Built by Temirkhan Erbolatovich",
+          "eyebrow": "FOUNDER BACKGROUND · SELF-REPORTED",
+          "kind": "founder",
+          "display": [
+            "Full-stack developer",
+            "Two years of project-based freelance experience",
+            "C# developer at NIS · KazDream Holding internship"
+          ],
+          "sentences": [
+            "Founder Temirkhan Erbolatovich has two years of full stack freelance experience, C sharp development experience at NIS, and a KazDream Holding internship."
+          ]
+        },
+        {
+          "title": "Test the operator problem before expanding",
+          "eyebrow": "NEXT PRODUCT MILESTONE",
+          "kind": "pilot",
+          "display": [
+            "Observe 3–5 relevant operators",
+            "Measure completion, errors and reconciliation time",
+            "Pilot pricing is a hypothesis; adoption is not established"
+          ],
+          "sentences": [
+            "Adoption and willingness to pay are not established.",
+            "Next, we will test completion, errors, and reconciliation time with operators.",
+            "Pilot pricing is a hypothesis."
+          ]
+        },
+        {
+          "title": "From a verified prototype to a bounded pilot",
+          "eyebrow": "OPERATOR FEEDBACK AND PILOT PARTNERS",
+          "kind": "closing",
+          "display": [
+            "Try /qa on the submitted demo URL",
+            "github.com/temirkhanerbolatovich-coder/LifecycleKASE",
+            "Prototype · KZT-Test · simulated eligibility · synthetic narration"
+          ],
+          "sentences": [
+            "We seek operator feedback and pilot partners.",
+            "Public network acceptance, real K Y C, fiat settlement, and exchange integration remain future work.",
+            "Lifecycle KASE is not affiliated with or approved by KASE."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "demo",
+      "title": "LifecycleKASE — English demo walkthrough",
+      "minimumSeconds": 0,
+      "maximumSeconds": 179,
+      "scenes": [
+        {
+          "title": "Explore the live operator interface",
+          "eyebrow": "LIVE APPLICATION · QA SIMULATION",
+          "kind": "footage",
+          "sentences": [
+            "This is Lifecycle KASE, a corporate action terminal for tokenized bonds.",
+            "We are using the running application in English, through walletless QA.",
+            "These interactions simulate all payments, approvals, and burns inside this page."
+          ]
+        },
+        {
+          "title": "Inspect the instrument and investor registries",
+          "eyebrow": "LIVE APPLICATION · QA SIMULATION",
+          "kind": "footage",
+          "sentences": [
+            "The instrument registry exposes terms, circulating supply, and lifecycle status.",
+            "Investor records connect identity, eligibility, and wallets.",
+            "We will demonstrate coupon, partial early redemption, and redemption at maturity on synthetic test records."
+          ]
+        },
+        {
+          "title": "Coupon: capture, calculate, approve and pay",
+          "eyebrow": "LIVE APPLICATION · QA SIMULATION",
+          "kind": "footage",
+          "sentences": [
+            "We schedule the coupon, capture holders, and calculate rights.",
+            "The QA positions are ten, twenty, and five bonds; entitlements total seventeen hundred fifty K Z T test.",
+            "The issuer funds and reserves the full budget.",
+            "A distinct approver reviews the calculation, then the issuer pays each holder and finalizes the simulated receipt."
+          ]
+        },
+        {
+          "title": "Partial early redemption: payment and burn",
+          "eyebrow": "LIVE APPLICATION · QA SIMULATION",
+          "kind": "footage",
+          "sentences": [
+            "Next, we open twenty percent partial redemption.",
+            "Capture and calculation produce seven bonds to redeem, with seven thousand K Z T test in payment.",
+            "Again, full reserve and separate approval precede execution.",
+            "After the three simulated payments and burns, supply changes from thirty five to twenty eight.",
+            "In the Solana protocol, each holder payment and burn share one atomic transaction."
+          ]
+        },
+        {
+          "title": "Maturity: retire the remaining supply",
+          "eyebrow": "LIVE APPLICATION · QA SIMULATION",
+          "kind": "footage",
+          "sentences": [
+            "Maturity captures the remaining twenty eight bonds in this QA sequence.",
+            "Principal plus the final coupon totals twenty nine thousand four hundred K Z T test.",
+            "We reserve funds, switch approver, execute the simulated payments, and finalize.",
+            "All remaining bonds are burned, final supply is zero, and the instrument becomes redeemed."
+          ]
+        },
+        {
+          "title": "Inspect the receipts and read-only audit history",
+          "eyebrow": "LIVE APPLICATION · QA SIMULATION",
+          "kind": "footage",
+          "sentences": [
+            "We download the simulated result and inspect transaction and audit history as an auditor.",
+            "QA receipts do not establish blockchain execution.",
+            "The production recovery path preserves an unknown operation and its original signature for verification, instead of sending a replacement payment."
+          ]
+        },
+        {
+          "title": "Separate proof: four completed Localnet actions",
+          "eyebrow": "SAVED DISPOSABLE LOCALNET · 12 OCTOBER",
+          "kind": "results",
+          "sentences": [
+            "Separate October twelfth disposable Localnet acceptance completed these four actions.",
+            "It includes an additional exact eight unit redemption between percentage redemption and maturity.",
+            "That is why its maturity pays twenty one thousand and burns twenty, rather than the QA sequence of twenty eight.",
+            "Canonical receipts reconcile finalized cash and token effects."
+          ]
+        },
+        {
+          "title": "Review and reproduce the prototype",
+          "eyebrow": "TEST ASSETS · CLEAR BOUNDARIES",
+          "kind": "closing",
+          "sentences": [
+            "K Z T test and investor eligibility are simulated.",
+            "The repository contains original receipts and reproduction instructions.",
+            "Real K Y C, fiat settlement, public network acceptance, and exchange integration remain future work.",
+            "Lifecycle KASE is not affiliated with or approved by KASE."
+          ],
+          "display": [
+            "Walletless /qa: page-local simulation",
+            "Repository: original receipts + reproduction instructions",
+            "Disposable ledger stopped after acceptance · synthetic narration"
+          ]
+        }
+      ]
+    }
+  ]
+}

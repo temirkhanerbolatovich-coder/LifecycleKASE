@@ -1,46 +1,55 @@
 # Superteam KASE submission draft
 
-Prepared: **2026-10-11**. Official form source: [Superteam Kazakhstan × KASE — Corporate Actions on Blockchain](https://superteam.fun/earn/listing/superteam-kazakhstan-x-kase-side-track-corporate-actions-on-blockchain/).
+Updated **2026-10-12**. This is the separate Superteam side-track form, not the authenticated main-Colosseum application. Official [KASE listing](https://superteam.fun/earn/listing/superteam-kazakhstan-x-kase-side-track-corporate-actions-on-blockchain/).
 
-Deadline: `2026-10-13T06:59:00.000Z` — **2026-10-13 11:59 Asia/Qyzylorda (UTC+5)**. At preparation time the listing was open and displayed seven submissions. The form is marked `HUMAN_ONLY`; an owner must log in, review these values and submit them. No submission was made while preparing this document.
+Deadline in the inspected listing: `2026-10-13T06:59:00Z` — **2026-10-13 11:59 Asia/Qyzylorda (UTC+5)**. The stored access marker is `HUMAN_ONLY`: the owner must review and make the final side-track submit. Preparation does not submit the project.
 
 ## Official form fields
 
 | # | Official field | Required | Prepared value |
 | ---: | --- | :---: | --- |
 | 1 | Project Name | Yes | `LifecycleKASE` |
-| 2 | Project Description | Yes | Use the text below. |
-| 3 | Project Github Link | Yes | `https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/8ea7a42cc13b27c40fc4b3d2c4562a249a4fc02f` — current published source; all three [CI jobs](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/actions/runs/38149599630) passed. |
-| 4 | Project Website | No | `https://lifecyclekase-web.onrender.com/qa` — disclosed walletless UX simulation. The protected `/dashboard` requires a registered wallet. Both Render services are Live on the current source, with migration 20 applied; the [deployment record](../deployment/render-staging.md) holds revision and public-check evidence. Financial proof remains the isolated Localnet recording and receipts. |
-| 5 | Project X Link | No | Leave blank unless the owner supplies the project's official X post/profile. |
-| 6 | Link to your pitch deck or Loom/video presentation | Yes | `https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/blob/8c0f4f1d250c2e1acfb73c60f7e1143fba71e9b1/docs/submission/kase-three-actions-captioned.webm` |
-| 7 | Did you submit this project to official Crypto World's Fair Hackathon on Colosseum? Yes/No | Yes | `No` — owner confirmed on 2026-10-11 that registration/stages are complete but project submission has not occurred. Change to `Yes` only after actual Colosseum submission. |
-| 8 | Link to Colosseum project | No | **OWNER INPUT REQUIRED if available; otherwise leave blank.** |
-| 9 | Link to project's Colosseum profile | No | **OWNER INPUT REQUIRED if available; otherwise leave blank.** |
+| 2 | Project Description | Yes | Text below |
+| 3 | Project Github Link | Yes | `https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/f51be252295af181ed931f00dba1ee89c35aedef` — implementation snapshot. Replace with the final exact published package commit after documentation/media publication |
+| 4 | Project Website | No | `https://lifecyclekase.assetguard-temirkhan.duckdns.org/qa` — verified public English-capable walletless simulation on Oracle/DuckDNS; see [hosting](../deployment/oracle-duckdns.md) |
+| 5 | Project X Link | No | Leave blank unless the owner supplies an official public project post/profile |
+| 6 | Link to your pitch deck or Loom/video presentation | Yes | [Local English pitch](lifecyclekase-pitch-en.mp4), 115.091s, is ready. Accepted-host upload is not complete: enter its actual YouTube/Loom/Vimeo URL after upload/playback verification. See [video record](ENGLISH_DEMO_AND_PITCH_PLAN.md) |
+| 7 | Did you submit this project to official Crypto World's Fair Hackathon on Colosseum? Yes/No | Yes | `No` until actual main-project submission is confirmed; owner previously confirmed registration/stages only |
+| 8 | Link to Colosseum project | No | `https://colosseum.com/arena/projects/lifecyclekase` — existing project observed in authenticated account; final submission/access status must be checked |
+| 9 | Link to project's Colosseum profile | No | `https://colosseum.com/arena/profiles/temirkhan4` — existing founder profile observed in authenticated account; verify reviewer access |
 
-Do not paste `OWNER INPUT REQUIRED` into the live form. Recheck field 7 immediately before submission and add fields 8–9 only when the public URLs are known.
+Do not paste instruction text into the live form. Recheck field 7 and the final source/website/video URLs immediately before submitting.
 
 ## Project Description
 
 ```text
-LifecycleKASE is an operator terminal and Solana program that services tokenized bonds after issuance. It captures a finalized holder snapshot, calculates integer entitlements, requires separate approval and a fully funded action vault, then executes coupon payments or atomic payment-and-burn redemptions and commits a versioned final receipt hash on-chain.
+LifecycleKASE is an operator terminal and Solana program for servicing test tokenized bonds after issuance. It captures complete finalized holder evidence, calculates integer entitlements, requires separate approval and a fully funded action vault, then executes coupon payments or atomic payment-and-burn redemptions and commits the canonical final receipt hash on-chain.
 
-The demonstrated 35-bond lifecycle pays 1,750 KZT-Test in coupon, redeems 20% for 7,000 and burns 7 bonds, then pays 29,400 at maturity including the final coupon, burns the remaining 28 and marks the instrument REDEEMED. Exact transaction bytes, cash and asset legs, supply deltas and canonical receipt hashes are reconciled before PostgreSQL projection. Replay and tampering are rejected; an on-chain leg failure rolls back payment and burn, while projection failure preserves the original signature for confirmation-only recovery.
+Our accepted disposable Localnet lifecycle issued 35 bonds, paid 1,750 KZT-Test coupon, redeemed 20% for 7,000 and burned 7 bonds, redeemed an exact additional 8 units for 8,000, then paid 21,000 at maturity including the final coupon and burned the remaining 20. Supply reconciled 35 to 35 to 28 to 20 to 0. Exact-target largest-remainder allocation assigned 2/5/1 from captured balances 8/16/4. Four canonical receipts preserve signatures, raw capture sources and cash/burn reconciliation.
 
-Implemented: Token-2022 instrument, verified-wallet registry with reasoned eligibility review and temporary wallet blocking, finalized capture, all three calculations, separate approver and reserve, coupon transfers, atomic redemptions, receipts and responsive Administrator/Auditor UI. Version checks and atomic audit protect registry corrections; the full role matrix, issuer isolation and investor closure remain open. Simulated inputs: KZT-Test funding, registry eligibility, generated test signers and accelerated Localnet timing. The current demo runs on an isolated Solana Localnet; public-network deployment and real KYC, fiat, KASE and CSD integrations are future work. The planned record time opens the capture window; the effective holder cutoff is the finalized capture slot and block time.
+New controlled instrument v2 uses a default-frozen Token-2022 mint, authorized transfer/capture and reservation of only assigned redemption units. Exact prepared bytes, replay guards, atomic cash/burn execution and original-signature recovery protect the workflow. Recovery passed after a finalized burn and source-account closure; earlier receipts remained unchanged after maturity. The operator UI supports RU/EN, six action steps, governed multi-wallet registry, transaction/audit views and JSON/CSV evidence export.
+
+KZT-Test funding, eligibility, disposable signers and accelerated time are simulated inputs; Solana transfers and burns execute on a real isolated local validator. The effective ownership cutoff is the actual finalized capture slot/time, not reconstructed historical ownership. Public QA is a page-local usability simulation. Public Devnet/Mainnet, retained-owner rollout of the newer candidate, real KYC/fiat/KASE/CSD, full issuer isolation, period-level coupon uniqueness and production operations remain future work. The newer reconciliation worker and export have source/database/helper acceptance; fresh worker chain recovery and authenticated export downloads against fresh settlement remain open.
 ```
 
-## Owner review before submission
+## Main Colosseum copy
 
-- Complete the main Colosseum project submission, then update field 7 from `No` to `Yes` and record its public URL. Until then retain the owner-confirmed `No`.
-- Add the public Colosseum project/profile URLs when they exist and open them in a signed-out browser.
-- Open the pinned GitHub commit and video links in a signed-out browser. Do not replace the commit URL with the older default branch.
-- Open the public website and confirm its deployed revision in the [deployment record](../deployment/render-staging.md). Walletless QA is a synthetic usability review; the protected dashboard does not establish access to the owner's loopback validator.
-- The prepared video link uses the English-captioned presentation; retain the raw evidence video in the repository. If an external video host is used, replace field 6 with its verified public URL.
-- Check that no placeholder text remains, then submit manually through the official form before the UTC deadline.
+Short description:
 
-## Claim boundary for the form
+```text
+A Solana corporate-action terminal for test tokenized bonds: locked holder capture, exact entitlements, separate approval and reserve, atomic coupon/redemption settlement, original-signature recovery and hash-committed evidence.
+```
 
-Use **implemented on isolated Solana Localnet** for the three action flows. Use **simulated** for KZT-Test funding, registry eligibility, disposable signers and accelerated time. Do not describe the prototype as public Devnet/Mainnet, KASE-integrated, production-ready or backed by real fiat/KYC.
+Progress during the competition should be described from the actual source history: verified-wallet registry and issuance, exact transaction/recovery guards, all three corporate-action classes, canonical receipts, controlled capture/unit reservations, exact-target redemption and operator evidence workflows. Disclose prior development truthfully. Do not invent team eligibility, funding, customer interviews, demand validation, traction or adoption.
 
-The [requirements matrix](KASE_REQUIREMENTS_MATRIX.md), [technical overview](TECHNICAL_OVERVIEW.md), [financial acceptance](../testing/kase-three-actions-2026-10-10.md) and [registry acceptance](../testing/registry-governance-2026-10-11.md) provide the evidence behind the description. The video link retains historical revision `8c0f4f1`; it is not a recording of the newer registry controls.
+The [main rules](https://colosseum.com/legal/Crypto%20World%27s%20Fair%20Hackathon%20Rules.pdf) require English content. The [general FAQ](https://colosseum.com/hackathon?year=fall2026) says 2–3 minute pitch, but the actual authenticated form inspected on 2026-10-12 requires **pitch up to 2 minutes** and **separate live-product demo up to 3 minutes**, both hosted on **YouTube, Loom or Vimeo**. Use the stricter form maximum for pitch, and show the live product in the demo. The portal's observed state was **Not submitted**, with video links blank and details/team complete. Team identity/background/location, prior work, terms and current field limits must be reviewed in that account.
+
+## Final review
+
+- Publish the final reviewed source/doc/media package and open its exact commit in a signed-out browser.
+- Open both finished English videos; confirm content, duration and public reviewer access. Current media status belongs in the [video plan](ENGLISH_DEMO_AND_PITCH_PLAN.md).
+- Confirm the stable website and current deployed revision/availability from the [current hosting record](../deployment/oracle-duckdns.md). Website health does not prove hosted financial execution.
+- Complete main Colosseum submission, retain organizer confirmation and actual project/profile URLs, then update side-track field 7 to `Yes`.
+- Submit the side track through its owner-facing official form; retain final values and confirmation before the UTC deadline.
+
+The original [captioned demo](kase-three-actions-captioned.webm) retains media source `8c0f4f1` and the earlier three-action fixture. It is not the current English narrated pitch, controlled v2 recording or main submission proof. Supporting claims are mapped by the [requirements matrix](KASE_REQUIREMENTS_MATRIX.md), [technical overview](TECHNICAL_OVERVIEW.md) and [current checklist](SUBMISSION_CHECKLIST_2026-10-12.md).

@@ -1,5 +1,7 @@
 # Полный аудит LifecycleKASE — 2026-10-11
 
+Historical audit checkpoint: this document preserves its original dates, source and environment observations. Current source/remaining scope is in [implemented versus simulated](IMPLEMENTED_VS_SIMULATED.md); current judge materials and actual submission gates are in the [2026-10-12 checklist](submission/SUBMISSION_CHECKLIST_2026-10-12.md). Later completion does not rewrite this audit's recorded results.
+
 **Текущее продолжение реализации:** добавлены управляемое редактирование полного профиля, серверный поиск, независимая карточка/deep link инвестора и полная постраничная история кошельков. Причина, текущая версия, capture lock и атомарный аудит без значений профиля сохраняют Investor ID, KYC/eligibility/lifecycle, ownership proof и прежние финансовые commitments. Новая миграция или изменение программы не нужны. [Приёмка этапа и актуальный остаток ТЗ](testing/registry-profiles-2026-10-11.md) отделяют проверки/публикацию от исторического деплоя. Lifecycle suspension/closure и issuer isolation остаются открытыми.
 
 **Предыдущее продолжение:** управляемый пересмотр тестового допуска и временная блокировка/разблокировка verified Wallet Mapping: причины, атомарный аудит, версии, защита snapshot от устаревших фактов и формы RU/EN. [Приёмка registry governance](testing/registry-governance-2026-10-11.md) сохраняет собственный checkpoint; нижние результаты первоначального аудита также являются историческими.

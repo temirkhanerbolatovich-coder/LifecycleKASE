@@ -1,0 +1,17 @@
+[Unit]
+Description=LifecycleKASE isolated submission website
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/lifecyclekase/current/deploy/oracle
+ExecStart=/usr/bin/docker compose up -d postgres api web caddy
+ExecStop=/usr/bin/docker compose stop caddy web api postgres
+TimeoutStartSec=180
+TimeoutStopSec=90
+
+[Install]
+WantedBy=multi-user.target

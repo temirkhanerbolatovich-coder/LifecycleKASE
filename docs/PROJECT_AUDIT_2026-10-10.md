@@ -1,5 +1,7 @@
 # Полный аудит LifecycleKASE — 2026-10-10
 
+Historical audit checkpoint: this document preserves its original dates, source and environment observations. Current source/remaining scope is in [implemented versus simulated](IMPLEMENTED_VS_SIMULATED.md); current judge materials and actual submission gates are in the [2026-10-12 checklist](submission/SUBMISSION_CHECKLIST_2026-10-12.md). Later completion does not rewrite this audit's recorded results.
+
 Обновление публикации — **2026-10-11**: API и web опубликованы на Render из точной ревизии `bc62abf`; оба сервиса Live, новая миграция применена успешно. Проверены публичные health/ready/dashboard и защищённый журнал без сессии. [Сайт](https://lifecyclekase-web.onrender.com/dashboard) и [доказательства развёртывания](deployment/render-staging.md). Это публикация приложения; owner-программа и локальная приёмка финансовых действий остаются отдельными этапами. Нижние датированные результаты сохранены.
 
 ## Актуальный результат после реализации погашений — 2026-10-10

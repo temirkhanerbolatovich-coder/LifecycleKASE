@@ -1,5 +1,7 @@
 # LifecycleKASE: аудит и точка продолжения
 
+Historical audit checkpoint: this document preserves its original dates, source and environment observations. Current source/remaining scope is in [implemented versus simulated](IMPLEMENTED_VS_SIMULATED.md); current judge materials and actual submission gates are in the [2026-10-12 checklist](submission/SUBMISSION_CHECKLIST_2026-10-12.md). Later completion does not rewrite this audit's recorded results.
+
 Актуальная точка продолжения — 2026-10-03: выпуск LKA26R1 и snapshot купона `464a832a…` приняты; старое действие сохранено. Stage 7 и Localnet funding/budget из Stage 8 реализованы и прошли изолированные проверки. Купон 500/1000/250 KZT-Test (всего 1750) остаётся UNDER_REVIEW. Для владельца сохранён неподписанный план финансирования 1750; treasury/supply ещё 0. Последняя внешняя сверка GitHub/Render относится к опубликованному `112bdb1`; изменения пока не опубликованы. Исторические проверки ниже сохранены, текущая точка дополнена в конце.
 
 Дата проверки: 2026-10-02, Asia/Qyzylorda. Аудит текущего кода, требований, архитектуры, ADR, миграций, тестов, GitHub, Render и локального состояния. Код приложения, существующие незакоммиченные изменения, постоянные записи БД и развёртывания в рамках аудита не изменялись. Интеграционные проверки создавали и удаляли собственные изолированные тестовые базы.

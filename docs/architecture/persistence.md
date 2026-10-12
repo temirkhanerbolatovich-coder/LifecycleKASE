@@ -1,11 +1,13 @@
 # Persistence architecture
 
+Current schema has **23 migrations**. Migration 20 adds monotonic registry versions; 21 stores immutable exact-target terms; 22 persists immutable token policy and controlled raw capture evidence; 23 adds original-signature reconciliation jobs, restart leases and fencing. [Controlled acceptance](../testing/controlled-workflow-integration-2026-10-12.md) applied 22 migrations for real four-action execution; [operator/worker acceptance](../testing/operator-continuation-2026-10-12.md) applied all 23 on synthetic disposable database fixtures. Retained owner/hosted migration versions are separately recorded.
+
 Migration 19 adds durable program-upgrade maintenance and business-write triggers. Coupon confirmation atomically persists the finalized attempt, PAID entitlement, MATCHED settlement/legs, action counters/version and audit; receipt finalization commits the canonical hash/PDA and application FINALIZED only after chain verification. Snapshot and finalized-receipt immutability remain enforced. Current owner SQL and unavailable chain boundary are in the [audit](../PROJECT_AUDIT_2026-10-10.md).
 
-`npm run test:database` targets the Compose `postgres` service directly and ignores DATABASE_URL. Run it only against an explicitly isolated Compose project, or pipe the same SQL to a newly created disposable container; never target the populated owner database. ExecutionJob schema/uniqueness does not mean a worker is implemented.
+`npm run test:database` targets the Compose `postgres` service directly and ignores DATABASE_URL. Run it only against an explicitly isolated Compose project, or pipe the same SQL to a newly created disposable container; never target the populated owner database. The default-off [reconciliation worker](../features/durable-reconciliation.md) implements submitted payment/finalization observation with durable identity, lease/fencing and atomic audit. It cannot sign/broadcast. Schema/database acceptance does not establish fresh on-chain worker recovery, a general execution queue or reindex.
 
-Status: guarded snapshot, issuance/action/funding attempts and stored entitlements/review
-Last updated: 2026-10-10
+Status: immutable capture/calculation/receipt evidence, exact attempts, versioned policies and fenced reconciliation jobs
+Last updated: 2026-10-12
 
 ## Responsibility
 

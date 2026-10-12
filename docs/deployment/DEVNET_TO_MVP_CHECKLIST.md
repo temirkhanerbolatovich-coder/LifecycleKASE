@@ -1,12 +1,18 @@
 # Remaining delivery checklist
 
-## Current registry continuation — 2026-10-11
+## Current submission and product boundary — 2026-10-12
+
+The user is submitting the existing solution. Use the [current submission checklist](../submission/SUBMISSION_CHECKLIST_2026-10-12.md), [judge matrix](../submission/KASE_REQUIREMENTS_MATRIX.md) and [source status](../IMPLEMENTED_VS_SIMULATED.md). Controlled v2 issuance/capture/assigned-unit settlement and all four financial actions passed their [fingerprinted disposable Localnet runtime](../testing/controlled-workflow-integration-2026-10-12.md). The later [operator checkpoint](../testing/operator-continuation-2026-10-12.md) adds six-step master, JSON/CSV export, complete overview and default-off submitted-signature worker with 684 tests and 23-migration DB acceptance; fresh worker chain recovery and financial export download remain open.
+
+Website startup/availability, stable URL and the deployed revision require [current operational evidence](render-staging.md). Free Render cold-start is not guaranteed continuous activity. Main form requires English pitch ≤2 minutes and separate live-product demo ≤3 minutes on YouTube/Loom/Vimeo; authenticated state was Not submitted with videos blank. Submit main, retain confirmation, then owner-facing KASE side track. Broader product gaps and owner/Devnet rollout remain separate under ADR-014. The dated stages below are retained history and must not replace today's checklist.
+
+## Historical registry continuation — 2026-10-11
 
 Governed full-profile correction, independent investor detail/deep links, server search and complete wallet pagination are implemented alongside reasoned eligibility correction/suspension/restoration and temporary verified-wallet block/unblock. Fixed reasons, monotonic versions, atomic privacy-conscious audit, capture locking and RU/EN controls preserve stable identity, KYC/eligibility/lifecycle, wallet proof and immutable obligations. [Current profile acceptance and remaining work](../testing/registry-profiles-2026-10-11.md) and [earlier governance acceptance](../testing/registry-governance-2026-10-11.md) supersede the corresponding pending subsets in the historical continuation table below. Investor lifecycle suspension/closure, registry export, issuer-scoped access, historical cutoff and retained-owner/public-network acceptance remain open. This phase uses the Administrator/Auditor MVP allowance in product requirements section 3.3.
 
 Published source is [`a739af28606e78aad0c237146a7cc538c38be563`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/a739af28606e78aad0c237146a7cc538c38be563). Final local checks passed **397 Node tests** and all **20 migrations** with isolated SQL/HTTP acceptance and the production proxy build. All three jobs in [CI run 38153120559](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/actions/runs/38153120559) passed for that application SHA. The latest recorded Render rollout remains the earlier `8ea7a42` application release; no new hosted rollout or owner/chain acceptance is claimed. See [Render evidence](render-staging.md).
 
-## Current redemption continuation — 2026-10-10
+## Historical redemption continuation — 2026-10-10
 
 The isolated candidate implements coupon, partial 20% and maturity execution with finalized Solana receipts. Current completed runtime evidence, signatures/hashes, checks and reproduction are in [three-action acceptance](../testing/kase-three-actions-2026-10-10.md). The retained owner ledger/program was not upgraded. KZT-Test and eligibility are simulated; transfers/burns are actual Token-2022 operations. The sections under the historical heading preserve the earlier audit checkpoint.
 
