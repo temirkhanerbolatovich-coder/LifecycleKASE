@@ -4,7 +4,7 @@ Prepared for review: **2026-10-12**. Implementation source: [`f51be25`](https://
 
 Start with:
 
-For resuming the owner-requested stop, read the [saved checkpoint](CHECKPOINT_2026-10-12.md) first. It records the local package, active website, finished videos and the remaining accepted-host publication/final submissions.
+For current publication state, read the [GitHub/hosting follow-up](PUBLICATION_2026-10-12.md). The [earlier stop checkpoint](CHECKPOINT_2026-10-12.md) preserves its historical state. `master` is published and the website/media update is complete; accepted-host publication and final competition submissions remain open.
 
 1. [English reviewer guide](JUDGE_README.md): result, access, reproduction and limits.
 2. [KASE requirements matrix](KASE_REQUIREMENTS_MATRIX.md): criterion-by-criterion evidence.
@@ -37,7 +37,7 @@ The later [operator continuation](../testing/operator-continuation-2026-10-12.md
 
 ## Website
 
-The current public reviewer URL is [English-capable walletless QA](https://lifecyclekase.assetguard-temirkhan.duckdns.org/qa), hosted on the owner's existing Oracle VPS with DuckDNS/Caddy HTTPS. On **2026-10-12**, public QA returned **200** and its English interface fully hydrated. API readiness returned **200**, the new isolated database applied all **23 migrations**, and unsigned protected routes returned **401 SESSION_REQUIRED** with `no-store`. Runtime source is `f51be25`; financial/controlled/upgrade/worker flags remain disabled. Docker/systemd run the isolated website independently of this chat; final operational observations belong in the [Oracle runbook](../deployment/oracle-duckdns.md). These checks establish hosted interface/access boundaries, not hosted chain execution or an outage-free guarantee.
+The public reviewer URL is [English-capable walletless QA](https://lifecyclekase.assetguard-temirkhan.duckdns.org/qa), on the existing Oracle VPS with DuckDNS/Caddy HTTPS. Runtime source is **`c835394`**, verified **2026-10-13 Asia/Qyzylorda**: QA/English hydration, API readiness and all ten static assets passed; the isolated database retains **23 migrations**, unsigned protected routes return **401 SESSION_REQUIRED** with `no-store`, and media/HTTPS checks passed. Financial/controlled/upgrade/worker flags remain disabled. Website/bot startup was observed after the approved VPS reboot; AssetGuard remains stopped with its files/volumes retained. The [Oracle runbook](../deployment/oracle-duckdns.md) and [update record](../testing/evidence/oracle-submission-2026-10-12/update-2026-10-13.json) establish interface/access boundaries, not hosted financial execution or guaranteed uptime.
 
 The [operator dashboard](https://lifecyclekase.assetguard-temirkhan.duckdns.org/dashboard) requires a registered wallet. The new hosting database contains no copied owner/financial records. Earlier [Render staging](../deployment/render-staging.md) remains historical evidence.
 
@@ -48,6 +48,8 @@ A successful web/health response does not establish hosted signing, financial ex
 Current English media is ready locally: [pitch](lifecyclekase-pitch-en-benjamin.mp4) **115.104 seconds** and [live interface demo](lifecyclekase-demo-en-benjamin.mp4) **164.964 seconds**, within the authenticated form's 120/180-second caps. Both use explicit English **Runway Benjamin synthetic narration** and burned subtitles. The demo records actual clicks in the running `/qa` interface; its payments/burns are page-local simulation. A separate evidence segment identifies saved controlled Localnet results; no new financial transaction was recorded. [Validation](benjamin-video-validation-2026-10-12.json) preserves measured metadata, hashes and narration timing; the original capture record remains linked from the video plan. **YouTube/Loom/Vimeo upload has not occurred**, so accepted-host links and final main/side-track submission remain outstanding. Preserve raw financial evidence. A narrated result review must state that execution completed before recording, and any QA insert must be labelled as simulation.
 
 The original [Zira pitch](lifecyclekase-pitch-en.mp4), [Zira demo](lifecyclekase-demo-en.mp4) and [original capture/validation](video-validation-2026-10-12.json) are preserved. The user selected Benjamin and will upload the final videos to YouTube.
+
+Direct backup copies are available: [Benjamin pitch MP4](https://lifecyclekase.assetguard-temirkhan.duckdns.org/media/lifecyclekase-pitch-en-benjamin.mp4), [pitch SRT](https://lifecyclekase.assetguard-temirkhan.duckdns.org/media/lifecyclekase-pitch-en-benjamin.srt), [pitch transcript](https://lifecyclekase.assetguard-temirkhan.duckdns.org/media/lifecyclekase-pitch-en-benjamin.txt), [Benjamin demo MP4](https://lifecyclekase.assetguard-temirkhan.duckdns.org/media/lifecyclekase-demo-en-benjamin.mp4), [demo SRT](https://lifecyclekase.assetguard-temirkhan.duckdns.org/media/lifecyclekase-demo-en-benjamin.srt) and [demo transcript](https://lifecyclekase.assetguard-temirkhan.duckdns.org/media/lifecyclekase-demo-en-benjamin.txt). All six remote hashes matched; external MP4 ranges returned 206 and SRT/TXT returned 200. These backups do not replace the organizer's YouTube/Loom/Vimeo fields.
 
 Historical media from [source `8c0f4f1`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/8c0f4f1d250c2e1acfb73c60f7e1143fba71e9b1) remains available:
 

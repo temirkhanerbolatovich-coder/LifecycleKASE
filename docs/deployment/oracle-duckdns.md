@@ -2,7 +2,17 @@
 
 The submission runtime uses the owner's existing Oracle VPS and a separate hostname, `lifecyclekase.assetguard-temirkhan.duckdns.org`. No new paid hosting resource is requested. Deployment uses a new LifecycleKASE PostgreSQL volume and a dedicated Compose project; the deliberately stopped AssetGuard installation, its volumes and the running TimScheduleBot remain separate.
 
-## Verified checkpoint — 2026-10-12, 20:42 Asia/Qyzylorda
+## Current verified release — 2026-10-13 Asia/Qyzylorda
+
+The site now runs **`c835394fb881fed7086cb59c8a3adcf86c857584`**, image **`sha256:f2002ab2011b85b9c7a432b4895ed76bd9cac17f19d32bc834e49bfcdc55232c`**, with [successful source CI](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/actions/runs/38295107033). [The update record](../testing/evidence/oracle-submission-2026-10-12/update-2026-10-13.json), [HTTP/TLS/media checks](../testing/evidence/oracle-submission-2026-10-12/http-2026-10-13.json) and [English QA screenshot](../testing/evidence/oracle-submission-2026-10-12/qa-2026-10-13.png) identify the actual accepted runtime. Later documentation/evidence commits preserve the same application source.
+
+API/web/PostgreSQL are healthy, public QA/dashboard/liveness return 200, all ten static assets return 200, protected session/investors/overview/evidence-export return 401 `SESSION_REQUIRED` with `no-store`, HTTP redirects with 308 and the certificate covers this hostname. Both [Benjamin pitch](https://lifecyclekase.assetguard-temirkhan.duckdns.org/media/lifecyclekase-pitch-en-benjamin.mp4) and [Benjamin demo](https://lifecyclekase.assetguard-temirkhan.duckdns.org/media/lifecyclekase-demo-en-benjamin.mp4) are complete with matching remote hashes and external Range 206; SRT/TXT return 200. Accepted YouTube/Loom/Vimeo publication remains separate.
+
+The owner approved a normal whole-VPS recovery reboot after HTTPS/SSH execution stopped responding during the first image build. Website/bot startup was observed; both units are enabled/active, all four containers use `unless-stopped`, none has an OOM flag and 502MiB RAM was available. `/opt/assetguard` and its PostgreSQL/model/Vision volumes were present, its containers stopped and all five timers disabled. Incident root cause and full fault/load acceptance remain open.
+
+The final [source-pinned refresh helper](../testing/evidence/oracle-submission-2026-10-12/refresh-c835394.sh) reused the immutable reviewed Linux dependency image after comparing all 31 dependency/schema/migration inputs. It copied fresh compiled output with memory/CPU bounds, retained root-only configuration/database, confirmed 23 migrations and ran no new migrations. A protected database/configuration backup and rollback image/release were retained; archive listing passed, restore was not tested. The full dependency installer was not retried. Prefer building complete images away from this shared host for future releases.
+
+## Historical checkpoint — 2026-10-12, 20:42 Asia/Qyzylorda
 
 The site is deployed and running at [public QA](https://lifecyclekase.assetguard-temirkhan.duckdns.org/qa) and [operator dashboard](https://lifecyclekase.assetguard-temirkhan.duckdns.org/dashboard), with application source **`f51be252295af181ed931f00dba1ee89c35aedef`**. The [dated deployment record](../testing/evidence/oracle-submission-2026-10-12/deployment.json) identifies the actual image, initial artifact, new database and remaining work.
 

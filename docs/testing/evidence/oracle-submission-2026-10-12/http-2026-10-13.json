@@ -1,0 +1,195 @@
+{
+  "recordedAt": "2026-10-12T19:16:26.228Z",
+  "source": "c835394fb881fed7086cb59c8a3adcf86c857584",
+  "origin": "https://lifecyclekase.assetguard-temirkhan.duckdns.org",
+  "ipv4": [
+    "161.33.158.204"
+  ],
+  "tls": {
+    "authorized": true,
+    "subjectAltName": "DNS:lifecyclekase.assetguard-temirkhan.duckdns.org",
+    "issuer": "YE1",
+    "validFrom": "Oct 12 14:29:53 2026 GMT",
+    "validTo": "Jan 10 14:29:52 2027 GMT"
+  },
+  "httpRedirect": {
+    "status": 308,
+    "location": "https://lifecyclekase.assetguard-temirkhan.duckdns.org/qa"
+  },
+  "observations": [
+    {
+      "route": "/health/live",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "cacheControl": null,
+      "body": {
+        "status": "live"
+      }
+    },
+    {
+      "route": "/qa",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+      "htmlBytes": 9887,
+      "lifecycleKaseVisible": true
+    },
+    {
+      "route": "/dashboard",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+      "htmlBytes": 10838,
+      "lifecycleKaseVisible": true
+    },
+    {
+      "route": "/api/v1/auth/session",
+      "status": 401,
+      "expected": 401,
+      "pass": true,
+      "cacheControl": "no-store",
+      "body": {
+        "code": "SESSION_REQUIRED",
+        "message": "An active operator session is required"
+      }
+    },
+    {
+      "route": "/api/v1/investors",
+      "status": 401,
+      "expected": 401,
+      "pass": true,
+      "cacheControl": "no-store",
+      "body": {
+        "code": "SESSION_REQUIRED",
+        "message": "An active operator session is required"
+      }
+    },
+    {
+      "route": "/api/v1/operator-overview",
+      "status": 401,
+      "expected": 401,
+      "pass": true,
+      "cacheControl": "no-store",
+      "body": {
+        "code": "SESSION_REQUIRED",
+        "message": "An active operator session is required"
+      }
+    },
+    {
+      "route": "/api/v1/corporate-actions/00000000-0000-4000-8000-000000000001/evidence-export",
+      "status": 401,
+      "expected": 401,
+      "pass": true,
+      "cacheControl": "no-store",
+      "body": {
+        "code": "SESSION_REQUIRED",
+        "message": "An active operator session is required"
+      }
+    }
+  ],
+  "assets": [
+    {
+      "path": "/_next/static/chunks/1oxb0m76dhdt4.css",
+      "status": 200,
+      "bytes": 39969
+    },
+    {
+      "path": "/_next/static/chunks/31qp8jfkw0x2h.js",
+      "status": 200,
+      "bytes": 22142
+    },
+    {
+      "path": "/_next/static/chunks/2cwx0s17guqmh.js",
+      "status": 200,
+      "bytes": 180212
+    },
+    {
+      "path": "/_next/static/chunks/0s7mvllxht1mo.js",
+      "status": 200,
+      "bytes": 229597
+    },
+    {
+      "path": "/_next/static/chunks/turbopack-3-ry682tkyiqk.js",
+      "status": 200,
+      "bytes": 10030
+    },
+    {
+      "path": "/_next/static/chunks/0umf92h1sb77c.js",
+      "status": 200,
+      "bytes": 13822
+    },
+    {
+      "path": "/_next/static/chunks/1cjj8jlnn93ap.js",
+      "status": 200,
+      "bytes": 264287
+    },
+    {
+      "path": "/_next/static/chunks/173ys50rhm4vw.js",
+      "status": 200,
+      "bytes": 53250
+    },
+    {
+      "path": "/_next/static/chunks/44fgjyddsqiub.js",
+      "status": 200,
+      "bytes": 340172
+    },
+    {
+      "path": "/_next/static/chunks/0cz1d0mv5g_q7.js",
+      "status": 200,
+      "bytes": 112594
+    }
+  ],
+  "media": [
+    {
+      "file": "lifecyclekase-pitch-en-benjamin.mp4",
+      "status": 206,
+      "contentType": "video/mp4",
+      "contentRange": "bytes 0-63/9636953",
+      "acceptRanges": "bytes",
+      "bytes": 64
+    },
+    {
+      "file": "lifecyclekase-pitch-en-benjamin.srt",
+      "status": 200,
+      "contentType": "text/plain; charset=utf-8",
+      "contentRange": null,
+      "acceptRanges": null,
+      "bytes": 2310
+    },
+    {
+      "file": "lifecyclekase-pitch-en-benjamin.txt",
+      "status": 200,
+      "contentType": "text/plain; charset=utf-8",
+      "contentRange": null,
+      "acceptRanges": null,
+      "bytes": 1584
+    },
+    {
+      "file": "lifecyclekase-demo-en-benjamin.mp4",
+      "status": 206,
+      "contentType": "video/mp4",
+      "contentRange": "bytes 0-63/31204749",
+      "acceptRanges": "bytes",
+      "bytes": 64
+    },
+    {
+      "file": "lifecyclekase-demo-en-benjamin.srt",
+      "status": 200,
+      "contentType": "text/plain; charset=utf-8",
+      "contentRange": null,
+      "acceptRanges": null,
+      "bytes": 3570
+    },
+    {
+      "file": "lifecyclekase-demo-en-benjamin.txt",
+      "status": 200,
+      "contentType": "text/plain; charset=utf-8",
+      "contentRange": null,
+      "acceptRanges": null,
+      "bytes": 2529
+    }
+  ]
+}
