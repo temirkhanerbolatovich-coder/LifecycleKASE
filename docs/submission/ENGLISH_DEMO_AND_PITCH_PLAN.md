@@ -12,14 +12,14 @@ A local MP4 or direct website `/media/` link is a review/backup asset, not an ac
 
 | Artifact | Content | Measured duration |
 | --- | --- | --- |
-| [English pitch](lifecyclekase-pitch-en.mp4) | Product problem, operator hypothesis, workflow, four-action test results, founder, proposed pilot and limits | **115.091 seconds**; cap 120 seconds |
-| [English live interface demo](lifecyclekase-demo-en.mp4) | Actual recorded interactions in the running application's English `/qa` mode: registries, coupon, partial redemption, maturity, simulated receipt download and read-only auditor history; brief separate Localnet evidence card | **164.904 seconds**; cap 180 seconds |
-| [Pitch subtitles](lifecyclekase-pitch-en.srt) / [narration](lifecyclekase-pitch-en.txt) | Complete English text, also burned into the video | Timed from measured WAV segments |
-| [Demo subtitles](lifecyclekase-demo-en.srt) / [narration](lifecyclekase-demo-en.txt) | Complete English text, also burned into the video | Timed from measured WAV segments |
+| [English pitch](lifecyclekase-pitch-en-benjamin.mp4) | Product problem, operator hypothesis, workflow, four-action test results, founder, proposed pilot and limits | **115.104 seconds**; cap 120 seconds |
+| [English live interface demo](lifecyclekase-demo-en-benjamin.mp4) | Actual recorded interactions in the running application's English `/qa` mode: registries, coupon, partial redemption, maturity, simulated receipt download and read-only auditor history; brief separate Localnet evidence card | **164.964 seconds**; cap 180 seconds |
+| [Pitch subtitles](lifecyclekase-pitch-en-benjamin.srt) / [narration](lifecyclekase-pitch-en-benjamin.txt) | Complete English text, also burned into the video | Preserved caption timeline; speech fitted within each window |
+| [Demo subtitles](lifecyclekase-demo-en-benjamin.srt) / [narration](lifecyclekase-demo-en-benjamin.txt) | Complete English text, also burned into the video | Preserved caption timeline; speech fitted within each window |
 
-Narration uses the installed **Microsoft Zira Desktop** English synthetic voice. It does not impersonate the founder. His background comes from the user-supplied [profile](FOUNDER_PROFILE_EN.md). No customer, revenue, partnership, market-size or production-settlement claim is introduced.
+The owner selected **Benjamin**, a deep English synthetic narrator, through the connected Runway integration. The final voice revision uses 51 generated speech clips scheduled against the unchanged caption timeline. Small accelerations preserve pitch; maximum measured start deviation was 0.070 seconds. It does not impersonate the founder. His background comes from the user-supplied [profile](FOUNDER_PROFILE_EN.md). No customer, revenue, partnership, market-size or production-settlement claim is introduced.
 
-Exact final durations, hashes, dimensions, audio measurements and capture operations are retained in [video validation](video-validation-2026-10-12.json).
+Exact final durations, hashes, dimensions, audio measurements and capture operations are retained in [video validation](benjamin-video-validation-2026-10-12.json).
 
 ## Demo narrative and evidence boundaries
 
@@ -46,7 +46,7 @@ The financial run's capture-boundary coupon positions were `9/21/5`, with `450/1
 
 Interface footage is actual automated interaction with the running application. It is a **live interface demonstration with simulated financial effects**. It does not show physical Phantom approval, a newly signed transaction, an authenticated owner session or continuously queryable disposable history. The acceptance ledger was stopped after its run. A reviewer requiring real wallet signing during recording must use the separate evidence/reproduction path; the video does not assert that additional acceptance.
 
-## Reproduce the media
+## Reproduce the original capture and Zira baseline
 
 The [storyboard](video-storyboard-2026-10-12.json) contains the exact narrative and source/evidence pins. Intermediates stay in ignored `.local-submission-media-20261012/`; validated judged MP4/SRT/TXT and records are copied here.
 
@@ -69,6 +69,24 @@ node scripts/verify-submission-videos.mjs
 Capture defaults to isolated `http://127.0.0.1:3033/qa`, uses its own Chrome profile and permits only `/qa`. All operations stay in page-local synthetic state. It records the three complete action sequences, separate approver switches and simulated receipt download. Encoding combines the actual footage with English speech/captions and a brief saved-proof card. No balances, signatures or outcomes are fabricated.
 
 Validation checks helper syntax, original receipt hashes before rendering, caption fit, narration/timeline duration, MP4 audio/video decoding, 1920×1080 dimensions, duration caps, non-silent audio without clipping, and playback samples across the action/auditor/results/closing scenes. Sampled playback is not a frame-by-frame or human accessibility review.
+
+## Selected Benjamin revision
+
+The [original pitch](lifecyclekase-pitch-en.mp4), [original demo](lifecyclekase-demo-en.mp4) and [original validation](video-validation-2026-10-12.json) are retained. The new voice preserves the recorded source, scenario order, captions and evidence claims. The existing Oracle pitch backup still contains Zira until deliberately replaced; it is not the final Benjamin upload.
+
+The revoice used 102 existing free Runway credits for final narration, plus 12 for two comparison samples. No subscription or credit purchase occurred. Generation is not deterministic; preserve the approved outputs and hashes. Private asset URLs and per-clip inputs remain in the ignored `.local-submission-benjamin-20261012/` directory.
+
+The encoder accepts optional `narrationClips` in each video manifest: one local MP3 `{file,start,duration}` for every caption entry. Entries must match the frame timeline, and speech may accelerate by at most 1.15 with pitch preserved. Clips begin on the audio render clock; a drift over 0.15 seconds fails validation. The generated clips were within these limits. The original WAV-only mode remains supported.
+
+To re-encode already downloaded and approved Benjamin clips, set the installed Playwright path as above and run:
+
+```powershell
+node scripts/encode-submission-videos.mjs .local-submission-benjamin-20261012
+node scripts/verify-submission-videos.mjs .local-submission-benjamin-20261012
+```
+
+These commands do not generate remote speech or spend credits. If ignored intermediates are unavailable, recover the private Runway assets or regenerate them only within the authorized allowance; public MP4/SRT/TXT are the completed deliverables.
+
 
 ## Delivery and remaining checks
 

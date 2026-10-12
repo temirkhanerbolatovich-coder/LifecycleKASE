@@ -1,0 +1,59 @@
+This is LifecycleKASE, a corporate action terminal for tokenized bonds.
+
+We are using the running application in English, through walletless QA.
+
+These interactions simulate all payments, approvals, and burns inside this page.
+
+The instrument registry exposes terms, circulating supply, and lifecycle status.
+
+Investor records connect identity, eligibility, and wallets.
+
+We will demonstrate coupon, partial early redemption, and redemption at maturity on synthetic test records.
+
+We schedule the coupon, capture holders, and calculate rights.
+
+The QA positions are ten, twenty, and five bonds; entitlements total seventeen hundred fifty KZT-Test.
+
+The issuer funds and reserves the full budget.
+
+A distinct approver reviews the calculation, then the issuer pays each holder and finalizes the simulated receipt.
+
+Next, we open twenty percent partial redemption.
+
+Capture and calculation produce seven bonds to redeem, with seven thousand KZT-Test in payment.
+
+Again, full reserve and separate approval precede execution.
+
+After the three simulated payments and burns, supply changes from thirty five to twenty eight.
+
+In the Solana protocol, each holder payment and burn share one atomic transaction.
+
+Maturity captures the remaining twenty eight bonds in this QA sequence.
+
+Principal plus the final coupon totals twenty nine thousand four hundred KZT-Test.
+
+We reserve funds, switch approver, execute the simulated payments, and finalize.
+
+All remaining bonds are burned, final supply is zero, and the instrument becomes redeemed.
+
+We download the simulated result and inspect transaction and audit history as an auditor.
+
+QA receipts do not establish blockchain execution.
+
+The production recovery path preserves an unknown operation and its original signature for verification, instead of sending a replacement payment.
+
+Separate October twelfth disposable Localnet acceptance completed these four actions.
+
+It includes an additional exact eight unit redemption between percentage redemption and maturity.
+
+That is why its maturity pays twenty one thousand and burns twenty, rather than the QA sequence of twenty eight.
+
+Canonical receipts reconcile finalized cash and token effects.
+
+KZT-Test and investor eligibility are simulated.
+
+The repository contains original receipts and reproduction instructions.
+
+Real KYC, fiat settlement, public-network acceptance, and exchange integration remain future work.
+
+LifecycleKASE is not affiliated with or approved by KASE.

@@ -1,0 +1,89 @@
+{
+  "schema": "lifecyclekase-benjamin-voice-validation-v1",
+  "checkedAt": "2026-10-12T17:50:50.420Z",
+  "applicationSourceCommit": "f51be252295af181ed931f00dba1ee89c35aedef",
+  "narrator": "Benjamin",
+  "provider": "Runway",
+  "speechModel": "eleven_multilingual_v2",
+  "syntheticVoice": true,
+  "language": "en",
+  "scope": "REVOICE_EXISTING_QA_VIDEO_AND_SAVED_LOCALNET_RESULT_PRESENTATION; NO_NEW_WALLET_API_DATABASE_OR_FINANCIAL_EXECUTION",
+  "credits": {
+    "freeVoiceSamples": 12,
+    "freeFinalNarration": 102,
+    "newPurchaseOrSubscription": false
+  },
+  "originalVideos": [
+    {
+      "file": "lifecyclekase-pitch-en.mp4",
+      "sha256": "891e82cd5fdf037d74ff38660879f998a414ca1eb0cda88caad9e67429bd742f"
+    },
+    {
+      "file": "lifecyclekase-demo-en.mp4",
+      "sha256": "f626c8df9ceded5639c17e96d23b2ac4259ca5db3c38bb26a3834c60817dd771"
+    }
+  ],
+  "preserved": "Original footage, page-local simulation labels, claim boundaries, captions, subtitles and scene timeline. Original Zira files retained.",
+  "results": [
+    {
+      "id": "pitch",
+      "file": "lifecyclekase-pitch-en-benjamin.mp4",
+      "bytes": 9636953,
+      "sha256": "4bf339eca3a79089d5726da9944fc1e2e73518592e858e51d1d0f8bb287e8771",
+      "videoSeconds": 115.1041,
+      "videoWidth": 1920,
+      "videoHeight": 1080,
+      "audioSeconds": 115.093,
+      "audioChannels": 2,
+      "audioSampleRate": 48000,
+      "audioRms": 0.11467093696235199,
+      "audioPeak": 0.897724449634552,
+      "audibleFraction": 0.6767655649489254,
+      "sampledPlaybackSeconds": [
+        2,
+        40,
+        74,
+        113.1041
+      ],
+      "narrationClips": 21,
+      "maxNarrationStartErrorSeconds": 0.06282066666666708,
+      "speedMinimum": 1,
+      "speedMaximum": 1.1067251489158,
+      "pitchPreservedDuringAcceleration": true,
+      "narrationCoversCaptionWindows": true
+    },
+    {
+      "id": "demo",
+      "file": "lifecyclekase-demo-en-benjamin.mp4",
+      "bytes": 31204749,
+      "sha256": "2ad90c3577af82d223038c37e9158428ed960775cad87342c82d92a63b627e48",
+      "videoSeconds": 164.964467,
+      "videoWidth": 1920,
+      "videoHeight": 1080,
+      "audioSeconds": 164.90633333333332,
+      "audioChannels": 2,
+      "audioSampleRate": 48000,
+      "audioRms": 0.123039476482615,
+      "audioPeak": 0.919801652431488,
+      "audibleFraction": 0.7548656408991771,
+      "sampledPlaybackSeconds": [
+        2,
+        43,
+        67,
+        93,
+        114,
+        133,
+        162.964467
+      ],
+      "narrationClips": 30,
+      "maxNarrationStartErrorSeconds": 0.06994066666666754,
+      "speedMinimum": 1,
+      "speedMaximum": 1.1265598138671378,
+      "pitchPreservedDuringAcceleration": true,
+      "narrationCoversCaptionWindows": true
+    }
+  ],
+  "validation": "Complete MP4 audio decoding, waveform RMS/peak, video dimensions and duration limits, scheduled clip starts, original source hashes and sampled playback frames. No claim of a full human listening review.",
+  "publishing": "User will upload both videos to YouTube. No accepted-host upload or competition submission occurred during this revoice.",
+  "originalCaptureValidationFile": "video-validation-2026-10-12.json"
+}

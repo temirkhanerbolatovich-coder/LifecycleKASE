@@ -3,6 +3,8 @@ Prepared at **20:39 Asia/Qyzylorda**, at the owner's request to stop and resume 
 
 ## Objective and current source
 
+Follow-up voice revision on 2026-10-12: the owner chose Runway **Benjamin** and will handle YouTube upload. The final [pitch](lifecyclekase-pitch-en-benjamin.mp4) is 115.104 seconds and [demo](lifecyclekase-demo-en-benjamin.mp4) is 164.964 seconds. [New voice validation](benjamin-video-validation-2026-10-12.json) records audio, hashes and maximum 0.070-second narration start deviation. The original Zira media/checkpoint below remain historical. Accepted-host upload and final submissions are still unconfirmed.
+
 Submit the existing LifecycleKASE solution to Crypto World's Fair and the Superteam Kazakhstan × KASE side track. Keep the website active without a new paid hosting resource. The current application source is `f51be252295af181ed931f00dba1ee89c35aedef`; branch `codex/full-project-audit-20261010`. Documentation, deployment tooling and new media are a separate checkpoint package. The default `master` branch has not been merged.
 
 ## Completed

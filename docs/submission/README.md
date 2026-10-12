@@ -45,7 +45,9 @@ A successful web/health response does not establish hosted signing, financial ex
 
 ## Media
 
-Current English media is ready locally: [pitch](lifecyclekase-pitch-en.mp4) **115.091 seconds** and [live interface demo](lifecyclekase-demo-en.mp4) **164.904 seconds**, within the authenticated form's 120/180-second caps. Both use explicit English **Microsoft Zira synthetic narration** and burned subtitles. The demo records actual clicks in the running `/qa` interface; its payments/burns are page-local simulation. A separate evidence segment identifies saved controlled Localnet results; no new financial transaction was recorded. [Validation](video-validation-2026-10-12.json) preserves measured metadata, hashes and capture operations. **YouTube/Loom/Vimeo upload has not occurred**, so accepted-host links and final main/side-track submission remain outstanding. Preserve raw financial evidence. A narrated result review must state that execution completed before recording, and any QA insert must be labelled as simulation.
+Current English media is ready locally: [pitch](lifecyclekase-pitch-en-benjamin.mp4) **115.104 seconds** and [live interface demo](lifecyclekase-demo-en-benjamin.mp4) **164.964 seconds**, within the authenticated form's 120/180-second caps. Both use explicit English **Runway Benjamin synthetic narration** and burned subtitles. The demo records actual clicks in the running `/qa` interface; its payments/burns are page-local simulation. A separate evidence segment identifies saved controlled Localnet results; no new financial transaction was recorded. [Validation](benjamin-video-validation-2026-10-12.json) preserves measured metadata, hashes and narration timing; the original capture record remains linked from the video plan. **YouTube/Loom/Vimeo upload has not occurred**, so accepted-host links and final main/side-track submission remain outstanding. Preserve raw financial evidence. A narrated result review must state that execution completed before recording, and any QA insert must be labelled as simulation.
+
+The original [Zira pitch](lifecyclekase-pitch-en.mp4), [Zira demo](lifecyclekase-demo-en.mp4) and [original capture/validation](video-validation-2026-10-12.json) are preserved. The user selected Benjamin and will upload the final videos to YouTube.
 
 Historical media from [source `8c0f4f1`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/8c0f4f1d250c2e1acfb73c60f7e1143fba71e9b1) remains available:
 
@@ -56,12 +58,12 @@ Historical media from [source `8c0f4f1`](https://github.com/temirkhanerbolatovic
 
 Those clips show the earlier coupon 1,750 → partial 7,000/burn 7 → maturity 29,400/burn 28 fixture. That fixture has no intervening exact-target action. It differs from today's four-action maturity 21,000/burn 20. Do not combine their values or imply they show the newest UI/protocol.
 
-Current files and SHA-256:
+Current Benjamin files and SHA-256:
 
 | File | Bytes | SHA-256 |
 | --- | ---: | --- |
-| [Pitch MP4](lifecyclekase-pitch-en.mp4) | 9,456,881 | `891e82cd5fdf037d74ff38660879f998a414ca1eb0cda88caad9e67429bd742f` |
-| [Demo MP4](lifecyclekase-demo-en.mp4) | 30,894,496 | `f626c8df9ceded5639c17e96d23b2ac4259ca5db3c38bb26a3834c60817dd771` |
+| [Pitch MP4](lifecyclekase-pitch-en-benjamin.mp4) | 9,636,953 | `4bf339eca3a79089d5726da9944fc1e2e73518592e858e51d1d0f8bb287e8771` |
+| [Demo MP4](lifecyclekase-demo-en-benjamin.mp4) | 31,204,749 | `2ad90c3577af82d223038c37e9158428ed960775cad87342c82d92a63b627e48` |
 
 ## Reproduce
 
