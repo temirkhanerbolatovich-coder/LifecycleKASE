@@ -6,6 +6,8 @@ English reviewers: start with the [reviewer guide](docs/submission/JUDGE_README.
 
 ## Current source and verified scope
 
+The judge package is published on `master` after [PR #1](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/pull/1) and successful PR/master CI. The latest [publication and hosting follow-up](docs/submission/PUBLICATION_2026-10-12.md) records the active VPS update/recovery; the earlier successful hosted observations above remain dated evidence.
+
 Submission preparation snapshot: **2026-10-12**, implementation source [`f51be25`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/f51be252295af181ed931f00dba1ee89c35aedef). The [current checklist](docs/submission/SUBMISSION_CHECKLIST_2026-10-12.md) separates completed implementation, saved runtime evidence and remaining submission steps. Documentation edits do not constitute another financial run.
 
 The accepted controlled instrument v2 workflow uses a new default-frozen Token-2022 mint, authorized transfers, locked raw holder capture and reservation of only assigned redemption units. Authenticated API/PostgreSQL/Localnet acceptance completed on **2026-10-12 at 14:19:06 Asia/Qyzylorda**:

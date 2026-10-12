@@ -25,6 +25,8 @@ At the user's request work was stopped after this checkpoint. Task SSH/upload he
 
 Configuration is in [Compose](../../deploy/oracle/compose.yaml), [Caddy](../../deploy/oracle/Caddyfile), [the runtime Dockerfile](../../deploy/oracle/Dockerfile) and [the systemd unit](../../deploy/oracle/lifecyclekase.service). [ADR-033](../decisions/ADR-033-oracle-submission-hosting.md) records the deployment decision.
 
+The VPS and parent DuckDNS name are shared with the retained AssetGuard installation, but directories, application containers and database volumes are separate. AssetGuard was already stopped when this project was installed. LifecycleKASE's Caddy currently uses host ports 80/443. To serve both applications together, configure one shared reverse proxy for the two hostnames before restarting AssetGuard; starting its independent Caddy would conflict with those ports.
+
 ## Prepare the checked source
 
 Use Node 22 or newer, installed dependencies and a source revision with passing CI. Build and check the application first. The packager refuses modified tracked runtime source and writes only a new ignored release directory; it preserves the running owner's `apps/web/.next`.
@@ -37,6 +39,8 @@ node scripts/deploy-oracle-package.mjs .local-oracle-release-unique
 [The packager](../../scripts/deploy-oracle-package.mjs) builds an isolated Next application with the fixed loopback API upstream, includes compiled domain/client/API output, package manifests, Prisma migrations and deployment configuration, and records the Git SHA and archive SHA-256. It excludes environment files, keys, database state, cache and test output. If runtime code changed, commit and revalidate it before packaging; a source fingerprint is not a financial acceptance claim.
 
 The VPS installs Linux dependencies and generates its Linux Prisma client; it does not compile Next.js. The image retains the pinned Prisma CLI for an explicit migration job. Node/PostgreSQL/Caddy image digests should be recorded at deployment, because upstream tags can move.
+
+The shared 1GB VPS still needs free capacity during dependency installation. The installer explicitly uses the legacy Docker builder with a 384MiB memory limit, no additional swap and a half-CPU limit. BuildKit ignores these legacy build-resource flags. A resource-limited build may fail before switching the current release; inspect that failure rather than removing the limits. Prefer building the complete Linux image elsewhere for future releases.
 
 ## Install on the approved host
 

@@ -26,6 +26,10 @@ This uses available infrastructure without a new paid service, avoids idle-servi
 
 The demo can restart after process exit or host boot and can serve judge media with HTTP ranges. It shares a small host and is not highly available. Host/network failure, DNS drift, ACME failure or memory pressure can interrupt access. Docker image tags require deployed digest records. No automatic database backup or restore acceptance is introduced, and no public-network financial workflow is claimed.
 
+AssetGuard remains a separate stopped installation. Its name is reused only as the parent DuckDNS name and the existing VPS name; LifecycleKASE has its own directory, containers and database volume. LifecycleKASE's Caddy currently owns host ports 80/443. Running both websites together requires one shared reverse proxy with separate hostname routes before restarting AssetGuard; separate Compose projects cannot both bind those host ports.
+
+Dependency installation is still an image build on the VPS. The installer now limits the legacy build container to 384MiB RAM, no additional swap and half a CPU. This bounds a failed build without allocating all host capacity. The legacy builder is selected explicitly because BuildKit does not enforce these legacy build flags. Moving complete image builds to another machine is the preferred future replacement; the bounds do not establish load or recovery acceptance.
+
 ## Future work
 
 If the deployment becomes more than a judge demo, introduce monitored availability, reviewed DNS updating, backup/restore acceptance, capacity testing and a dedicated migration/rollback gate before valuable data is stored.

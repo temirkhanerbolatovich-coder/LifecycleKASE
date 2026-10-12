@@ -1,4 +1,6 @@
 # Stop checkpoint — 2026-10-12
+**Later publication:** [The GitHub/hosting follow-up](PUBLICATION_2026-10-12.md) supersedes the unpushed/unmerged instructions below. The owner authorized merging PR #1 after successful checks; `master` is now published. Hosting recovery observations are recorded separately, preserving this earlier stop snapshot.
+
 Prepared at **20:39 Asia/Qyzylorda**, at the owner's request to stop and resume later. Resume from this file; do not repeat the financial runtime or alter retained owner state merely to reconstruct context.
 
 ## Objective and current source

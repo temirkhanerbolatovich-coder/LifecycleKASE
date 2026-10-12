@@ -30,7 +30,12 @@ manifest_sha=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["
 [[ $manifest_sha == "$source_sha" ]] || { echo 'Release source mismatch.' >&2; exit 1; }
 
 # Docker build happens before secrets are linked into the release context.
-docker build --tag "lifecyclekase-runtime:$source_sha" "$release"
+# The shared 1GB host must retain capacity for the live site and Telegram bot.
+# This VPS currently uses Docker's legacy builder; BuildKit ignores these build
+# resource flags, so keep this explicit until images are built outside the VPS.
+DOCKER_BUILDKIT=0 docker build --memory=384m --memory-swap=384m \
+  --cpu-period=100000 --cpu-quota=50000 \
+  --tag "lifecyclekase-runtime:$source_sha" "$release"
 umask 077
 if [[ ! -f "$base/config/database-password" ]]; then
   openssl rand -hex 24 > "$base/config/database-password"
