@@ -1,10 +1,13 @@
 "use client";
+import { useLocale, useLocalizedTextState } from "./locale-context";
 
 import type { Wallet } from "@wallet-standard/base";
 import { useRef, useState } from "react";
 import { isActionId, preparedSnapshot, requireFinalizedResponse, resumedDeploymentSignature, walletChainForCluster, type PreparedSnapshot, type SupportedSnapshotCluster } from "./snapshot-workflow";
 import { signAndSubmitPrepared, supportsPreparedTransaction } from "./wallet-transaction";
 import { waitForFinalizedCheck } from "./finalized-check";
+import { OperatorApiError } from "./operator-api";
+import { requireControlledSnapshot, type ControlledCaptureView } from "./controlled-capture-workflow";
 
 type Props = {
   wallet: Wallet | undefined;
@@ -13,6 +16,8 @@ type Props = {
   onBusyChange: (busy: boolean) => void;
   selectedActionId?: string;
   onConfirmed?: () => void;
+  onWindowMissed?: () => Promise<void>;
+  controlledCapture?: ControlledCaptureView;
 };
 
 function networkDescription(cluster: SupportedSnapshotCluster): string {
@@ -21,7 +26,8 @@ function networkDescription(cluster: SupportedSnapshotCluster): string {
     : "Devnet — публичная тестовая сеть; комиссия оплачивается тестовым SOL.";
 }
 
-export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange, selectedActionId, onConfirmed }: Props) {
+export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange, selectedActionId, onConfirmed, onWindowMissed, controlledCapture }: Props) {
+  const { locale, displayMessage: financialCopy, formatAmount, formatDate } = useLocale();
   const [actionId, setActionId] = useState(selectedActionId ?? "");
   const [plan, setPlan] = useState<PreparedSnapshot | null>(null);
   const [operationId, setOperationId] = useState("");
@@ -30,7 +36,7 @@ export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange, se
   const [sendAttempted, setSendAttempted] = useState(false);
   const [finalized, setFinalized] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("Укажите UUID существующего SCHEDULED действия. Сеть будет взята из проверенного плана API.");
+  const [message, setMessage] = useLocalizedTextState("Укажите UUID существующего SCHEDULED действия. Сеть будет взята из проверенного плана API.");
   const inFlight = useRef(false);
 
   async function run(task: () => Promise<void>) {
@@ -39,7 +45,13 @@ export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange, se
     setBusy(true);
     onBusyChange(true);
     try { await task(); }
-    catch (error) { setMessage(error instanceof Error ? error.message : "Операция не выполнена."); }
+    catch (error) {
+      setMessage(error instanceof Error ? error.message : "Операция не выполнена.");
+      if (error instanceof OperatorApiError && error.code === "SNAPSHOT_WINDOW_MISSED" && onWindowMissed) {
+        try { await onWindowMissed(); }
+        catch { setMessage("Capture закрыт; обновить карточку не удалось. Обновите данные перед продолжением."); }
+      }
+    }
     finally { inFlight.current = false; setBusy(false); onBusyChange(false); }
   }
 
@@ -47,6 +59,7 @@ export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange, se
     if (!isActionId(actionId)) throw new Error("Введите корректный UUID корпоративного действия.");
     const response = await request(`/api/v1/corporate-actions/${actionId}/snapshot/prepare`, { method: "POST", body: "{}" });
     const prepared = preparedSnapshot(response, actionId, walletAddress);
+    if (controlledCapture) await requireControlledSnapshot(prepared, response, controlledCapture);
     const existingSignature = resumedDeploymentSignature(response);
     setPlan(prepared);
     setOperationId(prepared.operationId);
@@ -89,42 +102,41 @@ export function SnapshotPanel({ wallet, walletAddress, request, onBusyChange, se
   const inputClass = "mt-2 w-full rounded-lg border border-[#cbd8d0] bg-white px-3 py-2 text-sm";
   const buttonClass = "rounded-lg border border-[#cbd8d0] px-4 py-2 text-sm font-semibold disabled:opacity-50";
   return (
-    <section className="mt-6 border-t border-[#dbe5df] pt-6" aria-label="Регистрация snapshot">
-      <h3 className="font-semibold">Регистрация snapshot · Localnet / Devnet</h3>
+    <section className="mt-6 border-t border-[#dbe5df] pt-6" aria-label={financialCopy("Регистрация snapshot")}>
+      <h3 className="font-semibold">{financialCopy("Регистрация snapshot · Localnet / Devnet")}</h3>
       <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs leading-5 text-[#61746a]">
-        <li>Укажите UUID уже запланированного действия.</li>
-        <li>Проверьте сеть, signer и параметры снимка.</li>
-        <li>Подпишите транзакцию и отдельно подтвердите finalized через API.</li>
+        <li>{financialCopy("Укажите UUID уже запланированного действия.")}</li>
+        <li>{financialCopy("Проверьте сеть, signer и параметры снимка.")}</li>
+        <li>{financialCopy("Подпишите транзакцию и отдельно подтвердите finalized через API.")}</li>
       </ol>
-      <p className="mt-2 text-xs leading-5 text-[#8a5b18]">DEMO_CAPTURE_SLOT фиксирует фактический finalized slot, а не доказывает владение на более раннюю дату. Регистрация не выполняет выплату.</p>
-      <label className="mt-4 block text-sm">UUID корпоративного действия
-        <input className={inputClass} value={actionId} maxLength={36} disabled={Boolean(selectedActionId) || busy || finalized || plan !== null} onChange={(event) => setActionId(event.target.value.trim())} />
+      <p className="mt-2 text-xs leading-5 text-[#8a5b18]">{financialCopy("DEMO_CAPTURE_SLOT фиксирует фактический finalized slot, а не доказывает владение на более раннюю дату. Регистрация не выполняет выплату.")}</p>
+      <label className="mt-4 block text-sm">{financialCopy("UUID корпоративного действия")} <input className={inputClass} value={actionId} maxLength={36} disabled={Boolean(selectedActionId) || busy || finalized || plan !== null} onChange={(event) => setActionId(event.target.value.trim())} />
       </label>
-      <button className={`mt-3 ${buttonClass}`} disabled={busy || sendAttempted || finalized || signature !== "" || !plan && operationId !== "" || !isActionId(actionId)} onClick={() => void run(prepare)}>Подготовить / обновить неподписанный план</button>
+      <button className={`mt-3 ${buttonClass}`} disabled={busy || sendAttempted || finalized || signature !== "" || !plan && operationId !== "" || !isActionId(actionId)} onClick={() => void run(prepare)}>{financialCopy("Подготовить / обновить неподписанный план")}</button>
       {plan && (
         <div className="mt-4 rounded-lg bg-[#f4f7f5] p-4">
-          <p className="mb-3 rounded-md border border-[#cbd8d0] bg-white px-3 py-2 text-xs font-semibold">{networkDescription(plan.cluster)}</p>
+          <p className="mb-3 rounded-md border border-[#cbd8d0] bg-white px-3 py-2 text-xs font-semibold">{financialCopy(networkDescription(plan.cluster))}</p>
           <dl className="space-y-2 text-xs">
-            {Object.entries({ "Сеть": plan.cluster, "Genesis": plan.networkGenesisHash, "Signer / fee payer": plan.requiredSigner,
-              "Программа": plan.programId, "Action PDA": plan.actionAddress, "Snapshot UUID": plan.snapshotId,
-              "SHA-256": plan.snapshotHash, "Плановая дата": plan.recordAt, "Фактическое время": plan.effectiveBlockTime,
+            {Object.entries({ [financialCopy("Сеть")]: plan.cluster, "Genesis": plan.networkGenesisHash, "Signer / fee payer": plan.requiredSigner,
+              [financialCopy("Программа")]: plan.programId, "Action PDA": plan.actionAddress, "Snapshot UUID": plan.snapshotId,
+              "SHA-256": plan.snapshotHash, [financialCopy("Плановая дата")]: plan.recordAt, [financialCopy("Фактическое время")]: plan.effectiveBlockTime,
               "Finalized slot": plan.effectiveSlot, "Last valid block height": String(plan.lastValidBlockHeight) }).map(([label, value]) => (
-              <div key={label}><dt className="text-[#61746a]">{label}</dt><dd className="break-all font-mono">{value}</dd></div>
+              <div key={financialCopy(label)}><dt className="text-[#61746a]">{financialCopy(label)}</dt><dd className="break-all font-mono">{value}</dd></div>
             ))}
           </dl>
-          <label className="mt-4 flex gap-2 text-xs"><input type="checkbox" checked={reviewed} disabled={busy || sendAttempted} onChange={(event) => setReviewed(event.target.checked)} />Проверил параметры, тестовую сеть и окно регистрации</label>
-          <button className={`mt-3 ${buttonClass}`} disabled={busy || !reviewed || sendAttempted || finalized || !supportsPreparedTransaction(wallet, plan.cluster)} onClick={() => void run(send)}>Подписать и отправить через Phantom</button>
-          {!supportsPreparedTransaction(wallet, plan.cluster) && <p className="mt-2 text-xs">Нужен кошелёк с поддержкой {walletChainForCluster(plan.cluster)}, v0 и подписи транзакций.</p>}
+          <label className="mt-4 flex gap-2 text-xs"><input type="checkbox" checked={reviewed} disabled={busy || sendAttempted} onChange={(event) => setReviewed(event.target.checked)} />{financialCopy("Проверил параметры, тестовую сеть и окно регистрации")}</label>
+          <button className={`mt-3 ${buttonClass}`} disabled={busy || !reviewed || sendAttempted || finalized || !supportsPreparedTransaction(wallet, plan.cluster)} onClick={() => void run(send)}>{financialCopy("Подписать и отправить через Phantom")}</button>
+          {!supportsPreparedTransaction(wallet, plan.cluster) && <p className="mt-2 text-xs">{financialCopy("Нужен кошелёк с поддержкой")} {walletChainForCluster(plan.cluster)}{financialCopy(", v0 и подписи транзакций.")}</p>}
         </div>
       )}
       <details className="mt-4" open={signature !== "" || sendAttempted}>
-        <summary className="cursor-pointer text-sm font-medium">Подтверждение / восстановление отправленной операции</summary>
-        <p className="mt-2 text-xs leading-5">Сохраните эти значения до закрытия страницы. После перезагрузки введите тот же UUID действия, попытку и подпись из истории кошелька. Проверка не отправляет транзакцию заново.</p>
-        <label className="mt-3 block text-sm">UUID попытки<input className={inputClass} value={operationId} maxLength={36} disabled={busy || finalized || signature !== "" && plan !== null} onChange={(event) => setOperationId(event.target.value.trim())} /></label>
-        <label className="mt-3 block text-sm">Подпись транзакции<input className={inputClass} value={signature} maxLength={88} disabled={busy || finalized} onChange={(event) => setSignature(event.target.value.trim())} /></label>
-        <button className={`mt-3 ${buttonClass}`} disabled={busy || finalized} onClick={() => void run(confirm)}>Проверить finalized через API</button>
+        <summary className="cursor-pointer text-sm font-medium">{financialCopy("Подтверждение / восстановление отправленной операции")}</summary>
+        <p className="mt-2 text-xs leading-5">{financialCopy("Сохраните эти значения до закрытия страницы. После перезагрузки введите тот же UUID действия, попытку и подпись из истории кошелька. Проверка не отправляет транзакцию заново.")}</p>
+        <label className="mt-3 block text-sm">{financialCopy("UUID попытки")}<input className={inputClass} value={operationId} maxLength={36} disabled={busy || finalized || signature !== "" && plan !== null} onChange={(event) => setOperationId(event.target.value.trim())} /></label>
+        <label className="mt-3 block text-sm">{financialCopy("Подпись транзакции")}<input className={inputClass} value={signature} maxLength={88} disabled={busy || finalized} onChange={(event) => setSignature(event.target.value.trim())} /></label>
+        <button className={`mt-3 ${buttonClass}`} disabled={busy || finalized} onClick={() => void run(confirm)}>{financialCopy("Проверить finalized через API")}</button>
       </details>
-      <p role="status" aria-live="polite" className="mt-4 text-xs leading-5">{busy ? "Операция выполняется… " : ""}{message}</p>
+      <p role="status" aria-live="polite" className="mt-4 text-xs leading-5">{busy ? financialCopy("Операция выполняется… ") : ""}{message}</p>
     </section>
   );
 }

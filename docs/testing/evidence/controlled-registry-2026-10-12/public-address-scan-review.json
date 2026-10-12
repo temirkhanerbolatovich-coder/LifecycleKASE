@@ -1,0 +1,46 @@
+{
+  "schema": "reviewed-public-token-addresses-v1",
+  "findings": [
+    {
+      "rule": "generic-api-key",
+      "file": "docs/testing/evidence/controlled-registry-2026-10-12/runtime.json",
+      "line": 27,
+      "field": "treasuryTokenAccount",
+      "publicAddress": "DcRdANuwgyu8p5D5ErbEnU6Y7CgAmzKkyGzUoQMBwfdR",
+      "verification": "DERIVED_TOKEN_2022_TREASURY_ATA"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "docs/testing/evidence/controlled-registry-2026-10-12/runtime.json",
+      "line": 5307,
+      "field": "tokenAccount",
+      "publicAddress": "2ApMkjF7iwWskDGbqmyMTruUz73cJhSg5SyLXTDQ7uCr",
+      "verification": "RAW_CAPTURED_TOKEN_POSITION"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "docs/testing/evidence/controlled-registry-2026-10-12/runtime.json",
+      "line": 5312,
+      "field": "tokenAccount",
+      "publicAddress": "Cwu2ZpG6DjUp5kAe1APuPgy12QYE2dxETpX2uvfKc9yY",
+      "verification": "RAW_CAPTURED_TOKEN_POSITION"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "docs/testing/evidence/controlled-registry-2026-10-12/runtime.json",
+      "line": 5317,
+      "field": "tokenAccount",
+      "publicAddress": "9rnAVe8mz1kvX3PwuguWwuRhn184hTHitvTkHHgh4mBZ",
+      "verification": "RAW_CAPTURED_TOKEN_POSITION"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "docs/testing/evidence/controlled-registry-2026-10-12/runtime.json",
+      "line": 5322,
+      "field": "tokenAccount",
+      "publicAddress": "5bundgfTfajv7cbUhC7W8Ye5QbUNUVUwb7ifJUXn9xzy",
+      "verification": "RAW_CAPTURED_TOKEN_POSITION"
+    }
+  ],
+  "exceptionScope": "Exact public values AND this one runtime path AND generic-api-key rule only; no file-wide or secret-pattern exclusion"
+}

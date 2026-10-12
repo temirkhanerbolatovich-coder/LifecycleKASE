@@ -1,17 +1,20 @@
 import type { PrismaClient } from "@prisma/client";
 import {
-  buildSnapshotRegistrationInstruction,
   decodeConfirmedSnapshotAccount,
   decodePublicKey,
   serializeUnsignedSnapshotRegistrationTransaction,
   verifyFinalizedSnapshotTransaction,
   type SolanaRpc
 } from "@lifecycle-kase/solana-client";
+import { buildPolicySnapshotInstruction, requireCapturedRowsMatch, requireControlledSnapshotEvidence } from "./controlled-snapshot.js";
+import { isControlledInstrument, readControlledCaptureState } from "./controlled-capture.js";
+import { requireControlledRegistry } from "./controlled-policy.js";
 
 import { SnapshotPreparationError } from "./snapshot-candidate.js";
 import { uuidBytes } from "./snapshot-registration.js";
 import { requireActionIssuer } from "./corporate-action-registry.js";
 import { unavailableWorkflowTransaction } from "./transaction-workflow.js";
+import { onchainActionVersion, verifyExactRedemptionTarget } from "./redemption-policy.js";
 
 const CONFIRMABLE_STATUSES = ["PREPARED", "SUBMITTED", "UNKNOWN_CONFIRMATION"] as const;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -44,7 +47,8 @@ export async function confirmSnapshotRegistration(
   transactionSignature: string,
   actor: ConfirmationActor,
   expectedGenesisHash: string,
-  now: Date
+  now: Date,
+  controlledRegistryEnabled = false
 ) {
   if (!Number.isFinite(now.getTime()) || !UUID_PATTERN.test(actionId) || !UUID_PATTERN.test(operationId) ||
       !UUID_PATTERN.test(actor.id) || !UUID_PATTERN.test(actor.correlationId) ||
@@ -64,6 +68,9 @@ export async function confirmSnapshotRegistration(
     throw new SnapshotPreparationError("REGISTRATION_NOT_FOUND", "Snapshot registration attempt was not found");
   }
   requireActionIssuer(action.instrument, actor);
+  requireControlledRegistry(action.instrument, { cluster: action.instrument.network === "SOLANA_LOCALNET" ? "localnet" : "devnet",
+    programId: action.instrument.programId ?? "", controlledRegistryEnabled });
+  if (isControlledInstrument(action.instrument)) requireControlledSnapshotEvidence(snapshot.captureEvidence, snapshot.canonicalJson);
   if (operation.requiredSigner && operation.requiredSigner !== actor.walletAddress) {
     throw new SnapshotPreparationError("WALLET_MISMATCH", "Session wallet does not match the prepared signer");
   }
@@ -89,7 +96,10 @@ export async function confirmSnapshotRegistration(
       operation.networkGenesisHash && operation.networkGenesisHash !== expectedGenesisHash) {
     throw new SnapshotPreparationError("WRONG_SOLANA_NETWORK", "Confirmation RPC does not match the snapshot network");
   }
-  const instruction = await buildSnapshotRegistrationInstruction({
+  const raw = snapshot.canonicalJson as { investors: { wallets: { token_accounts: { address: string }[] }[] }[] };
+  const holderTokenAccounts = isControlledInstrument(action.instrument) ? raw.investors.flatMap(investor => investor.wallets.flatMap(wallet =>
+    wallet.token_accounts.map(account => account.address))).sort() : [];
+  const instruction = await buildPolicySnapshotInstruction({
     programId: action.instrument.programId,
     instrumentId: uuidBytes(action.instrument.id),
     actionId: uuidBytes(action.id),
@@ -101,7 +111,7 @@ export async function confirmSnapshotRegistration(
     walletCount: snapshot.walletCount,
     totalBalance: snapshot.totalBalance,
     mintSupply: snapshot.mintSupply
-  });
+  }, action.instrument.tokenPolicy, holderTokenAccounts);
   const expectedTransaction = serializeUnsignedSnapshotRegistrationTransaction({
     instruction,
     feePayer: action.instrument.issuerAuthority,
@@ -165,12 +175,24 @@ export async function confirmSnapshotRegistration(
   } catch {
     throw new SnapshotPreparationError("ACTION_ACCOUNT_MISMATCH", "Finalized Action PDA cannot be verified");
   }
-  if (!Buffer.from(confirmed.actionId).equals(Buffer.from(uuidBytes(action.id))) ||
+  if (confirmed.version !== onchainActionVersion(action) || !Buffer.from(confirmed.actionId).equals(Buffer.from(uuidBytes(action.id))) ||
       confirmed.instrumentAddress !== instruction.instrumentAddress ||
       confirmed.snapshotHash !== Buffer.from(snapshot.snapshotHash).toString("hex") ||
       confirmed.snapshotSlot !== snapshot.solanaSlot || confirmed.investorCount !== snapshot.investorCount ||
       confirmed.walletCount !== snapshot.walletCount || confirmed.totalBalance !== snapshot.totalBalance) {
     throw new SnapshotPreparationError("ACTION_ACCOUNT_MISMATCH", "Finalized Action PDA commitment differs from the snapshot");
+  }
+  await verifyExactRedemptionTarget(rpc, action, instruction.actionAddress, action.instrument.programId!, slot as number);
+  if (isControlledInstrument(action.instrument)) {
+    const state = await readControlledCaptureState(rpc, action.instrument, actionId, slot as number);
+    const committed = state.capture;
+    if (!committed?.committed || committed.finished || state.policy.captureAction !== state.actionAddress ||
+        committed.snapshotHash !== confirmed.snapshotHash || committed.startedSlot !== snapshot.solanaSlot ||
+        new Date(Number(committed.startedAt) * 1000).getTime() !== snapshot.blockTime.getTime() ||
+        JSON.stringify(committed.holdings.map(row => row.tokenAccount).sort()) !== JSON.stringify(holderTokenAccounts)) {
+      throw new SnapshotPreparationError("CONTROLLED_CAPTURE_MISMATCH", "Finalized raw capture differs from the stored snapshot");
+    }
+    requireCapturedRowsMatch(committed.holdings, snapshot.canonicalJson);
   }
   await database.$transaction(async (transaction) => {
     const operationUpdate = await transaction.blockchainTransaction.updateMany({

@@ -22,6 +22,12 @@ export interface CouponBreakdown {
   denominator: bigint;
 }
 
+export interface CouponCalculationSummary {
+  roundedTotalMinor: bigint;
+  theoreticalTotal: { numerator: bigint; denominator: bigint };
+  roundingResidual: { numerator: bigint; denominator: bigint };
+}
+
 export interface PrincipalInput {
   balance: bigint;
   faceValueMinor: bigint;
@@ -94,6 +100,39 @@ export function calculateCouponBreakdown(input: CouponInput): CouponBreakdown {
 
 export function calculateCoupon(input: CouponInput): bigint {
   return calculateCouponBreakdown(input).amountMinor;
+}
+
+/** Keeps the exact fractional minor units retained by per-investor floor rounding. */
+export function summarizeCouponBreakdowns(
+  rows: readonly CouponBreakdown[]
+): CouponCalculationSummary {
+  const denominator = rows[0]?.denominator;
+  if (denominator === undefined || ![10_000n, 20_000n, 40_000n].includes(denominator)) {
+    throw new DomainValidationError(
+      "INVALID_COUPON_BREAKDOWN",
+      "Coupon summary requires calculated rows with a supported denominator"
+    );
+  }
+
+  let roundedTotalMinor = 0n;
+  let residualNumerator = 0n;
+  for (const row of rows) {
+    assertU64(row.amountMinor, "coupon amountMinor");
+    if (row.denominator !== denominator || row.remainder < 0n || row.remainder >= denominator) {
+      throw new DomainValidationError(
+        "INVALID_COUPON_BREAKDOWN",
+        "Coupon rows must share a denominator and contain a valid floor-rounding remainder"
+      );
+    }
+    roundedTotalMinor = assertResultU64(roundedTotalMinor + row.amountMinor, "coupon summary");
+    residualNumerator += row.remainder;
+  }
+
+  return {
+    roundedTotalMinor,
+    theoreticalTotal: { numerator: roundedTotalMinor * denominator + residualNumerator, denominator },
+    roundingResidual: { numerator: residualNumerator, denominator }
+  };
 }
 
 export function calculateFinalCoupon(input: CouponInput): bigint {

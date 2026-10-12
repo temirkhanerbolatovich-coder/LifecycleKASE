@@ -1,0 +1,14 @@
+{$PUBLIC_HOSTNAME} {
+    encode zstd gzip
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+    handle_path /media/* {
+        root * /srv/submission
+        file_server
+    }
+    handle {
+        reverse_proxy 127.0.0.1:3000
+    }
+}

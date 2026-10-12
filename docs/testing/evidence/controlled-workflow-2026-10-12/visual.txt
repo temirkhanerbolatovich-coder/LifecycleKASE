@@ -1,0 +1,27 @@
+▲ Next.js 16.4.0 (Turbopack)
+✓ Running next.config.mjs took 65ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 7.5s
+  Running TypeScript ...
+  Finished TypeScript in 3.6s ...
+  Collecting page data using 8 workers ...
+  Generating static pages using 8 workers (0/7) ...
+  Generating static pages using 8 workers (1/7)
+  Generating static pages using 8 workers (3/7)
+  Generating static pages using 8 workers (5/7)
+✓ Generating static pages using 8 workers (7/7) in 2.4s
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ƒ /_not-found
+├ ƒ /controlled-fixture
+├ ƒ /dashboard
+├ ƒ /health/live
+└ ƒ /qa
+
+
+ƒ  (Dynamic)  server-rendered on demand
+
+PASS governed workflow visual production fixture C:\Users\Админ\Documents\ChatGPT\LifecycleKASE\.local-controlled-visual-XmEhTV

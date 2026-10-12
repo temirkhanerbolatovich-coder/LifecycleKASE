@@ -167,6 +167,14 @@ enum ExecutionJobStatus {
   FAILED_FINAL
 }
 
+enum ReconciliationJobStatus {
+  PENDING
+  RUNNING
+  RETRY_SCHEDULED
+  COMPLETED
+  BLOCKED
+}
+
 model User {
   id              String            @id @default(uuid()) @db.Uuid
   normalizedEmail String?           @unique @map("normalized_email") @db.VarChar(320)
@@ -230,6 +238,7 @@ model Investor {
   eligibilityReasonCode  String?                 @map("eligibility_reason_code") @db.VarChar(50)
   eligibilityReviewedAt  DateTime?               @map("eligibility_reviewed_at") @db.Timestamptz(6)
   status                 InvestorStatus          @default(ACTIVE)
+  registryVersion        Int                     @default(1) @map("registry_version")
   createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
   wallets                Wallet[]
@@ -250,6 +259,7 @@ model Wallet {
   verifiedAt             DateTime?        @map("verified_at") @db.Timestamptz(6)
   revokedAt              DateTime?        @map("revoked_at") @db.Timestamptz(6)
   revocationReasonCode   String?          @map("revocation_reason_code") @db.VarChar(50)
+  registryVersion        Int              @default(1) @map("registry_version")
   createdAt              DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   user                   User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
   investor               Investor?        @relation(fields: [investorId], references: [id], onDelete: Restrict)
@@ -297,6 +307,7 @@ model Instrument {
   network                  String                  @default("SOLANA_DEVNET") @db.VarChar(30)
   programId                String?                 @map("program_id") @db.VarChar(44)
   mintAddress              String?                 @unique @map("mint_address") @db.VarChar(44)
+  tokenPolicy              String                  @default("LEGACY_UNRESTRICTED_V1") @map("token_policy") @db.VarChar(40)
   issuerAuthority          String                  @map("issuer_authority") @db.VarChar(44)
   complianceAuthority      String                  @map("compliance_authority") @db.VarChar(44)
   corporateActionAuthority String                  @map("corporate_action_authority") @db.VarChar(44)
@@ -329,39 +340,42 @@ model Instrument {
 }
 
 model CorporateAction {
-  id                      String                    @id @default(uuid()) @db.Uuid
-  instrumentId            String                    @map("instrument_id") @db.Uuid
-  type                    CorporateActionType
-  intent                  String                    @db.VarChar(500)
-  sourceType              CorporateActionSourceType @default(MANUAL) @map("source_type")
-  sourceReference         String?                   @map("source_reference") @db.VarChar(250)
-  sourceDocument          String?                   @map("source_document") @db.VarChar(500)
-  sourceTimestamp         DateTime?                 @map("source_timestamp") @db.Timestamptz(6)
-  createdById             String                    @map("created_by_id") @db.Uuid
-  approvedById            String?                   @map("approved_by_id") @db.Uuid
-  approvedAt              DateTime?                 @map("approved_at") @db.Timestamptz(6)
-  reviewNote              String?                   @map("review_note") @db.VarChar(1000)
-  recordAt                DateTime                  @map("record_at") @db.Timestamptz(6)
-  executeAt               DateTime                  @map("execute_at") @db.Timestamptz(6)
-  redemptionPercentageBps Int?                      @map("redemption_percentage_bps")
-  redemptionPriceMinor    BigInt?                   @map("redemption_price_minor") @db.BigInt
-  status                  CorporateActionStatus     @default(DRAFT)
-  eligibleHolders         Int                       @default(0) @map("eligible_holders")
-  totalEntitlementMinor   BigInt                    @default(0) @map("total_entitlement_minor") @db.BigInt
-  processedEntitlements   Int                       @default(0) @map("processed_entitlements")
-  failedEntitlements      Int                       @default(0) @map("failed_entitlements")
-  settlementType          SettlementType            @default(ON_CHAIN) @map("settlement_type")
-  version                 Int                       @default(0)
-  createdAt               DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt               DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  instrument              Instrument                @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
-  createdBy               User                      @relation("ActionCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  approvedBy              User?                     @relation("ActionApprover", fields: [approvedById], references: [id], onDelete: Restrict)
-  snapshot                Snapshot?
-  entitlements            Entitlement[]
-  blockchainTransactions  BlockchainTransaction[]
-  executionJobs           ExecutionJob[]
-  actionReceipt           ActionReceipt?
+  id                         String                    @id @default(uuid()) @db.Uuid
+  instrumentId               String                    @map("instrument_id") @db.Uuid
+  type                       CorporateActionType
+  intent                     String                    @db.VarChar(500)
+  sourceType                 CorporateActionSourceType @default(MANUAL) @map("source_type")
+  sourceReference            String?                   @map("source_reference") @db.VarChar(250)
+  sourceDocument             String?                   @map("source_document") @db.VarChar(500)
+  sourceTimestamp            DateTime?                 @map("source_timestamp") @db.Timestamptz(6)
+  createdById                String                    @map("created_by_id") @db.Uuid
+  approvedById               String?                   @map("approved_by_id") @db.Uuid
+  approvedAt                 DateTime?                 @map("approved_at") @db.Timestamptz(6)
+  reviewNote                 String?                   @map("review_note") @db.VarChar(1000)
+  recordAt                   DateTime                  @map("record_at") @db.Timestamptz(6)
+  executeAt                  DateTime                  @map("execute_at") @db.Timestamptz(6)
+  redemptionPercentageBps    Int?                      @map("redemption_percentage_bps")
+  redemptionPriceMinor       BigInt?                   @map("redemption_price_minor") @db.BigInt
+  redemptionAllocationPolicy String                    @default("integer-entitlements-v1") @map("redemption_allocation_policy") @db.VarChar(64)
+  redemptionTargetTokens     BigInt?                   @map("redemption_target_tokens") @db.BigInt
+  controlledCaptureLocked    Boolean                   @default(false) @map("controlled_capture_locked")
+  status                     CorporateActionStatus     @default(DRAFT)
+  eligibleHolders            Int                       @default(0) @map("eligible_holders")
+  totalEntitlementMinor      BigInt                    @default(0) @map("total_entitlement_minor") @db.BigInt
+  processedEntitlements      Int                       @default(0) @map("processed_entitlements")
+  failedEntitlements         Int                       @default(0) @map("failed_entitlements")
+  settlementType             SettlementType            @default(ON_CHAIN) @map("settlement_type")
+  version                    Int                       @default(0)
+  createdAt                  DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  instrument                 Instrument                @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
+  createdBy                  User                      @relation("ActionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedBy                 User?                     @relation("ActionApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+  snapshot                   Snapshot?
+  entitlements               Entitlement[]
+  blockchainTransactions     BlockchainTransaction[]
+  executionJobs              ExecutionJob[]
+  actionReceipt              ActionReceipt?
 
   @@index([instrumentId, status, recordAt, executeAt])
   @@map("corporate_actions")
@@ -377,6 +391,7 @@ model Snapshot {
   solanaSlot         BigInt             @map("solana_slot") @db.BigInt
   blockTime          DateTime           @map("block_time") @db.Timestamptz(6)
   canonicalJson      Json               @map("canonical_json") @db.JsonB
+  captureEvidence    Json?              @map("capture_evidence") @db.JsonB
   snapshotHash       Bytes              @unique @map("snapshot_hash") @db.ByteA
   investorCount      Int                @map("investor_count")
   walletCount        Int                @map("wallet_count")
@@ -526,6 +541,8 @@ model BlockchainTransaction {
   entitlementId             String?                     @map("entitlement_id") @db.Uuid
   investorId                String?                     @map("investor_id") @db.Uuid
   operationType             String                      @map("operation_type") @db.VarChar(80)
+  programUpgradeId          String?                     @map("program_upgrade_id") @db.Uuid
+  programUpgrade            ProgramUpgrade?             @relation(fields: [programUpgradeId], references: [id], onDelete: Restrict)
   signature                 String?                     @unique @db.VarChar(88)
   status                    BlockchainTransactionStatus @default(PREPARED)
   recentBlockhash           String?                     @map("recent_blockhash") @db.VarChar(64)
@@ -544,11 +561,28 @@ model BlockchainTransaction {
   entitlement               Entitlement?                @relation(fields: [entitlementId], references: [id], onDelete: Restrict)
   investor                  Investor?                   @relation(fields: [investorId], references: [id], onDelete: Restrict)
   settlementLegs            SettlementLeg[]
+  reconciliationJob        ReconciliationJob?
 
   @@index([corporateActionId, status])
   @@index([instrumentId, status])
   @@index([entitlementId, status])
   @@map("blockchain_transactions")
+}
+
+model ProgramUpgrade {
+  id                 String                  @id @default(uuid()) @db.Uuid
+  programId          String                  @map("program_id") @db.VarChar(44)
+  networkGenesisHash String                  @map("network_genesis_hash") @db.VarChar(44)
+  bufferAddress      String                  @map("buffer_address") @db.VarChar(44)
+  requiredSigner     String                  @map("required_signer") @db.VarChar(44)
+  status             String                  @default("ACTIVE") @db.VarChar(20)
+  reviewedPlan       Json                    @map("reviewed_plan") @db.JsonB
+  protectedAccounts  Json                    @map("protected_accounts") @db.JsonB
+  createdAt          DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  verifiedAt         DateTime?               @map("verified_at") @db.Timestamptz(6)
+  transactions       BlockchainTransaction[]
+
+  @@map("program_upgrades")
 }
 
 model ExecutionJob {
@@ -569,6 +603,28 @@ model ExecutionJob {
   @@unique([corporateActionId, entitlementId, jobType])
   @@index([status, nextAttemptAt])
   @@map("execution_jobs")
+}
+
+model ReconciliationJob {
+  id                       String                  @id @default(uuid()) @db.Uuid
+  blockchainTransactionId  String                  @unique @map("blockchain_transaction_id") @db.Uuid
+  originalSignature        String                  @map("original_signature") @db.VarChar(88)
+  networkGenesisHash       String                  @map("network_genesis_hash") @db.VarChar(44)
+  status                   ReconciliationJobStatus @default(PENDING)
+  attemptCount             Int                     @default(0) @map("attempt_count")
+  nextAttemptAt            DateTime                @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  leaseToken               String?                 @map("lease_token") @db.Uuid
+  leaseExpiresAt           DateTime?               @map("lease_expires_at") @db.Timestamptz(6)
+  runnerId                 String?                 @map("runner_id") @db.VarChar(100)
+  lastErrorCode            String?                 @map("last_error_code") @db.VarChar(100)
+  completedAt              DateTime?               @map("completed_at") @db.Timestamptz(6)
+  createdAt                DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+  blockchainTransaction    BlockchainTransaction   @relation(fields: [blockchainTransactionId], references: [id], onDelete: Restrict)
+
+  @@index([status, nextAttemptAt])
+  @@index([status, leaseExpiresAt])
+  @@map("reconciliation_jobs")
 }
 
 model IdempotencyRecord {

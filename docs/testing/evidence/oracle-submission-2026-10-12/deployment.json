@@ -1,0 +1,74 @@
+{
+  "schema": "oracle-submission-deployment-v1",
+  "recordedAt": "2026-10-12T15:42:10Z",
+  "source": "f51be252295af181ed931f00dba1ee89c35aedef",
+  "scope": "PUBLIC_WALLETLESS_DEMO_NEW_ISOLATED_DATABASE_NO_FINANCIAL_ACCEPTANCE",
+  "publicOrigin": "https://lifecyclekase.assetguard-temirkhan.duckdns.org",
+  "initialArchiveSha256": "78e19b210b694fa2432726c6ab747e704e8900768c47ea30fcbb78c489229b9e",
+  "runtimeImageId": "sha256:57c7b1f5d9d3d82b382c8f5cc2177fec1ffe0be32558d9af9bc81b3bfee9742d",
+  "runtimeCorrection": "Installed OpenSSL and regenerated the Linux Prisma client in an added image layer. The initial image already passed migration/readiness but emitted an OpenSSL detection warning. Application JavaScript source remained f51be25.",
+  "deployment": {
+    "project": "lifecyclekase",
+    "migrationsAppliedToNewDatabase": 23,
+    "database": "lifecyclekase_submission",
+    "newDatabaseVolume": "lifecyclekase_lifecyclekase_postgres",
+    "apiListen": "127.0.0.1:4000",
+    "webListen": "127.0.0.1:3000",
+    "postgresPublished": "127.0.0.1:65432",
+    "apiHealth": "healthy",
+    "webHealth": "healthy",
+    "postgresHealth": "healthy",
+    "apiReadyStatus": 200,
+    "webLiveStatus": 200,
+    "allRuntimeRestartPolicies": "unless-stopped",
+    "apiWebOomKilled": false,
+    "systemdUnit": "lifecyclekase.service",
+    "systemdEnabled": true,
+    "systemdActive": true,
+    "timschedulebotActive": true,
+    "hostAvailableMemoryMb": 474,
+    "firewallChanged": false,
+    "ownerStateCopiedOrMutated": false,
+    "assetguardRestarted": false,
+    "retainedVolumesRemoved": false
+  },
+  "http": {
+    "publicHttpsWebLive": 200,
+    "publicHttpsQa": 200,
+    "publicHttpsDashboard": 200,
+    "qaHydration": "Root browser observed completed English hydration after an initial transient loading state; complete scenario acceptance was not repeated.",
+    "publicStaticJsAssets": "All nine referenced JS scripts returned 200 in the root public probe.",
+    "unauthenticatedInvestors": "401 SESSION_REQUIRED; no-store",
+    "unauthenticatedOperatorOverview": "401 SESSION_REQUIRED; no-store",
+    "publicPostRestartLiveRecordedAt": "2026-10-12T15:42:03.567Z"
+  },
+  "media": {
+    "pitch": {
+      "url": "https://lifecyclekase.assetguard-temirkhan.duckdns.org/media/lifecyclekase-pitch-en.mp4",
+      "bytes": 9456881,
+      "sha256": "891e82cd5fdf037d74ff38660879f998a414ca1eb0cda88caad9e67429bd742f",
+      "remoteHashMatchesLocal": true,
+      "caddyHttpsRangeStatus": 206,
+      "rangeObservation": "TLS hostname verified on the VPS with its public hostname resolved to loopback; bytes 0-63/9456881, video/mp4, Accept-Ranges bytes. External complete video playback was not repeated."
+    },
+    "demo": {
+      "published": false,
+      "expectedBytes": 30894496,
+      "partialUploadBytes": 5210112,
+      "partialUploadPath": "/tmp/lifecyclekase-demo-en.mp4",
+      "status": "SCP connection reset; partial file preserved and not copied to the public media directory."
+    },
+    "subtitlesAndTranscriptsUploaded": false
+  },
+  "checkpoint": {
+    "userRequestedStop": true,
+    "taskSshAndUploadHelpersEnded": true,
+    "websiteAndBotLeftRunning": true,
+    "remaining": [
+      "Upload and hash-verify the complete demo MP4; publish it only after the full transfer succeeds.",
+      "Upload subtitles/transcripts if desired; verify external playback and judge portal link requirements.",
+      "Complete any required YouTube upload and final competition submission later; this deployment is not a submitted entry.",
+      "A host reboot, backup restore, fault recovery and full hosted browser workflow were not acceptance-tested."
+    ]
+  }
+}

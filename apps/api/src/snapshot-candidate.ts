@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@prisma/client";
+import type { EligibilityStatus, Investor, PrismaClient, WalletStatus } from "@prisma/client";
 import { createSnapshotV2Commitment } from "@lifecycle-kase/domain";
 import {
   collectToken2022Holders,
@@ -7,6 +7,8 @@ import {
   type SolanaRpc,
   type WalletMapping
 } from "@lifecycle-kase/solana-client";
+import { isControlledInstrument } from "./controlled-capture.js";
+import { collectLockedControlledSnapshot } from "./controlled-snapshot.js";
 
 export class SnapshotPreparationError extends Error {
   constructor(public readonly code: string, message: string) {
@@ -23,7 +25,30 @@ export type SnapshotCandidateOptions = {
   walletNetwork: string;
   graceSeconds: number;
   now: Date;
+  controlledRegistryEnabled?: boolean;
 };
+
+/** Transient stale-read checks; these facts are never added to canonical snapshot-v2. */
+export type SnapshotRegistryFact = {
+  walletId: string;
+  walletAddress: string;
+  investorId: string;
+  walletStatus: WalletStatus;
+  network: string;
+  verifiedAt: string | null;
+  revokedAt: string | null;
+  walletRegistryVersion: number;
+  investorStatus: Investor["status"];
+  eligibilityStatus: EligibilityStatus;
+  investorRegistryVersion: number;
+};
+
+/** Restoring a lifecycle later must not grant eligibility at an earlier record point. */
+export function snapshotInvestorEligibility(investor: Pick<Investor, "status" | "eligibilityStatus">): EligibilityStatus {
+  if (investor.status === "SUSPENDED") return "SUSPENDED";
+  if (investor.status === "CLOSED") return "NOT_ELIGIBLE";
+  return investor.eligibilityStatus;
+}
 
 function validPublicKey(value: unknown): value is string {
   if (typeof value !== "string") return false;
@@ -59,6 +84,9 @@ export async function prepareSnapshotCandidate(
   if (!action) {
     throw new SnapshotPreparationError("ACTION_NOT_FOUND", "Corporate action was not found");
   }
+  if (action.status === "SNAPSHOT_MISSED") {
+    throw new SnapshotPreparationError("SNAPSHOT_WINDOW_MISSED", "Snapshot window was missed; create a new action");
+  }
   if (action.status !== "SCHEDULED" || action.snapshot) {
     throw new SnapshotPreparationError("ACTION_NOT_READY", "Corporate action is not ready for a snapshot");
   }
@@ -66,7 +94,10 @@ export async function prepareSnapshotCandidate(
     throw new SnapshotPreparationError("INSTRUMENT_NOT_ACTIVE", "Instrument mint is not active");
   }
   const sinceRecordMs = options.now.getTime() - action.recordAt.getTime();
-  if (sinceRecordMs < 0 || sinceRecordMs > options.graceSeconds * 1000) {
+  if (sinceRecordMs < 0) {
+    throw new SnapshotPreparationError("RECORD_DATE_NOT_REACHED", "Snapshot record-date window has not opened");
+  }
+  if (!isControlledInstrument(action.instrument) && sinceRecordMs > options.graceSeconds * 1000) {
     throw new SnapshotPreparationError("SNAPSHOT_WINDOW_MISSED", "Snapshot is outside its record-date window");
   }
   const genesisHash = await rpc.request("getGenesisHash", []);
@@ -74,11 +105,13 @@ export async function prepareSnapshotCandidate(
     throw new SnapshotPreparationError("WRONG_SOLANA_NETWORK", "RPC genesis hash does not match configuration");
   }
 
-  const capture = await collectToken2022Holders(rpc, action.instrument.mintAddress);
+  const locked = isControlledInstrument(action.instrument) ? await collectLockedControlledSnapshot(rpc, action.instrument, actionId,
+    { ...options, programId: action.instrument.programId! }) : null;
+  const capture = locked?.capture ?? await collectToken2022Holders(rpc, action.instrument.mintAddress);
   if (capture.supply !== action.instrument.circulatingSupply) {
     throw new SnapshotPreparationError("INSTRUMENT_SUPPLY_STALE", "Instrument supply differs from finalized mint supply");
   }
-  const blockTimeSeconds = await rpc.request("getBlockTime", [capture.slot]);
+  const blockTimeSeconds = locked ? locked.blockTime.getTime() / 1000 : await rpc.request("getBlockTime", [capture.slot]);
   if (!Number.isSafeInteger(blockTimeSeconds) || (blockTimeSeconds as number) < 0) {
     throw new SnapshotPreparationError("BLOCK_TIME_UNAVAILABLE", "Finalized slot block time is unavailable");
   }
@@ -91,6 +124,9 @@ export async function prepareSnapshotCandidate(
       "SNAPSHOT_SLOT_OUTSIDE_WINDOW",
       "Finalized capture slot is outside the elapsed record-date window"
     );
+  }
+  if (locked && blockTime.getTime() > action.recordAt.getTime() + options.graceSeconds * 1000) {
+    throw new SnapshotPreparationError("SNAPSHOT_SLOT_OUTSIDE_WINDOW", "Controlled capture began outside the configured record-date window");
   }
   const walletRows = await database.wallet.findMany({
     where: { address: { in: capture.wallets.map((wallet) => wallet.address) } },
@@ -135,7 +171,7 @@ export async function prepareSnapshotCandidate(
       }
       return {
         investorId: holder.investorId,
-        eligibilityStatus: investor.eligibilityStatus,
+        eligibilityStatus: snapshotInvestorEligibility(investor),
         wallets: holder.wallets.map((wallet) => ({
           walletId: wallet.walletId,
           walletAddress: wallet.address,
@@ -145,8 +181,25 @@ export async function prepareSnapshotCandidate(
       };
     })
   });
+  const registryFacts: SnapshotRegistryFact[] = walletRows.map(wallet => {
+    const investor = wallet.investor;
+    if (!investor || wallet.investorId !== investor.id) {
+      throw new SnapshotPreparationError("INVESTOR_NOT_FOUND", "Registered investor was not found");
+    }
+    return {
+      walletId: wallet.id, walletAddress: wallet.address, investorId: investor.id,
+      walletStatus: wallet.status, network: wallet.network,
+      verifiedAt: wallet.verifiedAt?.toISOString() ?? null,
+      revokedAt: wallet.revokedAt?.toISOString() ?? null,
+      walletRegistryVersion: wallet.registryVersion,
+      investorStatus: investor.status, eligibilityStatus: investor.eligibilityStatus,
+      investorRegistryVersion: investor.registryVersion
+    };
+  });
   return {
     ...candidate,
+    captureEvidence: locked?.captureEvidence ?? null,
+    registryFacts,
     captureSlot: capture.slot,
     actionVersion: action.version,
     instrumentVersion: action.instrument.version

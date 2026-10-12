@@ -1,0 +1,15 @@
+This is LifecycleKASE, a corporate-action terminal for tokenized bonds. In this demo, we review a completed run on a disposable Solana local network. It is a prototype, not a production financial service.
+
+The test instrument starts with thirty-five bonds held by three investors. The workflow separates issuer preparation from approval. Each financial operation uses a saved transaction, an explicit signer, and finalized confirmation.
+
+For the coupon, the finalized holder snapshot is nine, twenty-one, and five bonds. Entitlements are four hundred fifty, one thousand fifty, and two hundred fifty K Z T test: seventeen hundred fifty in total. The effective ownership cutoff is the finalized capture slot and time. We do not reconstruct balances at an earlier planned timestamp.
+
+The full amount is reserved before execution. Confirmed transfers and a final receipt establish the coupon result. The bond supply stays at thirty-five. This is an on-chain test-token transfer, not a real fiat payment.
+
+Next, twenty percent partial redemption pays seven thousand K Z T test and burns seven bonds. The historical supply changes from thirty-five to twenty-eight. Payment and burn share one transaction. If an on-chain leg fails, both legs roll back.
+
+At maturity, the remaining twenty-eight bonds receive twenty-nine thousand four hundred K Z T test, including the final coupon. All remaining bonds are burned. Supply reaches zero and the instrument becomes redeemed.
+
+Each action produces a versioned canonical JSON receipt. Its exact SHA two fifty-six hash is committed to a Solana receipt account. Cash, token effects, and finalized signatures are reconciled before database projection. An unknown confirmation requires checking the original signature, not submitting a replacement payment.
+
+Funding and eligibility are simulated. Public-network deployment, real K Y C, fiat settlement, and exchange integration remain future work. The repository contains the saved evidence and instructions to reproduce this local run.

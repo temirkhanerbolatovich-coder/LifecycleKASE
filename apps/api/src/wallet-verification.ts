@@ -13,7 +13,7 @@ import { assertRegistryMutationAllowed, InvestorRegistryError, REGISTRY_UUID,
   registryMutationOptionsFromEnvironment, type RegistryActor, type RegistryMutationOptions } from "./investor-registry.js";
 
 const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
-const walletSelect = { id: true, address: true, network: true, status: true, verifiedAt: true, revokedAt: true } as const;
+const walletSelect = { id: true, address: true, network: true, status: true, verifiedAt: true, revokedAt: true, registryVersion: true } as const;
 
 function invalid(code: string, message: string, status = 400): never {
   throw new InvestorRegistryError(code, message, status);
@@ -118,7 +118,9 @@ export async function createWalletVerificationChallenge(
     nonceHash: digest(nonce),
     domain: options.domain,
     origin,
-    expiresAt
+    expiresAt,
+    // Consumption/expiry use the application clock; a faster DB default would reject immediate proof.
+    createdAt: now
   } });
   return { challengeId, walletId, walletAddress: wallet.address, message, nonce, expiresAt: expiresAt.toISOString() };
 }
@@ -185,7 +187,7 @@ export async function verifyWalletOwnership(
       });
       if (claimed.count !== 1) invalid("INVALID_VERIFICATION", "Wallet verification challenge is invalid or expired", 401);
       const verified = await transaction.wallet.update({
-        where: { id: wallet.id }, data: { status: "ACTIVE", verifiedAt: now }, select: walletSelect
+        where: { id: wallet.id }, data: { status: "ACTIVE", verifiedAt: now, registryVersion: { increment: 1 } }, select: walletSelect
       });
       await transaction.auditLog.create({ data: {
         actorId: actor.id,

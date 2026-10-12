@@ -1,0 +1,122 @@
+{
+  "schema": "kase-three-actions-demo-v1",
+  "scope": "DISPOSABLE_LOCALNET",
+  "simulated": [
+    "KZT-Test",
+    "investor eligibility"
+  ],
+  "instrumentId": "d3d3d3d3-d3d3-43d3-93d3-d3d3d3d3d3d3",
+  "programId": "6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo",
+  "bondMint": "CAMo36BtMF57sEdJCsVBYN4TPEaNuesRA8Sqeq9dgQQw",
+  "actions": [
+    {
+      "type": "COUPON_PAYMENT",
+      "actionId": "f9ad9318-bcfa-4f99-b049-d50b9119c788",
+      "snapshotHash": "0d49f70fa629b2450cf6842cdb808d759224d42a160183772f5133c219aa66bf",
+      "snapshotSignature": "SMGb6A3487Q9uFJvHit1jC5nN6X8vn59H9szzPHM8rGfEAP21x9sqawntM8e6cHQ5cUCUzoNMUhPZiM6PwMEjPa",
+      "plannedRecordAt": "2026-10-11T10:48:18.000Z",
+      "effectiveSlot": "3408",
+      "effectiveBlockTime": "2026-10-11T10:48:18.000Z",
+      "amountMinor": "1750000000",
+      "supplyBefore": "35",
+      "supplyAfter": "35",
+      "fundingSignature": "5p9Yrbc3gZppVkxAfY31Wi6vN5Y8fs5hVh8EpbV9x2BKQh95vdHy7bhxkAa3QyJyCvwPZCF6RNLJ1fPuCeaprrAa",
+      "approvalSignature": "3f8sVLzPFJP6FuceWphcdZrauh1wu8rHNHVQZdpC7AQ2JWtw7w1h4ioKjxnHboSr1GUynnB2B6fMTDwsKkAw9he1",
+      "payments": [
+        {
+          "entitlementId": "3a09e4e1-0978-4db3-bbcc-0dd7f0ce4d17",
+          "signature": "3G3MBjz3FKHkjd9qsTaHf8UEuVpxUVvniJLYPsefE4iQm9FbGAisnvjV8a2D7D86JAbf9cRzSfTuTUh1hszwHkqM"
+        },
+        {
+          "entitlementId": "52e3045c-ad0d-4a91-9093-7b8eab168b50",
+          "signature": "3oGRfeuAPrXqdp1NTBTw96TCA4CHbrpn8Y5BXKbdJnApDKrRvJ6soziukfuJ9o1X2NuBErosFD1pE1uH5i9ARVxD"
+        },
+        {
+          "entitlementId": "068c5d5e-eae3-4cec-b4ef-0087861d264e",
+          "signature": "4vvCZwvK7mQRbFTsEzxUpoj2aTXLzWfXRw2b9KhYdnJqat9qsjCKeC5WZLjf3JJ9w4nbuP1N9UHso1ng4ipwrxYP"
+        }
+      ],
+      "actionReceipt": "BGSexvGwQELid2SXcyih1yZK1YoNey6aocNmqRKWBTUg",
+      "receiptHash": "01ca7347c2dc7f313060f545097f4db684e0aa0e3be3161763c391dc54d39886",
+      "finalizedSignature": "3VVp6viixcQKKUySdjVnZkN9bbs9XKATtHyuV5L1g7y2yd4tVfryUfhTZyZHZ5F1NqzoQmET3SMxMS7NCMGi5VmB",
+      "canonicalJson": "{\"schemaVersion\":\"coupon-action-receipt-v1\",\"actionId\":\"f9ad9318-bcfa-4f99-b049-d50b9119c788\",\"instrumentId\":\"d3d3d3d3-d3d3-43d3-93d3-d3d3d3d3d3d3\",\"ticker\":\"KASEDEMO\",\"actionType\":\"COUPON_PAYMENT\",\"programId\":\"6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo\",\"network\":\"SOLANA_LOCALNET\",\"genesisHash\":\"2YE2aW45k3aVBYoDYqZcj6fcz3EKExvRxpBqM5M2EdBT\",\"source\":{\"type\":\"MANUAL\",\"reference\":\"KASE-DEMO-TEST-ONLY\",\"document\":null},\"approval\":{\"actorId\":\"150079b7-3fe6-4c84-be96-bd73154534e1\",\"approvedAt\":\"2026-10-11T10:48:42.000Z\",\"note\":\"Separate approver, immutable full reserve\",\"signature\":\"3f8sVLzPFJP6FuceWphcdZrauh1wu8rHNHVQZdpC7AQ2JWtw7w1h4ioKjxnHboSr1GUynnB2B6fMTDwsKkAw9he1\"},\"snapshot\":{\"hash\":\"0d49f70fa629b2450cf6842cdb808d759224d42a160183772f5133c219aa66bf\",\"slot\":\"3408\",\"plannedRecordAt\":\"2026-10-11T10:48:18.000Z\",\"effectiveBlockTime\":\"2026-10-11T10:48:18.000Z\"},\"executeAt\":\"2026-10-11T10:48:38.000Z\",\"totalAmountMinor\":\"1750000000\",\"reconciliation\":\"MATCHED\",\"entitlements\":[{\"investorId\":\"038aeed4-26de-4a84-85ac-0069ea1823be\",\"entitlementId\":\"3a09e4e1-0978-4db3-bbcc-0dd7f0ce4d17\",\"amountMinor\":\"1050000000\",\"status\":\"PAID\",\"settlement\":{\"receiver\":\"DXQq1nzJXdspuLnLaAxeTRmipd1TgjeNAVo3QBpWca2X\",\"signature\":\"3G3MBjz3FKHkjd9qsTaHf8UEuVpxUVvniJLYPsefE4iQm9FbGAisnvjV8a2D7D86JAbf9cRzSfTuTUh1hszwHkqM\",\"receiptAddress\":\"DjNGQ9ihEpkeenjiE3ooMd5Akp1MBn9VNDbE3WnWttSn\",\"executedAt\":\"1791715725\",\"finalizedSlot\":3834,\"cashLeg\":\"CONFIRMED\",\"assetLeg\":\"NOT_APPLICABLE\",\"reconciliation\":\"MATCHED\"}},{\"investorId\":\"0a76f837-fc57-46d0-a2fa-37928be76243\",\"entitlementId\":\"52e3045c-ad0d-4a91-9093-7b8eab168b50\",\"amountMinor\":\"450000000\",\"status\":\"PAID\",\"settlement\":{\"receiver\":\"EC9ZYYZGHe4kGQ51bVNXCJ498ZSpZAszQPUyDruHbqTB\",\"signature\":\"3oGRfeuAPrXqdp1NTBTw96TCA4CHbrpn8Y5BXKbdJnApDKrRvJ6soziukfuJ9o1X2NuBErosFD1pE1uH5i9ARVxD\",\"receiptAddress\":\"943n195oVZrJrMBb1v23P1RwshX35xCwFo7dg84Pxh5g\",\"executedAt\":\"1791715728\",\"finalizedSlot\":3875,\"cashLeg\":\"CONFIRMED\",\"assetLeg\":\"NOT_APPLICABLE\",\"reconciliation\":\"MATCHED\"}},{\"investorId\":\"cc590ab6-cefc-4cb0-b954-6c527ce90efe\",\"entitlementId\":\"068c5d5e-eae3-4cec-b4ef-0087861d264e\",\"amountMinor\":\"250000000\",\"status\":\"PAID\",\"settlement\":{\"receiver\":\"7dbpR6Vx9sXEfMyrTiKnKjgHFQvhP1XrycM1FoDWEUjj\",\"signature\":\"4vvCZwvK7mQRbFTsEzxUpoj2aTXLzWfXRw2b9KhYdnJqat9qsjCKeC5WZLjf3JJ9w4nbuP1N9UHso1ng4ipwrxYP\",\"receiptAddress\":\"8AaruKsC8hxckJPnH4BozTg6GX3G6vGbZDmtT9mh7BBd\",\"executedAt\":\"1791715730\",\"finalizedSlot\":3916,\"cashLeg\":\"CONFIRMED\",\"assetLeg\":\"NOT_APPLICABLE\",\"reconciliation\":\"MATCHED\"}}]}"
+    },
+    {
+      "type": "EARLY_REDEMPTION",
+      "actionId": "1edfc6f1-0066-4a0d-ab05-d4962da3b0d9",
+      "snapshotHash": "13c1cec5847d6009f2177a4d3b3cd488bfff5973408f7a38c3ea720d40f4a4f6",
+      "snapshotSignature": "4iER5ga3iS2ohp2AWo8zruCRQV54VEjskejP2FjivmxJWpjHDBzoKmYKYnNYXCYrFfh9oZRLsUrq2gPsqp7bFNQ8",
+      "plannedRecordAt": "2026-10-11T10:50:26.000Z",
+      "effectiveSlot": "5412",
+      "effectiveBlockTime": "2026-10-11T10:50:26.000Z",
+      "amountMinor": "7000000000",
+      "supplyBefore": "35",
+      "supplyAfter": "28",
+      "fundingSignature": "3bdKaL1H6hCevqBAEJ2Ns98dycAbqVEe3zxTmSP8Q1SRd3jxkeDrzLNUZyatzAt87NbLEPXoRKvh8PTi4gQhpdeb",
+      "approvalSignature": "2proYeC8bEBKSoSkJTVw8a2E2K82E8sxiho2MqksPQrfwQweWgTS6Zvrzbe4QE5fcxK1RbtyGcfJXaXHiZbfG1jK",
+      "payments": [
+        {
+          "entitlementId": "e561f3e0-b9dc-4578-b9aa-1b5597cf6c6f",
+          "signature": "2Zo6hJ4yQdiJtBthVdddpExsNDHoDUmJeUVM6qn7PDGEXYYzMQMZuZzYZSB19DVbqAajNEX2sSHTGev4Agryhwz"
+        },
+        {
+          "entitlementId": "f647177d-6816-43c7-bae5-8d4409fd4ddc",
+          "signature": "i6wsuNeFB4GCQeEvSYjtqw7SmQ6dB1iJso5nVKjDgAP3ZXgUi83dPA4X9gYz3gF5QcoQfeoAu1evB2QPiaYLucA"
+        },
+        {
+          "entitlementId": "976d8cb0-0e84-442e-9b8d-25a6d5480f38",
+          "signature": "xqgDgw3D53AP72qEsdfKDGqweeP4EBSNJbtDarY4drDLsBNQ8EQNzpf9ivfR5iLTH8LxxWDRPGBz7hze8Doq9N5"
+        }
+      ],
+      "actionReceipt": "E9TGd23tkuCvTznPwAQNzPRjBFc14z25noWuLNQnM1zj",
+      "receiptHash": "fd1260c1359e81b89f196b915ba647b39b78681ff2ba83bbbb89283117c2afb3",
+      "finalizedSignature": "VY796N31mbHTLaLKu1LbPuA7o1V62AfHi89L3mc7bpz2YQikRv8H2pWbDp6oMqxttHApGesZFgiCGh4KYZUF8ws",
+      "canonicalJson": "{\"schemaVersion\":\"redemption-action-receipt-v1\",\"actionId\":\"1edfc6f1-0066-4a0d-ab05-d4962da3b0d9\",\"instrumentId\":\"d3d3d3d3-d3d3-43d3-93d3-d3d3d3d3d3d3\",\"ticker\":\"KASEDEMO\",\"actionType\":\"EARLY_REDEMPTION\",\"programId\":\"6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo\",\"network\":\"SOLANA_LOCALNET\",\"genesisHash\":\"2YE2aW45k3aVBYoDYqZcj6fcz3EKExvRxpBqM5M2EdBT\",\"bondMint\":\"CAMo36BtMF57sEdJCsVBYN4TPEaNuesRA8Sqeq9dgQQw\",\"source\":{\"type\":\"MANUAL\",\"reference\":\"KASE-DEMO-TEST-ONLY\",\"document\":null},\"approval\":{\"actorId\":\"150079b7-3fe6-4c84-be96-bd73154534e1\",\"approvedAt\":\"2026-10-11T10:50:45.000Z\",\"note\":\"Separate approver, immutable full reserve\",\"signature\":\"2proYeC8bEBKSoSkJTVw8a2E2K82E8sxiho2MqksPQrfwQweWgTS6Zvrzbe4QE5fcxK1RbtyGcfJXaXHiZbfG1jK\"},\"snapshot\":{\"hash\":\"13c1cec5847d6009f2177a4d3b3cd488bfff5973408f7a38c3ea720d40f4a4f6\",\"slot\":\"5412\",\"plannedRecordAt\":\"2026-10-11T10:50:26.000Z\",\"effectiveBlockTime\":\"2026-10-11T10:50:26.000Z\",\"mintSupply\":\"35\"},\"executeAt\":\"2026-10-11T10:50:46.000Z\",\"totalAmountMinor\":\"7000000000\",\"totalTokensRedeemed\":\"7\",\"finalSupply\":\"28\",\"reconciliation\":\"MATCHED\",\"entitlements\":[{\"investorId\":\"038aeed4-26de-4a84-85ac-0069ea1823be\",\"entitlementId\":\"e561f3e0-b9dc-4578-b9aa-1b5597cf6c6f\",\"amountMinor\":\"4000000000\",\"tokensRedeemed\":\"4\",\"status\":\"REDEEMED\",\"settlement\":{\"receiver\":\"DXQq1nzJXdspuLnLaAxeTRmipd1TgjeNAVo3QBpWca2X\",\"signature\":\"2Zo6hJ4yQdiJtBthVdddpExsNDHoDUmJeUVM6qn7PDGEXYYzMQMZuZzYZSB19DVbqAajNEX2sSHTGev4Agryhwz\",\"receiptAddress\":\"Ehac4rjAEZuLdFiHKaXDtAPRVPqBYdCEFVoayrqG4g8h\",\"sourceHash\":\"8cc8aebac4164c580af33363bb6b481c955da77c71295b9b602ebfc182a1bf50\",\"tokenAccounts\":[{\"address\":\"7dEQ4BthQVmxG9J8Cbt6SFMfKHJhkzX83sTycN34iPxS\",\"burnAmount\":\"4\",\"balanceBefore\":\"20\",\"walletAddress\":\"DXQq1nzJXdspuLnLaAxeTRmipd1TgjeNAVo3QBpWca2X\",\"balanceAtSnapshot\":\"20\",\"expectedBalanceAfter\":\"16\"}],\"supplyBefore\":\"35\",\"supplyAfter\":\"31\",\"executedAt\":\"1791715855\",\"finalizedSlot\":5878,\"cashLeg\":\"CONFIRMED\",\"assetLeg\":\"CONFIRMED\",\"reconciliation\":\"MATCHED\"}},{\"investorId\":\"0a76f837-fc57-46d0-a2fa-37928be76243\",\"entitlementId\":\"f647177d-6816-43c7-bae5-8d4409fd4ddc\",\"amountMinor\":\"2000000000\",\"tokensRedeemed\":\"2\",\"status\":\"REDEEMED\",\"settlement\":{\"receiver\":\"EC9ZYYZGHe4kGQ51bVNXCJ498ZSpZAszQPUyDruHbqTB\",\"signature\":\"i6wsuNeFB4GCQeEvSYjtqw7SmQ6dB1iJso5nVKjDgAP3ZXgUi83dPA4X9gYz3gF5QcoQfeoAu1evB2QPiaYLucA\",\"receiptAddress\":\"CLv9bqBs5FeeXXmJjuw4odaRA1rSajPxKKHSbNs2WxMD\",\"sourceHash\":\"0a074a3e1e77f99dfc1c0d76223d553a63d1f7f6b6a821da510fe035cbf67872\",\"tokenAccounts\":[{\"address\":\"3rxVF5ZDFLAkZVym6GeTeMomDp6WbovhQ7bV6empvGrz\",\"burnAmount\":\"2\",\"balanceBefore\":\"10\",\"walletAddress\":\"EC9ZYYZGHe4kGQ51bVNXCJ498ZSpZAszQPUyDruHbqTB\",\"balanceAtSnapshot\":\"10\",\"expectedBalanceAfter\":\"8\"}],\"supplyBefore\":\"31\",\"supplyAfter\":\"29\",\"executedAt\":\"1791715858\",\"finalizedSlot\":5923,\"cashLeg\":\"CONFIRMED\",\"assetLeg\":\"CONFIRMED\",\"reconciliation\":\"MATCHED\"}},{\"investorId\":\"cc590ab6-cefc-4cb0-b954-6c527ce90efe\",\"entitlementId\":\"976d8cb0-0e84-442e-9b8d-25a6d5480f38\",\"amountMinor\":\"1000000000\",\"tokensRedeemed\":\"1\",\"status\":\"REDEEMED\",\"settlement\":{\"receiver\":\"7dbpR6Vx9sXEfMyrTiKnKjgHFQvhP1XrycM1FoDWEUjj\",\"signature\":\"xqgDgw3D53AP72qEsdfKDGqweeP4EBSNJbtDarY4drDLsBNQ8EQNzpf9ivfR5iLTH8LxxWDRPGBz7hze8Doq9N5\",\"receiptAddress\":\"8x4BVsrpTPMdtJrXqywJ8r7ZivvyqvjCNLr9hYjFogub\",\"sourceHash\":\"02838e520de542cc8e3d5676e58586edd42ce8b647bcc58fe5428999dfc6d7a7\",\"tokenAccounts\":[{\"address\":\"GUjrssWECXnJ6RBEQbPvT4ngmhebvEV15aKKvqFGqLrA\",\"burnAmount\":\"1\",\"balanceBefore\":\"5\",\"walletAddress\":\"7dbpR6Vx9sXEfMyrTiKnKjgHFQvhP1XrycM1FoDWEUjj\",\"balanceAtSnapshot\":\"5\",\"expectedBalanceAfter\":\"4\"}],\"supplyBefore\":\"29\",\"supplyAfter\":\"28\",\"executedAt\":\"1791715861\",\"finalizedSlot\":5970,\"cashLeg\":\"CONFIRMED\",\"assetLeg\":\"CONFIRMED\",\"reconciliation\":\"MATCHED\"}}]}"
+    },
+    {
+      "type": "BOND_REDEMPTION",
+      "actionId": "e5419e24-d967-4bc8-95f6-594b5960c52a",
+      "snapshotHash": "b45634ca2067eac4e77037b86467595a21746b53e806330f88217034d51ecd4e",
+      "snapshotSignature": "5TwLL1ESGj3bL9joBx8srCHbDe9sWkJs2FfVkeNeq6mmh4pmsj5MNZ9NDQFqyXLgeHBGTJwRoXGJVkTuWxqXJ5HA",
+      "plannedRecordAt": "2026-10-11T10:52:37.000Z",
+      "effectiveSlot": "7474",
+      "effectiveBlockTime": "2026-10-11T10:52:37.000Z",
+      "amountMinor": "29400000000",
+      "supplyBefore": "28",
+      "supplyAfter": "0",
+      "fundingSignature": "4msg5BqDuKtj2c4QkUPGj7zXHVRSJKz62wXoY6Ze32qbMVAXish2K2kgZR95LjcNPGdLc4ekFwo3YaE43X1AXE34",
+      "approvalSignature": "4XQHbiygZz8TL9qNSD9XpaSM7tnwmGoYosWSx7uzGzKGALe2EkUANTtQL3TB2MexUmDejnYuwtZtGmfvatLo3d3t",
+      "payments": [
+        {
+          "entitlementId": "ef9db8a0-4e35-4570-b6b3-4a2ec631d1e9",
+          "signature": "4jG63YX4teZYEsbSEyPgkw55Vde4zPTpw8wa2CfB8KJQhr57vr9b3hPnCWUsFGKhoMEaaXh4SwTyMLNJgGDFCD9w"
+        },
+        {
+          "entitlementId": "dd317633-0149-4a5e-9d3f-2c7cbe48dea4",
+          "signature": "WXGAnQrFu5qHv8qHQAm4yrwuUeoJ5eweWgzS1y7DjgCo5fUc63LuHjf64rAmaUoCdzw2eU9Pfc8hihiYqNsBwU7"
+        },
+        {
+          "entitlementId": "37dfabd7-a07e-4fba-bc48-40c38e7ae8de",
+          "signature": "4Bid7WhfjQV7VeUFQs77iF9ujsr46oeNSbabQHovLXh3ygiY9fk8yTZwNab3jSnZHmUubKA4UjYVQeJBfM6zPdym"
+        }
+      ],
+      "actionReceipt": "AHf5gSKEjvsJrDSE2heTVDyP3nR6tQeWaQW7b4mL1U2S",
+      "receiptHash": "93f3aa36608a1ca05337fdcb83b596308e28a459820343c4cab5a6fbdce97919",
+      "finalizedSignature": "5fSYkRJNH3XiAuT4rQQDqqX2KV1pavA8EvW5m9iQhpd51k3UfhrDtWbUCq9HTM66CfTfauskHbdwxR1sXiW6dRnn",
+      "canonicalJson": "{\"schemaVersion\":\"redemption-action-receipt-v1\",\"actionId\":\"e5419e24-d967-4bc8-95f6-594b5960c52a\",\"instrumentId\":\"d3d3d3d3-d3d3-43d3-93d3-d3d3d3d3d3d3\",\"ticker\":\"KASEDEMO\",\"actionType\":\"BOND_REDEMPTION\",\"programId\":\"6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo\",\"network\":\"SOLANA_LOCALNET\",\"genesisHash\":\"2YE2aW45k3aVBYoDYqZcj6fcz3EKExvRxpBqM5M2EdBT\",\"bondMint\":\"CAMo36BtMF57sEdJCsVBYN4TPEaNuesRA8Sqeq9dgQQw\",\"source\":{\"type\":\"MANUAL\",\"reference\":\"KASE-DEMO-TEST-ONLY\",\"document\":null},\"approval\":{\"actorId\":\"150079b7-3fe6-4c84-be96-bd73154534e1\",\"approvedAt\":\"2026-10-11T10:52:57.000Z\",\"note\":\"Separate approver, immutable full reserve\",\"signature\":\"4XQHbiygZz8TL9qNSD9XpaSM7tnwmGoYosWSx7uzGzKGALe2EkUANTtQL3TB2MexUmDejnYuwtZtGmfvatLo3d3t\"},\"snapshot\":{\"hash\":\"b45634ca2067eac4e77037b86467595a21746b53e806330f88217034d51ecd4e\",\"slot\":\"7474\",\"plannedRecordAt\":\"2026-10-11T10:52:37.000Z\",\"effectiveBlockTime\":\"2026-10-11T10:52:37.000Z\",\"mintSupply\":\"28\"},\"executeAt\":\"2026-10-11T10:54:57.000Z\",\"totalAmountMinor\":\"29400000000\",\"totalTokensRedeemed\":\"28\",\"finalSupply\":\"0\",\"reconciliation\":\"MATCHED\",\"entitlements\":[{\"investorId\":\"038aeed4-26de-4a84-85ac-0069ea1823be\",\"entitlementId\":\"ef9db8a0-4e35-4570-b6b3-4a2ec631d1e9\",\"amountMinor\":\"16800000000\",\"tokensRedeemed\":\"16\",\"status\":\"REDEEMED\",\"settlement\":{\"receiver\":\"DXQq1nzJXdspuLnLaAxeTRmipd1TgjeNAVo3QBpWca2X\",\"signature\":\"4jG63YX4teZYEsbSEyPgkw55Vde4zPTpw8wa2CfB8KJQhr57vr9b3hPnCWUsFGKhoMEaaXh4SwTyMLNJgGDFCD9w\",\"receiptAddress\":\"62HbApdstna5mfGvCbRaonrGRwuRCjMwqawsDTnaaCZo\",\"sourceHash\":\"35bf3cf1c4651557541fe449e4acc1297093a154af7207102d956b5c297da511\",\"tokenAccounts\":[{\"address\":\"7dEQ4BthQVmxG9J8Cbt6SFMfKHJhkzX83sTycN34iPxS\",\"burnAmount\":\"16\",\"balanceBefore\":\"16\",\"walletAddress\":\"DXQq1nzJXdspuLnLaAxeTRmipd1TgjeNAVo3QBpWca2X\",\"balanceAtSnapshot\":\"16\",\"expectedBalanceAfter\":\"0\"}],\"supplyBefore\":\"28\",\"supplyAfter\":\"12\",\"executedAt\":\"1791716099\",\"finalizedSlot\":9710,\"cashLeg\":\"CONFIRMED\",\"assetLeg\":\"CONFIRMED\",\"reconciliation\":\"MATCHED\"}},{\"investorId\":\"0a76f837-fc57-46d0-a2fa-37928be76243\",\"entitlementId\":\"dd317633-0149-4a5e-9d3f-2c7cbe48dea4\",\"amountMinor\":\"8400000000\",\"tokensRedeemed\":\"8\",\"status\":\"REDEEMED\",\"settlement\":{\"receiver\":\"EC9ZYYZGHe4kGQ51bVNXCJ498ZSpZAszQPUyDruHbqTB\",\"signature\":\"WXGAnQrFu5qHv8qHQAm4yrwuUeoJ5eweWgzS1y7DjgCo5fUc63LuHjf64rAmaUoCdzw2eU9Pfc8hihiYqNsBwU7\",\"receiptAddress\":\"HkwGc5VGHogn7JxGTExwHVW4uWH2SPrdE1g5gMmugV3K\",\"sourceHash\":\"f935d17050b796ca0b8cc0e1489de7176b4fca3305a2008d194ae451756c6eec\",\"tokenAccounts\":[{\"address\":\"3rxVF5ZDFLAkZVym6GeTeMomDp6WbovhQ7bV6empvGrz\",\"burnAmount\":\"8\",\"balanceBefore\":\"8\",\"walletAddress\":\"EC9ZYYZGHe4kGQ51bVNXCJ498ZSpZAszQPUyDruHbqTB\",\"balanceAtSnapshot\":\"8\",\"expectedBalanceAfter\":\"0\"}],\"supplyBefore\":\"12\",\"supplyAfter\":\"4\",\"executedAt\":\"1791716102\",\"finalizedSlot\":9757,\"cashLeg\":\"CONFIRMED\",\"assetLeg\":\"CONFIRMED\",\"reconciliation\":\"MATCHED\"}},{\"investorId\":\"cc590ab6-cefc-4cb0-b954-6c527ce90efe\",\"entitlementId\":\"37dfabd7-a07e-4fba-bc48-40c38e7ae8de\",\"amountMinor\":\"4200000000\",\"tokensRedeemed\":\"4\",\"status\":\"REDEEMED\",\"settlement\":{\"receiver\":\"7dbpR6Vx9sXEfMyrTiKnKjgHFQvhP1XrycM1FoDWEUjj\",\"signature\":\"4Bid7WhfjQV7VeUFQs77iF9ujsr46oeNSbabQHovLXh3ygiY9fk8yTZwNab3jSnZHmUubKA4UjYVQeJBfM6zPdym\",\"receiptAddress\":\"95983xa3LtLvuznWgUBATpTAkDhs7ZEnioggmJ8GDft9\",\"sourceHash\":\"98d66a3ebe7f0f3800711590cf1cb4e23bc30721730ad57410eee84c63feeada\",\"tokenAccounts\":[{\"address\":\"GUjrssWECXnJ6RBEQbPvT4ngmhebvEV15aKKvqFGqLrA\",\"burnAmount\":\"4\",\"balanceBefore\":\"4\",\"walletAddress\":\"7dbpR6Vx9sXEfMyrTiKnKjgHFQvhP1XrycM1FoDWEUjj\",\"balanceAtSnapshot\":\"4\",\"expectedBalanceAfter\":\"0\"}],\"supplyBefore\":\"4\",\"supplyAfter\":\"0\",\"executedAt\":\"1791716105\",\"finalizedSlot\":9803,\"cashLeg\":\"CONFIRMED\",\"assetLeg\":\"CONFIRMED\",\"reconciliation\":\"MATCHED\"}}]}"
+    }
+  ],
+  "transfers": [
+    {
+      "boundary": "BEFORE_CAPTURE",
+      "signature": "42RGBjJEzYrsgxXbQeee3zY2eW2DA9EeaXvFKK8Q12jxX2T8ke84mHf1BrQLQj82dx8YF5G1armRuX8vd4MArmFo"
+    },
+    {
+      "boundary": "AFTER_CAPTURE",
+      "signature": "4qnT4PEdDByxp9HSxpNDhicnhogGcreCwDqvTwuxKdre5pp7yB6NxVU5f8vP2qpxstZTCLXrzJJGT1CfTZhJHSE1"
+    }
+  ],
+  "genesisHash": "2YE2aW45k3aVBYoDYqZcj6fcz3EKExvRxpBqM5M2EdBT",
+  "failedAtomicRedemptionSignature": "4MuNVsVQNZqPDMfEWadrrCCAZ1mCnLgovsub8TvyZvV2JD39EewkxSDdjuAHrX5kYEHysUQg7gxusTzu3M1uvtwL",
+  "completedAt": "2026-10-11T10:55:11.269Z"
+}

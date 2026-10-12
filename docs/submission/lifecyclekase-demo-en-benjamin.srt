@@ -1,0 +1,119 @@
+1
+00:00:00,000 --> 00:00:05,129
+This is LifecycleKASE, a corporate action terminal for tokenized bonds.
+
+2
+00:00:05,129 --> 00:00:09,857
+We are using the running application in English, through walletless QA.
+
+3
+00:00:09,857 --> 00:00:15,351
+These interactions simulate all payments, approvals, and burns inside this page.
+
+4
+00:00:15,351 --> 00:00:21,039
+The instrument registry exposes terms, circulating supply, and lifecycle status.
+
+5
+00:00:21,039 --> 00:00:25,458
+Investor records connect identity, eligibility, and wallets.
+
+6
+00:00:25,458 --> 00:00:32,636
+We will demonstrate coupon, partial early redemption, and redemption at maturity on synthetic test records.
+
+7
+00:00:32,636 --> 00:00:36,985
+We schedule the coupon, capture holders, and calculate rights.
+
+8
+00:00:36,985 --> 00:00:44,453
+The QA positions are ten, twenty, and five bonds; entitlements total seventeen hundred fifty KZT-Test.
+
+9
+00:00:44,453 --> 00:00:47,687
+The issuer funds and reserves the full budget.
+
+10
+00:00:47,687 --> 00:00:54,835
+A distinct approver reviews the calculation, then the issuer pays each holder and finalizes the simulated receipt.
+
+11
+00:00:54,835 --> 00:00:58,779
+Next, we open twenty percent partial redemption.
+
+12
+00:00:58,779 --> 00:01:05,342
+Capture and calculation produce seven bonds to redeem, with seven thousand KZT-Test in payment.
+
+13
+00:01:05,342 --> 00:01:09,731
+Again, full reserve and separate approval precede execution.
+
+14
+00:01:09,731 --> 00:01:15,640
+After the three simulated payments and burns, supply changes from thirty five to twenty eight.
+
+15
+00:01:15,640 --> 00:01:21,448
+In the Solana protocol, each holder payment and burn share one atomic transaction.
+
+16
+00:01:21,448 --> 00:01:26,092
+Maturity captures the remaining twenty eight bonds in this QA sequence.
+
+17
+00:01:26,092 --> 00:01:31,840
+Principal plus the final coupon totals twenty nine thousand four hundred KZT-Test.
+
+18
+00:01:31,840 --> 00:01:38,033
+We reserve funds, switch approver, execute the simulated payments, and finalize.
+
+19
+00:01:38,033 --> 00:01:44,277
+All remaining bonds are burned, final supply is zero, and the instrument becomes redeemed.
+
+20
+00:01:44,277 --> 00:01:49,435
+We download the simulated result and inspect transaction and audit history as an auditor.
+
+21
+00:01:49,435 --> 00:01:53,429
+QA receipts do not establish blockchain execution.
+
+22
+00:01:53,429 --> 00:02:01,757
+The production recovery path preserves an unknown operation and its original signature for verification, instead of sending a replacement payment.
+
+23
+00:02:01,757 --> 00:02:07,335
+Separate October twelfth disposable Localnet acceptance completed these four actions.
+
+24
+00:02:07,335 --> 00:02:12,734
+It includes an additional exact eight unit redemption between percentage redemption and maturity.
+
+25
+00:02:12,734 --> 00:02:19,397
+That is why its maturity pays twenty one thousand and burns twenty, rather than the QA sequence of twenty eight.
+
+26
+00:02:19,397 --> 00:02:24,171
+Canonical receipts reconcile finalized cash and token effects.
+
+27
+00:02:24,171 --> 00:02:28,200
+KZT-Test and investor eligibility are simulated.
+
+28
+00:02:28,200 --> 00:02:32,903
+The repository contains original receipts and reproduction instructions.
+
+29
+00:02:32,903 --> 00:02:40,461
+Real KYC, fiat settlement, public-network acceptance, and exchange integration remain future work.
+
+30
+00:02:40,461 --> 00:02:44,815
+LifecycleKASE is not affiliated with or approved by KASE.

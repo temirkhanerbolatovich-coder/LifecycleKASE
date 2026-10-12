@@ -12,6 +12,10 @@ $ErrorActionPreference = "Stop"
 if ($LASTEXITCODE -ne 0) {
     throw "Solana client build failed before the integration test."
 }
+if (-not [string]::IsNullOrWhiteSpace($UpgradeCandidateProfile) -or $env:ACTION_TEST_DATABASE_URL) {
+    & npm run build --workspace @lifecycle-kase/api
+    if ($LASTEXITCODE -ne 0) { throw "Upgrade service build failed before disposable acceptance." }
+}
 
 if ($null -eq (Get-Command "wsl" -ErrorAction SilentlyContinue)) {
     throw "WSL 2 is required for the on-chain integration test."

@@ -296,6 +296,14 @@ export async function readOperatorSession(database: PrismaClient, token: string 
       !OPERATOR_ROLES.has(session.user.role)) {
     throw new AuthFlowError("SESSION_INVALID", "Operator session is invalid or expired", 401);
   }
+  const wallet = await database.wallet.findUnique({
+    where: { address: session.walletAddress },
+    select: { userId: true, status: true, verifiedAt: true, revokedAt: true }
+  });
+  if (!wallet || wallet.userId !== session.user.id || wallet.status !== "ACTIVE" ||
+      wallet.verifiedAt === null || wallet.revokedAt !== null) {
+    throw new AuthFlowError("SESSION_INVALID", "Operator session is invalid or expired", 401);
+  }
   return {
     sessionId: session.id,
     walletAddress: session.walletAddress,

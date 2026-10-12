@@ -1,0 +1,627 @@
+
+> lifecycle-kase@0.0.0 check
+> npm run validate && npm run prisma:validate && npm run typecheck && npm test
+
+
+> lifecycle-kase@0.0.0 validate
+> node scripts/validate-scaffold.mjs && node scripts/check-doc-links.mjs
+
+PASS repository scaffold (34 required paths)
+PASS Markdown links and fences (111 files)
+
+> lifecycle-kase@0.0.0 prisma:validate
+> node scripts/run-prisma.mjs validate
+
+Prisma schema loaded from prisma\schema.prisma
+The schema at prisma\schema.prisma is valid 🚀
+
+> lifecycle-kase@0.0.0 typecheck
+> npm run typecheck --workspaces --if-present
+
+
+> @lifecycle-kase/api@0.1.0 typecheck
+> npm run build --workspace @lifecycle-kase/domain && npm run build --workspace @lifecycle-kase/solana-client && tsc -p tsconfig.json --noEmit
+
+
+> @lifecycle-kase/domain@0.1.0 build
+> tsc -p tsconfig.json
+
+
+> @lifecycle-kase/solana-client@0.1.0 build
+> tsc -p tsconfig.json
+
+
+> @lifecycle-kase/web@0.1.0 typecheck
+> next typegen && tsc --noEmit
+
+Generating route types...
+✓ Types generated successfully
+
+> @lifecycle-kase/domain@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> @lifecycle-kase/solana-client@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> lifecycle-kase@0.0.0 test
+> npm run test --workspaces --if-present && node --test "test/**/*.test.mjs"
+
+
+> @lifecycle-kase/api@0.1.0 test
+> npm run build && node --test "dist/**/*.test.js"
+
+
+> @lifecycle-kase/api@0.1.0 build
+> npm run build --workspace @lifecycle-kase/domain && npm run build --workspace @lifecycle-kase/solana-client && tsc -p tsconfig.json
+
+
+> @lifecycle-kase/domain@0.1.0 build
+> tsc -p tsconfig.json
+
+
+> @lifecycle-kase/solana-client@0.1.0 build
+> tsc -p tsconfig.json
+
+✔ approval is opt-in and requires on-chain registration (3.9003ms)
+✔ reserve history proves exact Token-2022 identities through creation and closure (12.8651ms)
+✔ limits each client independently and reports the retry window (3.7849ms)
+✔ bounds tracked clients and validates configuration (3.531ms)
+✔ uses the trusted request address without retaining unbounded input (0.587ms)
+✔ wallet invalidation returns the existing session-recovery HTTP contract (7.233ms)
+✔ authentication throttling returns 429 with Retry-After (1.5956ms)
+✔ rejects an existing operator session after its wallet is blocked (28.9884ms)
+✔ rejects an existing operator session after its wallet is pending (4.6383ms)
+✔ rejects an existing operator session after its wallet is revoked (3.4846ms)
+✔ rejects an existing operator session after its wallet is deleted (3.1372ms)
+✔ rejects an existing operator session after its wallet is reassigned (4.6451ms)
+✔ rejects an existing operator session after its wallet is detached from the user (3.9355ms)
+✔ rejects an existing operator session after its wallet is unverified (4.8021ms)
+✔ rejects an existing operator session after its wallet is revoked without a status update (3.1874ms)
+✔ an active verified wallet cannot extend an expired operator session (3.3254ms)
+✔ creates a domain-bound challenge and one-time operator session (5.3918ms)
+✔ rejects replay, wrong origin, invalid signature, and unauthorized role (5.8254ms)
+✔ validates authentication configuration and wallet proof prerequisites (8.3529ms)
+✔ actions require authentication, keep auditors read-only and enforce Origin/rate limits for every mutation (35.4461ms)
+✔ coupon execution stays off by default and requires the separately reviewed approval capability (3.6459ms)
+✔ disabled execution rejects before database or network access (3.4146ms)
+✔ funding confirmation requires the exact treasury index, owner, mint, precision and integer delta (15.4564ms)
+✔ network reserve has a conservative default and rejects missing precision or unsafe values (1.4181ms)
+✔ funding rejects caller amounts and stale format before accessing the database (21.0291ms)
+✔ funding cannot operate on public Devnet (40.2308ms)
+✔ receipt integrity accepts jsonb key order and rejects altered values, array order or hash (105.3634ms)
+✔ stored entitlement calculations use investor totals, maturity final coupon, early floor and database bounds (59.7113ms)
+✔ calculation requires finalized registration and verifies canonical hash, relational amounts and metadata (69.2067ms)
+✔ execution gate blocks snapshot-created/calculated/unreviewed actions even when their snapshot is finalized (4.8761ms)
+✔ reading entitlements rejects a row linked outside the action snapshot (3.9318ms)
+✔ coupon reads expose exact stored rounding totals and tax status without using changed instrument terms (3.761ms)
+✔ coupon reads preserve zero payouts with a nonzero exact aggregate residual (1.2201ms)
+✔ mixed zero and positive coupon rows retain an exact undistributed fractional minor unit (1.2425ms)
+✔ gross coupon summary survives current eligibility changes and completed settlement (2.0295ms)
+✔ uncalculated and redemption actions do not claim a coupon summary (71.3841ms)
+✔ coupon reads reject corrupted saved amounts, rounding, inputs, positions, coverage and totals (9.8598ms)
+✔ evidence pagination is bounded, deterministic and excludes signed/prepared payloads (9.4301ms)
+✔ journals require an active authenticated Administrator or Auditor and reject other roles (5.1812ms)
+✔ exact target 1 of three single-token holders survives floor rounding and submits complete coverage (68.2567ms)
+✔ largest remainder allocates 8 as 2/5/1 and receiver revision preserves immutable owner ties (52.6407ms)
+✔ target exceeding captured supply fails before saving entitlements (11.815ms)
+✔ stored wrong allocations, tie metadata and duplicate coverage cannot be read or submitted (23.033ms)
+✔ new explicit-target drafts serialize exact integers and remain idempotent (5.3481ms)
+✔ ambiguous, unsafe and disabled exact drafts fail without writing (6.4792ms)
+✔ liveness does not query the database (5.0887ms)
+✔ readiness succeeds when PostgreSQL responds (0.7003ms)
+✔ readiness returns a stable 503 without exposing database errors (5.2374ms)
+✔ accepts explicit Localnet and Devnet deployment configuration (10.5351ms)
+✔ fails closed for missing identities, mainnet, or mismatched wallet network (3.8268ms)
+✔ broadcasts only the exact Ed25519-signed prepared transaction through Localnet (96.52ms)
+✔ prepares and audits an exact unsigned mint setup without changing the instrument (79.2667ms)
+✔ distinguishes pending confirmation from unavailable history without finalizing or replacing a signature (5.8682ms)
+✔ resumes the winning mint setup attempt when concurrent prepare hits the active-attempt constraint (47.8922ms)
+✔ expires an unobserved UNKNOWN_CONFIRMATION after its blockhash lifetime and prepares a fresh attempt (50.91ms)
+✔ never resumes a prepared attempt from an earlier Localnet genesis (39.6787ms)
+✔ never replaces a signed attempt whose RPC history is unavailable (1.3321ms)
+✔ all deployment phases return the stored signed attempt for confirmation after blockhash expiry (8.4136ms)
+✔ mint setup confirmation requires revoked bond authority and retained issuer KZT-Test authority (83.0667ms)
+✔ prepares and audits an exact eligible 10/20/5 distribution (75.9057ms)
+✔ rejects a distribution that is not exactly three unique 10/20/5 wallets (9.17ms)
+✔ finalizes only the exact distribution transaction and reconciled 10/20/5 balances (64.1832ms)
+✔ prepares initialization only after finalized distribution (31.4524ms)
+✔ finalizes initialization only after the exact transaction and Deploying PDA match (45.714ms)
+✔ activation prepare rechecks eligibility and exact holder balances (82.5288ms)
+✔ finalizes activation only after eligibility, balances, and Active PDA match (68.1549ms)
+✔ creates an audited local instrument draft with fixed demo supply and operator authorities (10.9392ms)
+✔ lists bounded instrument pages and serializes bigint fields (3.716ms)
+✔ rejects invalid terms, authority, unsupported fields and incompatible settlement configuration (3.5542ms)
+✔ derives only matching localnet or devnet database networks (1.2684ms)
+✔ instrument registry requires a session and keeps auditors read-only (15.0788ms)
+✔ creates a normalized unreviewed investor with atomic actor audit (5.7222ms)
+✔ rejects malformed investor input and privilege fields before any transaction (3.5076ms)
+✔ an audit failure rolls back the investor creation (1.0393ms)
+✔ attaches only an unverified localnet wallet and audits the mapping (3.8636ms)
+✔ refuses missing/inactive investors and attempts to supply verification or network (2.5561ms)
+✔ wallet mapping rolls back if its audit cannot be saved (1.5718ms)
+✔ lists bounded pages with a continuation cursor and bounded wallet previews (3.2969ms)
+✔ maps database uniqueness and serialization conflicts without leaking details (2.8387ms)
+✔ search normalizes text, preserves wallet address case and keeps a stable creation/id cursor (4.1844ms)
+✔ detail reports bounded previews and the independent full wallet count (1.4372ms)
+✔ wallet pages cover more than twenty records and reject cursors from another investor (5.501ms)
+✔ profile correction changes only explicit facts, versions once and audits field names without PII (8.2942ms)
+✔ profile correction permits suspended investors, refuses closed/missing records and records only effective fields (2.0573ms)
+✔ profile rejects omissions, overposting and malformed inputs before any transaction (5.7688ms)
+✔ profile correction is capture locked and rolls back on audit failure or lost compare-and-set (2.7578ms)
+✔ decides eligibility once only after verified wallet ownership and writes atomic audit (3.6187ms)
+✔ rejects invalid decisions and locks mapping or eligibility changes during snapshot capture (1.6394ms)
+✔ validates the shared registry capture-window configuration (0.7179ms)
+✔ revokes an investor wallet once with a fixed reason and atomic audit (2.2489ms)
+✔ validates wallet revocation scope and rolls state back when audit persistence fails (1.6766ms)
+✔ blocks wallet revocation during snapshot capture (0.8859ms)
+✔ review suspends and restores eligibility with versions, stable demo criteria and actor audit (2.7613ms)
+✔ wallet temporary block/unblock preserves ownership evidence and rejects stale ABA forms (4.9883ms)
+✔ review rejects malformed values, privilege fields and pending initial decisions (2.697ms)
+✔ temporary status never revives pending, revoked, unverified or operator wallets (10.5084ms)
+✔ new registry transitions are capture-locked and atomic with audit persistence (5.8947ms)
+✔ registry requires a session, keeps auditors read-only and checks mutation origins/rate limits (42.566ms)
+✔ feature flag is fail-closed and rejects malformed values (3.956ms)
+✔ registration preparation persists exact immutable facts without changing the action (196.1199ms)
+✔ reset preparation closes only the canonical confirmed partial set (175.8554ms)
+✔ registration enforces capability, CA authority, version and finalization coverage (207.6794ms)
+✔ registration cannot race pending finalization or reset (87.5881ms)
+✔ mixed 0/1 coupon submits complete rows and prepares zero registration without adding a payable holder (78.0165ms)
+✔ all-zero coupon stays calculated and readable; review, funding and chain preparation cannot advance it (73.8158ms)
+✔ mixed coupon receipt preserves zero rows, excludes their settlement and counts only the paid positive row (14.8745ms)
+✔ creates an active verified operator wallet and audit event (12.7585ms)
+✔ is idempotent only for an exact active operator mapping (5.6659ms)
+✔ rejects investor roles, unsupported networks, and invalid identity input (6.4583ms)
+✔ upgrade routes require a session, Administrator mutations, exact Origin and rate limits; disabled reads expose no artifacts (24.8243ms)
+✔ upgrade capability defaults off and requires loopback Localnet with registration disabled (3.9638ms)
+✔ protected program accounts reject stale context, wrong ownership, duplicate keys and noncanonical bytes (6.2647ms)
+✔ wrong upgrade authority is rejected before any database, RPC or artifact access (1.6402ms)
+✔ a same-network unavailable signature with an expired blockhash no longer blocks maintenance (10.0642ms)
+✔ persistent maintenance blocks business HTTP mutations while keeping authentication, reads and recovery available (2.2874ms)
+✔ reviewed burn accounts survive PostgreSQL JSONB key ordering while rejecting any changed source or balance (44.7998ms)
+✔ redemption execution is independent of coupon enablement and stays disabled unless its own reviewed approval candidate is enabled (1.0105ms)
+✔ disabled redemption reads and mutations never touch database or RPC (3.4305ms)
+✔ multi-wallet redemption commits all accounts and allocates aggregate rounding in canonical order (2.5922ms)
+✔ source preparation rejects missing, duplicate, zero, oversized or incomplete committed accounts (1.2548ms)
+✔ mint supply checks reject overlapping stale actions and external burns (0.7535ms)
+✔ full early redemption retires the instrument just like maturity, while partial early redemption remains active (1.4304ms)
+✔ burn evidence requires every committed source's exact zero-decimal finalized history including zero allocation (233.9844ms)
+✔ allocation metadata selects matching on-chain versions and preserves historical legacy actions (3.006ms)
+✔ invalid or ambiguous allocation metadata cannot select a program version (2.0906ms)
+✔ exact target is disabled by default and requires every existing financial capability explicitly (1.3556ms)
+✔ only the finalized bound target PDA verifies exact-target immutable terms (65.6403ms)
+✔ legacy verification does not require an absent target account or issue RPC calls (107.8631ms)
+✔ foreign owner, stale context, executable, absent and malformed target metadata fail closed (149.6812ms)
+✔ target version, discriminator, action binding and quantity must match exactly (144.4305ms)
+✔ redemption receipt requires one finalized atomic transaction proving both required settlement legs (7.7378ms)
+✔ builds a canonical investor-level candidate from DB mappings and finalized RPC (22.0395ms)
+✔ captures SUSPENDED lifecycle as ineligible even if restored after capture (2.9695ms)
+✔ captures CLOSED lifecycle as ineligible even if restored after capture (5.2179ms)
+✔ uses the finalized slot for wallet verification after the planned record time (2.4304ms)
+✔ stops before capture on wrong network or missed window (2.8667ms)
+✔ refuses unknown or unverified holder wallets and stale DB supply (47.5919ms)
+✔ refuses unavailable block time (1.7569ms)
+✔ refuses a finalized slot before the planned record time or after capture (3.8487ms)
+✔ a finalized snapshot stays confirmable after calculation and review advance the application status (111.013ms)
+✔ finalizes database state only after the prepared transaction and Action PDA match (62.3422ms)
+✔ keeps an unavailable finalized transaction in unknown confirmation state (42.4041ms)
+✔ rejects a finalized transaction whose message differs from the prepared attempt (22.0223ms)
+✔ only the exact prepared transaction may mark a snapshot attempt failed (65.7474ms)
+✔ resumes a pending snapshot without recapturing holder balances (122.284ms)
+✔ validates snapshot HTTP configuration without accepting mainnet or excessive windows (2.6606ms)
+✔ does not prepare an operation when a persisted snapshot belongs to another cluster (19.7698ms)
+✔ persists all snapshot rows atomically while action stays scheduled (24.0526ms)
+✔ blocks capture when an action cancellation is pending (2.8181ms)
+✔ rejects changed candidate, action, wallet, and compare-and-set conflict (6.4168ms)
+✔ accepts wallet verification between planned record time and effective finalized slot (1.5241ms)
+✔ persists a suspended lifecycle without changing the canonical snapshot format (2.5166ms)
+✔ rejects changed investor suspension before creating snapshot rows (1.4172ms)
+✔ rejects changed investor closure before creating snapshot rows (1.4911ms)
+✔ rejects changed investor version after suspend and restore before creating snapshot rows (1.5798ms)
+✔ rejects changed wallet version after block and unblock before creating snapshot rows (1.4043ms)
+✔ rejects changed revocation timestamp before creating snapshot rows (1.3656ms)
+✔ rejects changed changed early verification timestamp before creating snapshot rows (0.9109ms)
+✔ rejects a restored investor when its candidate captured a suspended lifecycle (0.9261ms)
+✔ rejects missing or changed transient registry facts (2.5408ms)
+✔ prepares a deterministic unsigned registration from a persisted snapshot (81.3605ms)
+✔ refuses altered, finalized, wrong-network, and late snapshots before instruction preparation (14.3862ms)
+✔ only finalized Clock expiry and an uncaptured scheduled PDA mark a missed snapshot (63.0922ms)
+✔ not-started and inclusive capture boundaries perform no expiry write or RPC (22.332ms)
+✔ a short API window or fast server clock cannot expire the program's inclusive window (13.1451ms)
+✔ captured snapshots and all active attempts preserve recovery before expiry (10.3713ms)
+✔ wrong issuer, version, identifiers and network cannot mutate the action (13.7997ms)
+✔ invalid Clock ownership, data or slot and stale action context leave expiry unverified (22.4759ms)
+✔ on-chain capture, changed action terms and concurrent writes cannot be classified as missed (18.144ms)
+✔ audit failure rolls back the terminal projection (7.1576ms)
+✔ late HTTP workflow capture records finalized missed state before returning the blocking error (9.4166ms)
+✔ protected snapshot mutations return the rate-limit contract (3.52ms)
+✔ trusted action/snapshot transport verifies exact Ed25519 message and signer before broadcast (80.039ms)
+✔ lost broadcast response preserves the original signature for confirmation (11.4489ms)
+✔ signed attempts resume after expiry; unsigned attempts expire with a compare-and-set guard (5.9697ms)
+✔ finalization rejects wrong network and unrelated messages before marking a transaction failed (10.071ms)
+✔ unavailable history never finalizes or overwrites a concurrently recorded signature (9.164ms)
+✔ activates a pending localnet wallet only after its exact Ed25519 proof and atomic audit (18.1936ms)
+✔ binds proof to the administrator, wallet, origin, nonce and signature (7.2382ms)
+✔ rejects non-pending/inactive/wrong-scope wallets and malformed identifiers (3.5505ms)
+✔ rolls back challenge consumption and wallet activation when audit persistence fails (3.2509ms)
+ℹ tests 181
+ℹ suites 0
+ℹ pass 181
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7880.2552
+
+> @lifecycle-kase/web@0.1.0 test
+> tsc -p tsconfig.test.json && node --test .test-dist/*.test.js
+
+✔ every approval phase validates production serialized bytes and exact signer (251.2668ms)
+✔ approval rejects changed instruction data, privileges, accounts and hidden extra instructions (99.171ms)
+✔ restored signed approval requires its original signature and intact review facts (46.678ms)
+✔ action review binds the complete terms, network and only fee payer to the selected action (5.2322ms)
+✔ action date input is explicitly converted from local time to exact UTC seconds (14.6499ms)
+✔ exact-target action plans require explicit matching policy, target and target PDA while legacy omission remains valid (5.8531ms)
+✔ early-redemption drafts preserve integer targets beyond Number precision and keep percentage mode independent (13.4007ms)
+✔ snapshot window distinguishes waiting, recovery and application-only expiry (1.6189ms)
+✔ payment review binds amount, receiver, snapshot, mint, network and version to production wire bytes (263.4185ms)
+✔ receipt review binds complete amount and permits a blockhash refresh of the reviewed terms (164.3115ms)
+✔ coupon phases reject altered instructions, recipients, privileges and hidden extra instructions (262.5372ms)
+✔ funding UI blocks mismatched action, signer, mint, treasury, genesis and arbitrary issuance amounts (9.0269ms)
+✔ stale unsigned plans cannot block preparation against the fresh version or treasury deficit (6.5ms)
+✔ an unexpired stale plan returned by the server remains blocked from signing (1.2898ms)
+✔ submitted, unknown and finalized funding restore the same signature across reload and budget changes (2.0559ms)
+✔ fresh preparation still rejects wrong network, signer, mint, treasury and malformed wire (6.7237ms)
+✔ only refreshed blockhash and operation identity may change without reviewing financial facts again (0.8711ms)
+✔ money formatting preserves all minor units including values beyond Number precision (4.5724ms)
+✔ approval cannot skip review and terminal/approved actions offer no editing decisions (2.2363ms)
+✔ coupon totals preserve the sum of per-investor floors when the aggregate theoretical amount crosses a minor unit (1.5166ms)
+✔ absent rollout metadata and uncalculated or redemption actions do not invent zero coupon totals (0.9508ms)
+✔ coupon metadata fails closed on malformed units, unsupported policies and inconsistencies with saved rows (4.3592ms)
+✔ coupon summary reconciliation remains exact above the safe Number range (0.8079ms)
+✔ exact redemption summary reconciles the target and every quota against immutable owners independently of receivers (5.2653ms)
+✔ exact redemption summary fails closed on missing policy, wrong totals, changed quotas or snapshot owner ties (3.8979ms)
+✔ v2 scheduling and cancellation accept the real client wire and canonical account privileges (136.0524ms)
+✔ scheduling rejects altered target, dates, price, action UUID, type and option tags in the actual wire (175.2075ms)
+✔ scheduling rejects different programs, swapped/omitted accounts and changed writable privileges (119.7318ms)
+✔ v2 review rejects coordinated metadata-and-wire substitutions for program and every canonical PDA (50.9788ms)
+✔ v2 review rejects hidden instructions, priority fees, changed compute budget and cancellation wire tampering (78.8237ms)
+✔ exact review rechecks selected obligation and issuer while keeping legacy review behavior unchanged (19.7145ms)
+✔ finalized lag retries the identical confirmation until exact finalized evidence arrives (25.4562ms)
+✔ confirmation is bounded and stops immediately for session, history, rate, transport or message errors (19.0706ms)
+✔ eligibility review sends the loaded version and fixed reason without changing original facts (7.8082ms)
+✔ new eligibility review is unavailable to auditor, inactive or pending investor, invalid version or reason (0.8706ms)
+✔ restoring eligibility requires an active verified non-revoked wallet (1.0461ms)
+✔ wallet status command only toggles verified ACTIVE and BLOCKED with its own loaded version (1.117ms)
+✔ pending, revoked, unverified or foreign wallet and non-administrator cannot be toggled (0.8144ms)
+✔ a saved write locks before refresh and a failed refresh never repeats the write (1.6136ms)
+✔ write rejection does not clear choices, lock a successful write or reload automatically (2.6263ms)
+✔ a confirmed write followed by a fresh read reports success once (2.3149ms)
+✔ post-save lock persists for missing or stale records and only clears on a newer record read (1.3395ms)
+✔ RU/EN review confirmations and stored recovery notices retain exact names, reasons and versions (10.8665ms)
+✔ profile correction normalizes fields, explicitly clears a reference and binds the original draft version (1.5591ms)
+✔ profile editing rejects auditor, closed investor, no-op and invalid fields, reason or version (0.9127ms)
+✔ server registry search encodes full query and resets pagination when no cursor is supplied (2.3466ms)
+✔ latest registry read cancels old requests and prevents late rows, cursors or loading updates (1.1611ms)
+✔ saved-record background refresh preserves a different selected-record request (0.9896ms)
+✔ detail refresh reads UUID outside the list and reloads previously opened wallet pages to release saved locks (1.422ms)
+✔ profile write followed by failed detail read locks once and preserves the successful-write recovery path (0.9746ms)
+✔ locale input is a display preference with a strict supported-language fallback (5.4116ms)
+✔ both catalogs have equal keys and interpolation parameters (18.3671ms)
+✔ six-decimal amounts are exact at zero, one minor unit and beyond safe Number range (88.675ms)
+✔ rational coupon totals display an exact fractional minor unit in both languages (6.1757ms)
+✔ exact-redemption terms, allocation explanation and server gate notices translate without changing token values (24.5701ms)
+✔ locale changes do not choose a time zone or change the original UTC value (18.6959ms)
+✔ saved application notices change language in both directions without changing state values (25.6948ms)
+✔ navigation and action enums change their displayed labels while preserving stable IDs (95.4019ms)
+✔ accepts an exact registration plan and rejects changed financial or authority facts (7.8282ms)
+✔ finalization is available only after every entitlement has an on-chain PDA (1.6221ms)
+✔ reset binds the exact confirmed partial set and amount (1.4593ms)
+✔ v2 registration binds policy, target and target PDA and does not accept legacy missing metadata (3.5ms)
+✔ expired or missing sessions trigger recovery without replaying a signed submission (112.7624ms)
+✔ other errors never trigger authentication recovery or automatic request retries (12.5322ms)
+✔ successful requests preserve the response and caller cancellation without session recovery (6.7909ms)
+✔ connection loss reports a recoverable state without replaying a signed POST (4.9301ms)
+✔ caller cancellation is preserved and does not report connection loss (3.7731ms)
+✔ caller cancellation and the 15-second API timeout both remain active on registry reads (13.2659ms)
+✔ an active caller signal cancels the combined transport without connection loss or retry (2.2685ms)
+✔ browser accepts exact production EXTEND and UPGRADE instructions with single owner fee payer (134.3094ms)
+✔ browser rejects substituted network, amount, buffer, authority and extra loader instructions before wallet signing (26.8138ms)
+✔ a local signature survives a lost HTTP request and stale state as confirmation-only; conflicting signatures block recovery (14.3214ms)
+✔ QA profile correction preserves snapshots, wallets and eligibility and rejects stale/no-op/duplicate/unauthorized writes atomically (188.5174ms)
+✔ QA server search finds records outside the first registry page and wallet pages stay scoped to their investor (186.8892ms)
+✔ QA search continuation survives a cursor profile correction that removes the anchor from results (6.3981ms)
+✔ QA coupon summary exposes exact gross accrual without making simulated funds or chain evidence (31.4788ms)
+✔ QA exact-target fixture uses immutable snapshot owners and reconciles 35 bonds to target 7 with no chain proof (17.5976ms)
+✔ QA v2 exact target distributes a residual token, settles only the winner and rejects changed draft targets or overdraw atomically (87.1158ms)
+✔ isolated complete three-action simulation uses accepted integer formulas and atomic burn (101.4121ms)
+✔ auditor cannot mutate; issuer cannot approve; reserve and separate review are mandatory (39.1482ms)
+✔ funding/reserve replay is blocked and incomplete finalization never changes state (31.7432ms)
+✔ return keeps immutable snapshot, releases reserve, and permits recalculation (28.6008ms)
+✔ wallet revocation after approval blocks payment without consuming reserve or burning tokens (43.629ms)
+✔ eligibility review and temporary wallet blocking stop future payment without rewriting snapshot or reserve (53.8737ms)
+✔ QA registry transitions validate version, fixed reason, no-op, revoked wallets and read-only roles (66.3311ms)
+✔ local registry workflow verifies only explicit synthetic challenges and rejects replay (28.1703ms)
+✔ new drafts validate dates, instrument status, money and stable action request IDs (44.552ms)
+✔ QA retains zero-rounded rows, blocks all-zero review and settles only positive obligations (64.6611ms)
+✔ models never call network and reject unsupported auth, signing, traversal and mutation verbs (20.2395ms)
+✔ independent models, returned clones, pagination and reset preserve isolated QA state (25.7367ms)
+✔ receipt accessor is final-only, immutable, and explicitly excludes chain proof (29.1331ms)
+✔ registration commits exact production snapshot source bytes and finalization/reset require the ordered full set (309.4496ms)
+✔ v2 calculation review derives every action, target, entitlement and source PDA from loaded identity (275.5668ms)
+✔ v2 calculation cannot sign with missing independent identity or mismatched network and authority (30.7858ms)
+✔ source registration rejects changed snapshot accounts, owners, balances, commitment or hidden instructions (47.3069ms)
+✔ redemption finalization and reset reject omitted, reordered or changed source/progress accounts (102.5872ms)
+✔ redemption review accepts production payment/burn and finalization bytes for both mandatory types (313.2161ms)
+✔ payment review binds amount, sources, mint, balances and supply before opening the wallet (44.4341ms)
+✔ payment and finalization reject changed burn accounts, privileges, data and hidden instructions (100.9598ms)
+✔ signed recovery preserves captured pre-burn balances and never turns into an unsigned retry (38.0856ms)
+✔ changes to financial review reset consent while a fresh blockhash alone preserves it (35.3651ms)
+✔ finalization includes all entitlements and maturity requires zero remaining supply (43.1378ms)
+✔ receipt download requires finalized canonical JSON bound to the selected action and hash (56.1031ms)
+✔ exact v2 receipt reconciles allocation and rejects hash-valid target, quota or supply corruption (53.2608ms)
+✔ exact receipts bind zero-allocation rows to their independent snapshot balances and owners (36.4188ms)
+✔ resumed signed deployments recover their signature and cannot become a new signing prompt (5.1535ms)
+✔ validates action identifiers and accepts matching Localnet and Devnet plans (3.6401ms)
+✔ rejects wrong network, signer, action, format and malformed review fields (3.5163ms)
+✔ rejects transaction fee payer differing from the session signer (3.775ms)
+✔ rejects signed, legacy, oversized and noncanonical transaction bytes (9.7631ms)
+✔ encodes wallet signatures to base58 with leading zero preservation (1.875ms)
+✔ accepts only a signature over the exact prepared transaction (4.6685ms)
+✔ submission is not treated as finalization; response must match operation and signature (0.8773ms)
+✔ requires an explicit address when a wallet exposes multiple signing accounts (4.7871ms)
+✔ automatically uses the sole signing account (0.4594ms)
+✔ replaces a stale selection when Phantom exposes a different active account (0.5925ms)
+✔ combines connected and registered accounts without duplicates or unsupported accounts (2.2274ms)
+✔ labels expose both the Phantom label and an address fingerprint (0.5601ms)
+✔ Localnet saves the wallet signature before a failed API request and never retries a submission (6.3358ms)
+✔ Localnet never broadcasts wallet-mutated messages or a mismatched session wallet (5.1827ms)
+✔ workspace navigation accepts known sections and defaults unknown links to overview (7.4027ms)
+✔ object bookmarks restore only a valid UUID in the matching workspace section (1.3281ms)
+✔ display dates identify missing and invalid values and respect the operator time zone (66.4516ms)
+✔ registry search combines loaded data, status and numeric sorting without mutating the source (11.4532ms)
+✔ unknown confirmation preserves the original attempt and directs the operator to check its signature (2.3283ms)
+✔ application approval does not manufacture on-chain registration or approval proof (0.7921ms)
+✔ a cancelled draft is blocked without claiming scheduling was completed (0.5419ms)
+✔ only finalized operation proofs complete registration and chain approval stages (0.5371ms)
+✔ attention prioritizes unknown signatures and excludes completed history without mutating the registry (0.8307ms)
+✔ partial coupon proof stays in execution; a finalized receipt completes the workflow (0.9258ms)
+✔ redemption progress requires its own finalized payment and receipt proofs (0.916ms)
+ℹ tests 131
+ℹ suites 0
+ℹ pass 131
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2591.3047
+
+> @lifecycle-kase/domain@0.1.0 test
+> npm run build && node --test "dist/**/*.test.js"
+
+
+> @lifecycle-kase/domain@0.1.0 build
+> tsc -p tsconfig.json
+
+✔ allows the canonical happy-path state sequence (2.84ms)
+✔ allows ordinary cancellation before snapshot (0.4342ms)
+✔ review can return calculations for revision without changing the snapshot (2.5484ms)
+✔ keeps terminal states terminal (1.9766ms)
+✔ allocates the exact 10/20/5 target of 7 and preserves canonical holder balances (7.2942ms)
+✔ awards the token lost by per-holder flooring for 1/1/1 and target 1 (0.8303ms)
+✔ prioritizes larger remainders and uses ASCII address order for equal remainders (1.2178ms)
+✔ is permutation invariant and does not mutate input, including frozen input (1.9778ms)
+✔ supports zero targets, full targets, zero-balance rows and empty input (3.2559ms)
+✔ normalizes UUID case and rejects duplicate investor IDs or tie addresses (2.2633ms)
+✔ rejects noncanonical UUIDs and invalid base58 encodings or decoded lengths (1.3577ms)
+✔ rejects negative/out-of-range/non-bigint balances and targets, totals over u64 and overdraw (2.0103ms)
+✔ keeps u64 boundaries and near-u128 quota products exact above Number precision (0.9693ms)
+✔ derives an explicit percentage target once from the aggregate with exact rounding evidence (1.0813ms)
+✔ rejects invalid percentage targets and unsupported bps values (0.8979ms)
+✔ matches shared TypeScript/Rust exact-target allocation vectors (3.5429ms)
+✔ matches an independent exhaustive allocation oracle for every small balance/target (68.0901ms)
+✔ allows an eligible investor to use a verified active wallet (3.7078ms)
+✔ explicit synthetic Localnet review does not claim KYC and cannot bypass other payout controls (1.178ms)
+✔ preserves record-date exclusion even when current eligibility changes (0.4674ms)
+✔ blocks payout when investor, instrument, or selected wallet changes (2.34ms)
+✔ TypeScript matches the shared Rust integer vectors, including rounding and overflow rejection (12.335ms)
+✔ calculates canonical 10/20/5 coupon allocation (3.1684ms)
+✔ reports floor-rounding remainder without redistributing it (2.2183ms)
+✔ summarizes coupon rows exactly when fractional residuals exceed one minor unit (0.8591ms)
+✔ coupon summary retains canonical payouts and integers above Number precision (0.6897ms)
+✔ coupon summary rejects missing, inconsistent, invalid and overflowing rows (2.3041ms)
+✔ calculates principal and final coupon (1.1458ms)
+✔ calculates 20 percent early redemption and remaining balance (2.2269ms)
+✔ returns zero tokens when floor rounding makes holder ineligible (0.4847ms)
+✔ rejects invalid rates and payment frequency (1.0769ms)
+✔ rejects u128 intermediate and u64 result overflow (1.0665ms)
+✔ matches coupon cash with a not-applicable asset leg (3.9628ms)
+✔ redemption waits for burn and rejects mismatched amounts (2.513ms)
+✔ requires one cash and one asset leg (1.3057ms)
+✔ aggregates two wallets into one investor and produces stable canonical bytes (12.0049ms)
+✔ rejects duplicate investor, wallet, and token account identity (5.368ms)
+✔ rejects missing supply and zero balance (1.1075ms)
+✔ produces identical canonical bytes regardless of RPC ordering (10.3552ms)
+✔ normalizes UTC timestamps and decimal-string amounts (0.6308ms)
+✔ rejects duplicate holders and token accounts (3.9595ms)
+✔ rejects zero balances and supply mismatch (0.8643ms)
+✔ rejects non-UTC and inconsistent snapshot timestamps (0.6213ms)
+ℹ tests 43
+ℹ suites 0
+ℹ pass 43
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 361.6819
+
+> @lifecycle-kase/solana-client@0.1.0 test
+> npm run build && node --test "dist/**/*.test.js"
+
+
+> @lifecycle-kase/solana-client@0.1.0 build
+> tsc -p tsconfig.json
+
+✔ approval plans use distinct action vaults and one authority per phase (464.9825ms)
+✔ approval builder rejects invalid authority, budgets and commitments (30.4321ms)
+✔ policy and reserve decoders support Borsh option offsets and reject ambiguous account data (3.2478ms)
+✔ reserve mint accepts revoked mint authority and rejects freeze authority, extensions or wrong precision (0.8395ms)
+✔ round-trips Solana public keys including leading zero bytes (4.7708ms)
+✔ rejects invalid public keys (1.6716ms)
+✔ action builders encode all three Anchor term variants and cancellation account privileges (187.4757ms)
+✔ action builder rejects malformed dates, IDs, type and redemption terms before signing (3.1791ms)
+✔ exact-target scheduling commits the target in its distinct instruction and immutable target PDA (60.593ms)
+✔ exact-target scheduling rejects ambiguous or unsupported financial terms (2.6121ms)
+✔ action decoder reads optional financial terms and completion, rejects malformed/truncated accounts (18.9102ms)
+✔ target decoder reads the exact immutable v2 layout and rejects malformed targets (9.9799ms)
+✔ coupon plan binds recipient and entitlement; its receipt remains the same across idempotency keys (201.114ms)
+✔ finalization rejects duplicate or absent investors and a zero commitment (51.8733ms)
+✔ receipt decoders preserve exact u64 amounts and reject truncated, foreign or future layouts (5.6238ms)
+✔ coupon funding builds the issuer ATA and MintToChecked with exactly six decimals and positive integer units (143.1537ms)
+✔ funding mint rejects changed precision, authority, freeze or extension layout (3.5761ms)
+✔ treasury rejects frozen, delegated, foreign, native, close-authority and unknown-extension accounts (2.875ms)
+✔ registration pins snapshot, recipient and integer amounts with the required privileges (61.7729ms)
+✔ v2 registration binds the immutable target without changing entitlement term encoding (126.2301ms)
+✔ entitlement identity is stable per investor and isolated per action (48.1068ms)
+✔ registration rejects invalid identities, eligible recipients and out-of-range integers (50.5695ms)
+✔ ineligible investors remain in coverage without a recipient or payable amount (14.7873ms)
+✔ finalization supplies the complete unique set as read-only accounts (37.1296ms)
+✔ reset supplies the exact registered set as writable close targets (25.5756ms)
+✔ v2 finalization includes target then complete redemption coverage; reset retains its original ABI (52.2589ms)
+✔ decoder reads a finalized immutable entitlement and rejects malformed accounts (15.7689ms)
+✔ collects all Token-2022 accounts, including extension accounts, at finalized context (17.7451ms)
+✔ groups several wallets under one investor and flags missing mappings (4.9762ms)
+✔ rejects changed supply, unordered slots, and incomplete account universe (8.2742ms)
+✔ rejects malformed account ownership, mint, and duplicate accounts (4.8511ms)
+✔ ignores zero-balance accounts but rejects uninitialized accounts (2.6041ms)
+✔ rejects a duplicate Investor Registry wallet mapping (1.3548ms)
+✔ builds the canonical wallet-signed 10/20/5 Token-2022 distribution (60.938ms)
+✔ rejects non-canonical or duplicate distribution input (4.4077ms)
+✔ builds canonical initialize and activate instructions (56.971ms)
+✔ decodes and rejects invalid instrument accounts (7.1638ms)
+✔ rejects invalid lifecycle inputs (1.7582ms)
+✔ builds deterministic single-signer mint setup with canonical supply and revoked authority (129.9965ms)
+✔ rejects another required signer and invalid supply (23.7599ms)
+✔ each extension/upgrade phase has one wallet signer and preserves canonical ProgramData (138.3537ms)
+✔ capacity skips unnecessary extension and enforces minimum increment and loader bounds (17.9689ms)
+✔ loader metadata distinguishes program pointer, live authority, immutable state and malformed bytes (4.6133ms)
+✔ redemption registration fixes canonical wallets and balances before approval (147.8323ms)
+✔ atomic plan binds reserve, receipt, PermanentDelegate and every ordered burn source (70.0956ms)
+✔ calculation finalization and reset cover and close source and progress accounts (46.0452ms)
+✔ source commitment matches the Rust Borsh/SHA256 vector and detects tampering (3.1678ms)
+✔ redemption proof decoders verify exact supply deltas and preserve u64 amounts (2.8195ms)
+✔ requires a safe RPC endpoint and positive timeout (5.1615ms)
+✔ posts JSON-RPC without following redirects (106.0749ms)
+✔ rejects transport, HTTP, and malformed JSON-RPC responses (6.1181ms)
+✔ accepts only the signed form of the prepared snapshot transaction (65.9702ms)
+✔ cryptographically verifies a wallet-signed prepared transaction (24.7681ms)
+✔ decodes the snapshot commitment from a SnapshotCreated action account (4.0219ms)
+✔ encodes the complete registration commitment with stable PDAs (46.7336ms)
+✔ rejects invalid registration values before deriving an instruction (2.2012ms)
+✔ serializes a wallet-signable v0 snapshot registration transaction (72.1572ms)
+✔ persists explicit compute budget and zero demo priority price before wallet signing (7.0009ms)
+✔ rejects a different fee payer or invalid block height (6.9452ms)
+ℹ tests 59
+ℹ suites 0
+ℹ pass 59
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2229.2724
+✔ reports missing funding without implying deployment authorization (5.7134ms)
+✔ rejects another network before reading accounts (1.9093ms)
+✔ rejects invalid or conflated identities before RPC (1.2537ms)
+✔ rejects malformed balance, missing context and occupied program addresses (1.9272ms)
+✔ a nonzero balance still does not authorize a deployment (0.8528ms)
+✔ offline verifier validates four fixture receipts and explicitly excludes a fresh-chain claim (103.8558ms)
+▶ receipt hash corruption and rehashed identity changes are rejected
+  ✔ hash (3.7407ms)
+  ✔ schema (0.8832ms)
+  ✔ network (1.7445ms)
+  ✔ genesis (28.8489ms)
+  ✔ program (16.9484ms)
+  ✔ action (36.213ms)
+  ✔ snapshot (33.3177ms)
+  ✔ receipt PDA (23.5093ms)
+✔ receipt hash corruption and rehashed identity changes are rejected (148.5521ms)
+▶ settlement signature, legs, finalization, totals and supply corruption are rejected
+  ✔ signature width (0.948ms)
+  ✔ payment signature (9.1664ms)
+  ✔ duplicate payment (1.3533ms)
+  ✔ unmatched entitlement (10.7908ms)
+  ✔ coupon receipt PDA (12.3588ms)
+  ✔ cash leg (9.7575ms)
+  ✔ asset leg (24.8791ms)
+  ✔ unfinalized (23.1842ms)
+  ✔ execution time (32.0198ms)
+  ✔ fractional executeAt (30.7488ms)
+  ✔ executeAt before snapshot (21.3932ms)
+  ✔ cash total (11.1525ms)
+  ✔ supply step (24.1356ms)
+  ✔ decimal (25.6144ms)
+✔ settlement signature, legs, finalization, totals and supply corruption are rejected (241.9369ms)
+▶ exact allocation uses committed snapshot balances and owners and verifies remaining tokens
+  ✔ untrusted plan balance (61.0597ms)
+  ✔ wrong plan (42.9127ms)
+  ✔ captured balance (30.2797ms)
+  ✔ captured owner (29.8625ms)
+  ✔ source hash (27.0038ms)
+  ✔ tie owner (40.1239ms)
+  ✔ remaining tokens (36.3824ms)
+  ✔ rounding remainder (36.0357ms)
+  ✔ target PDA (36.1669ms)
+✔ exact allocation uses committed snapshot balances and owners and verifies remaining tokens (342.6222ms)
+✔ rehashing cannot reassign an unchanged captured token source to another investor (44.015ms)
+✔ CLI reads saved JSON, gives bounded failures and reports offline-only scope (1448.1606ms)
+✔ controlled Localnet tool rejects unsupported decisions and invalid identifiers before database access (2103.2904ms)
+✔ controlled Localnet tool requires explicit operator and database settings (1139.3044ms)
+✔ controlled Localnet tool rejects external or unrelated databases and RPC endpoints (5455.022ms)
+✔ controlled Localnet tool rejects public Devnet (1707.0675ms)
+✔ canonical demo allocation matches fixed supply (37.0544ms)
+✔ every accepted ADR contains the required decision sections (91.7765ms)
+✔ source-of-truth decision requires finalized confirmation (15.2935ms)
+✔ proxies only the implemented operator routes to the fixed server origin (6.191ms)
+✔ rejects credentialed, path/query-bearing, unsafe and malformed upstream configuration (2.8452ms)
+✔ owner preflight is read-only, requires staged bytes before emitting instructions and keeps authorization false (58.0411ms)
+✔ preflight rejects altered artifacts, non-local origins, wrong genesis, pointer, authority, bytes and rent balance (56.2815ms)
+✔ nonzero deployed/buffer tails and a changing genesis cannot be accepted as matching artifacts (14.9775ms)
+✔ persistence schema contains every required table boundary (23.5835ms)
+✔ schema enforces core uniqueness and optimistic-version fields (9.0221ms)
+✔ schema stores hashes instead of raw authentication secrets (7.0419ms)
+✔ keeps localnet independent while matching the declared Devnet identity (8.0995ms)
+✔ rejects old IDL, plan mismatch, source drift and incomplete instructions (3.0935ms)
+✔ records a public artifact digest without accepting another program binary (2.4431ms)
+✔ rejects non-ELF input and missing hash pins (0.8404ms)
+✔ web accepts the actual backend snapshot serializer without changing its bytes (74.2303ms)
+✔ web accepts exact backend funding bytes and resumes a signed attempt after its deficit is covered (16.8754ms)
+✔ configuration bounds timing, fixes numeric recipients, and does not disclose invalid secrets (11.7929ms)
+✔ report checks real HTTP health contracts and does not claim unconfigured owner operations are healthy (160.9894ms)
+✔ API/database failures remain separate and never reveal returned internal details (3.2377ms)
+✔ a 200 response with the wrong contract is not healthy (2.1649ms)
+✔ RPC identity mismatch blocks a healthy Localnet report (2.0234ms)
+✔ unconfigured genesis and missing program are explicit warnings (7.0825ms)
+✔ stalled finalized slots alert and progress clears the problem (9.5632ms)
+✔ slot regression stays unhealthy until the original finalized slot is restored (6.414ms)
+✔ operation snapshot counts unresolved problems while keeping PREPARED and review as expected states (7.2146ms)
+✔ database query failure does not turn into a clean financial status (1.8385ms)
+✔ confirmed incidents send once, unchanged incidents are suppressed, and recovery sends once (2.8394ms)
+✔ one transient error does not send a problem or false recovery (0.5467ms)
+✔ summary is due at startup and again after one hour (0.4166ms)
+✔ Telegram failure preserves pending alerts and enforces the returned rate-limit delay (2.3152ms)
+✔ sender targets only the configured administrator and verifies Telegram acknowledgement (3.6393ms)
+✔ Telegram error descriptions and native fetch exceptions do not leak the token (2.1323ms)
+✔ sender exposes only a bounded retry delay for 429 (1.2254ms)
+✔ combined summary and incident messages fit Telegram limits with every workflow status (1.4805ms)
+✔ chat discovery lists only private start messages and never chooses an administrator (2.6243ms)
+✔ persisted acknowledgement suppresses duplicate sends after restart; target changes reset state (88.4142ms)
+✔ single-instance lock refuses a second active watchdog and allows an orderly restart (12.1531ms)
+ℹ tests 84
+ℹ suites 0
+ℹ pass 84
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10700.5566

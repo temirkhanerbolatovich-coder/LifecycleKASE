@@ -1,112 +1,99 @@
 # LifecycleKASE
 
-[Administrator Telegram monitoring](docs/features/telegram-monitoring.md) adds a separate outbound watchdog for published API/web readiness and owner Localnet identity/progress, optional read-only operation aggregates, hourly summaries, and problem/recovery alerts. Run `npm run monitor:telegram -- --check` for a no-send report. The administrator confirmed the initial Telegram summary on 2026-10-08. Supervised startup and repeatable live owner-database/Localnet aggregate acceptance remain pending.
+LifecycleKASE is an operator terminal and Solana program for servicing test tokenized bonds after issuance: capture holders, calculate entitlements, obtain separate approval and a full reserve, execute coupon or redemption, reconcile finalized evidence and commit the receipt hash on-chain. It is a hackathon prototype and is not affiliated with or approved by KASE.
 
-The dashboard includes [corporate actions and snapshot](docs/features/corporate-actions.md), [stored entitlements/review](docs/features/entitlements-and-review.md), [Localnet coupon budget/funding](docs/features/coupon-funding.md), and guarded [on-chain entitlement registration](docs/features/on-chain-entitlement-registration.md). Persistent owner Phantom issuance and the coupon snapshot are accepted; its 1750 KZT-Test calculation is UNDER_REVIEW and an unsigned treasury funding plan is prepared. Funding passed isolated real-validator/HTTP/PostgreSQL acceptance; owner funding signing remains pending. Localnet transactions use exact wallet-signing/API broadcast/finalized reconciliation. On-chain payments, redemption burns and receipts remain pending. See the [current full audit](docs/PROJECT_AUDIT_2026-10-09.md) for verified boundaries and priorities.
+English reviewers: start with the [reviewer guide](docs/submission/JUDGE_README.md), [requirements matrix](docs/submission/KASE_REQUIREMENTS_MATRIX.md) and [submission package](docs/submission/README.md). The [public walletless QA](https://lifecyclekase.assetguard-temirkhan.duckdns.org/qa) demonstrates synthetic interface workflows. The [operator dashboard](https://lifecyclekase.assetguard-temirkhan.duckdns.org/dashboard) requires a registered wallet. Current hosted source is `f51be25` on the owner's existing Oracle VPS: public QA/English hydration and API readiness passed on 2026-10-12, with 23 migrations in a new isolated database and protected routes returning 401/no-store. Financial capabilities remain disabled. Docker/systemd run the website independently of this chat; see [current hosting and limits](docs/deployment/oracle-duckdns.md). Older Render observations remain [historical staging evidence](docs/deployment/render-staging.md).
 
-Corporate Action Engine for tokenized securities on Solana. The repository includes requirements/ADRs, CI, guarded PostgreSQL migrations, shared Rust/TypeScript financial vectors, authenticated wallet workflows, stored entitlements/review, five instructions in the retained owner program and three additional entitlement instructions in an isolated upgrade candidate. [Investor Registry](docs/features/investor-registry.md) and [four-phase issuance](docs/features/instrument-drafts.md) support the accepted Localnet LKA26R1 demo. The candidate's old→new loader upgrade and existing-PDA compatibility pass on a disposable validator; the [owner upgrade package](docs/deployment/owner-localnet-program-upgrade.md) remains unsigned. Full corporate-action execution/acceptance is incomplete. The owner approved local MVP first; public Devnet deployment stays deferred until MVP approval, and mainnet/real assets are excluded under [ADR-014](docs/decisions/ADR-014-local-mvp-before-public-network.md). Signing boundaries require explicit Localnet/Devnet plans; Localnet verifies exact signed bytes before API broadcast. Remaining manual negative and payment/redemption scenarios are separate gates.
+## Current source and verified scope
 
-## Scope
+Submission preparation snapshot: **2026-10-12**, implementation source [`f51be25`](https://github.com/temirkhanerbolatovich-coder/LifecycleKASE/tree/f51be252295af181ed931f00dba1ee89c35aedef). The [current checklist](docs/submission/SUBMISSION_CHECKLIST_2026-10-12.md) separates completed implementation, saved runtime evidence and remaining submission steps. Documentation edits do not constitute another financial run.
 
-The MVP demonstrates an end-to-end lifecycle for a fixed-supply tokenized bond:
+The accepted controlled instrument v2 workflow uses a new default-frozen Token-2022 mint, authorized transfers, locked raw holder capture and reservation of only assigned redemption units. Authenticated API/PostgreSQL/Localnet acceptance completed on **2026-10-12 at 14:19:06 Asia/Qyzylorda**:
 
-- issuance of 35 indivisible Token-2022 tokens;
-- three investors with balances of 10, 20, and 5 tokens, each potentially using several wallets;
-- coupon, early-redemption, and maturity-redemption corporate actions;
-- finalized-slot snapshots with deterministic calculation;
-- review and approval, atomic KZT-Test payment and burn legs, reconciliation, and receipts per entitlement and action.
+| Action | Payment, KZT-Test | Bonds burned | Supply |
+| --- | ---: | ---: | --- |
+| Coupon | 1,750 | 0 | 35 → 35 |
+| Percentage partial redemption, 20% | 7,000 | 7 | 35 → 28 |
+| Exact-target partial redemption, 8 units | 8,000 | 8 | 28 → 20 |
+| Maturity, principal plus final coupon | 21,000 | 20 | 20 → 0 |
 
-The binding requirements are:
+Exact partial allocation is **2/5/1** from captured holdings **8/16/4**. Every action finalized its canonical receipt; cash/burn evidence and database projection reconciled. The run also verified original-signature recovery after a finalized burn and source-account closure, and unchanged historical redemption receipts after maturity. [Runtime, four canonical receipts and fingerprints](docs/testing/evidence/controlled-workflow-2026-10-12/README.md) identify the exact accepted source/helpers/binary. KZT-Test, eligibility, generated test signers and accelerated maturity are synthetic inputs; transfers and burns execute on a real disposable validator.
 
-- [Product requirements](docs/requirements/PRODUCT_REQUIREMENTS.md)
-- [Technical requirements](docs/requirements/TECHNICAL_REQUIREMENTS.md)
-- [Solana toolchain setup](docs/development/toolchain.md)
-- [Domain contracts and test vectors](docs/testing/domain-contracts.md)
-- [Persistence architecture](docs/architecture/persistence.md)
-- [Data flow and evidence boundaries](docs/architecture/data-flow.md)
-- [Security model and remaining controls](docs/security/security-model.md)
-- [Testing strategy and acceptance levels](docs/testing/testing-strategy.md)
-- [Implemented, simulated, and pending scope](docs/IMPLEMENTED_VS_SIMULATED.md)
-- [Current full project audit](docs/PROJECT_AUDIT_2026-10-09.md)
-- [Disposable Render staging deployment](docs/deployment/render-staging.md)
-- [Ordered Devnet-to-MVP checklist and read-only preflight](docs/deployment/DEVNET_TO_MVP_CHECKLIST.md)
-- [Owner Localnet upgrade package and read-only program preflight](docs/deployment/owner-localnet-program-upgrade.md)
+The subsequent [operator continuation](docs/testing/operator-continuation-2026-10-12.md) implements a [six-step action master](docs/features/operator-action-master.md), authenticated [JSON/CSV evidence export](docs/features/action-evidence-export.md), [full-database overview](docs/features/operator-overview.md) and a default-off [original-signature reconciliation worker](docs/features/durable-reconciliation.md). Its recorded validation passed **684 Node tests**, types, Prisma, production build/proxy and disposable PostgreSQL acceptance with **23 migrations**, including 10,000 synthetic actions and 10,000 investors. Fresh chain recovery by the new worker and authenticated export download against fresh settlement remain open; the earlier four-action runtime is not presented as a test of those additions.
+
+## Implemented and limited behavior
+
+- Administrator/Auditor wallet sessions, one-time ownership proof, verified multi-wallet investor registry, governed profile/eligibility corrections, temporary wallet blocking, server search, direct profile links and complete wallet pages.
+- Legacy and controlled v2 issuance, finalized immutable snapshots, integer coupon/maturity/percentage/exact-target formulas, review, separate approval and full action-vault reserve.
+- Atomic Token-2022 payment/burn, replay protection, saved exact transaction attempts, confirmation through the original signature, canonical JSON receipt/PDA commitment and audited evidence access.
+- Responsive RU/EN operator terminal with preserved signing/form state, six action stages, transactions/audit journals, complete database aggregates and evidence export.
+
+The effective holder cutoff is the actual finalized capture slot/time. A planned record time opens the capture window; arbitrary historical ownership is not reconstructed. Controlled v2 prevents direct transfer/burn/approval bypass and locks holdings during capture. Legacy mints retain their original unrestricted token policy; they cannot acquire v2 extensions retroactively.
+
+Controlled registry, exact-target redemption and the reconciliation worker default off and require explicit configuration and a compatible reviewed Localnet candidate. The retained owner environment, hosted application and disposable evidence environments have separate acceptance. Real KYC/fiat, KASE/CSD integration, public Devnet/Mainnet financial acceptance, issuer tenant isolation, general secondary transfer UI, multi-instrument settlement-mint reuse, period-level coupon uniqueness and full manual accessibility/usability acceptance remain open. See [implemented versus simulated](docs/IMPLEMENTED_VS_SIMULATED.md) and the [BondFlow implementation plan](docs/features/bondflow-implementation-plan.md).
 
 ## Repository layout
 
-```text
-apps/                 Internal API preparation service, health HTTP layer, and status web app
-packages/             Shared domain contracts and Token-2022 holder collector
-programs/             Anchor instrument, action, and snapshot-commitment instructions
-prisma/               PostgreSQL schema and guarded migrations
-docs/architecture/    Current system boundaries
-docs/decisions/       Accepted architecture decisions
-docs/requirements/    Product and technical requirements
-scripts/              Repeatable validation and local smoke tests
-test/                 Repository-level tests
-```
-
-Implementation boundaries and limitations are documented in each component README.
-
-## Requirements
-
-- Node.js 22 or newer;
-- npm 10 or newer;
-- Docker with Compose for local PostgreSQL;
-- Rust, Solana CLI, and Anchor CLI for on-chain development.
-
-Run the environment check:
-
-```powershell
-npm run check:toolchain
-```
+| Path | Responsibility |
+| --- | --- |
+| `apps/web` | Next.js operator interface and fixed same-origin API proxy |
+| `apps/api` | NestJS authentication, application workflows and finalized reconciliation |
+| `packages/domain` | Integer formulas, snapshots and financial contracts |
+| `packages/solana-client` | Exact transaction builders, account/receipt decoders |
+| `programs/lifecycle_kase` | Anchor/Token-2022 program |
+| `prisma` | Schema, reviewed migrations and database guards |
+| `scripts` / `test` | Isolated acceptance, evidence verification and repository checks |
+| `docs` | Requirements, architecture, security, features, validation and submission |
 
 ## Setup and validation
 
+Use **Node.js 22+**. Docker Desktop/PostgreSQL are needed for database acceptance. Runtime reproduction additionally requires the documented [non-root WSL Solana/Anchor toolchain](docs/development/toolchain.md).
+
 ```powershell
-npm install
+npm ci
 npm run build:web
 npm run check
-docker compose up -d postgres
-npm run prisma:migrate:deploy
-npm run test:database
-npm run test:api:database
-npm run test:registry:database
+npm run build
+npm run test:web:proxy
+npm audit --omit=dev
 ```
 
-Copy `.env.example` to `.env` only when local services need configuration. `.env` is ignored by Git.
-
-To run the status slice locally, start PostgreSQL and apply migrations as above, then use two terminals:
+For a local interface-only review:
 
 ```powershell
+npm run dev:web
+# Open http://localhost:3000/qa and select English.
+```
+
+For local authenticated services, copy the ignored `.env.example` to `.env`, configure it, then start PostgreSQL and migrations:
+
+```powershell
+docker compose up -d postgres
+npm run prisma:migrate:deploy
 npm run build --workspace @lifecycle-kase/api
 npm run start:api
 ```
 
-```powershell
-npm run dev:web
-```
+In another terminal run `npm run dev:web`; open `http://localhost:3000/dashboard`. The API defaults to port 4000. Authentication requires `AUTH_ENABLED=true`, exact domain/allowed Origins and a provisioned verified operator wallet; follow the [API README](apps/api/README.md) and [provisioning runbook](docs/operations/operator-provisioning.md). Never place secrets in `NEXT_PUBLIC_*` variables.
 
-Open `http://localhost:3000/dashboard`. The API listens on port `4000` by default and exposes health plus operator authentication routes. Authentication requires `AUTH_ENABLED=true`, exact `AUTH_DOMAIN`/`AUTH_ALLOWED_ORIGINS`, and a verified operator wallet in the database; see [API documentation](apps/api/README.md) and the [controlled provisioning runbook](docs/operations/operator-provisioning.md). Challenge, signature verification and protected mutation endpoints have bounded per-client in-memory limits with configurable windows. Readiness checks PostgreSQL and returns 503 when unavailable. The web app checks it server-side using `API_INTERNAL_URL` (default `http://127.0.0.1:4000`); it still renders when the API is down. For a deployment, set `DATABASE_URL`, `PORT` and `API_SERVER_URL` for that environment; the Render Blueprint wires the URL automatically. Never expose database credentials in `NEXT_PUBLIC_*` variables. The web liveness route is `GET /health/live`.
+Compose PostgreSQL defaults to loopback host port **55432**, internal port 5432; the example host URL uses IPv6 loopback to avoid Windows service interception. `API_LISTEN_HOST=127.0.0.1` restricts a local API. Hosted readiness checks PostgreSQL; web liveness is `GET /health/live`.
 
-PostgreSQL is exposed only on IPv4/IPv6 loopback host port `55432` by default to avoid collisions with an existing local PostgreSQL installation; the container still listens on its standard internal port `5432`. The default host URL uses IPv6 loopback `[::1]`, which avoids an IPv4 PostgreSQL service intercepting Docker Desktop traffic on Windows. Set `API_LISTEN_HOST=127.0.0.1` for a local-only API; when unset, the hosted-service default remains `0.0.0.0`.
-
-The registry database test ignores `.env`, requires local database CREATE DATABASE permission, and creates/migrates/drops only a uniquely named test database. It exercises real HTTP authentication, role/Origin controls, registry persistence, concurrency, rollback, audit immutability and logout using synthetic in-memory signing keys. See [test configuration and limits](docs/features/investor-registry.md). Owner-reported local Phantom login/profile/registry display passed; manual browser form acceptance and public network acceptance are separate pending checks.
-
-To verify a locally installed Solana validator:
+Reproduce the accepted controlled financial flow using invocation-owned disposable resources:
 
 ```powershell
-npm run solana:smoke
+npm run test:controlled:workflow
 ```
 
-The smoke test starts an isolated validator on port `18899`, waits for a JSON-RPC response, and always stops the process and removes its temporary ledger. It fails with an actionable message when `solana-test-validator` is not installed.
+After building helpers, verify saved evidence without RPC/database access:
 
-## Current limitations
+```powershell
+npm run controlled:evidence:verify -- docs/testing/evidence/controlled-workflow-2026-10-12/runtime.json
+```
 
-- The API supports domain-bound operator wallet authentication and administrator-only preparation/confirmation routes. The dashboard discovers Wallet Standard wallets and includes Localnet/Devnet snapshot review, explicit sign/send and finalized-confirm/recovery. The requested chain comes from the validated API plan, while cluster/wallet-network mismatches fail closed. A controlled CLI can create the first operator from a public wallet address, and authentication requests are rate-limited per client. See the [wallet workflow and recovery limits](apps/web/README.md). Instrument issuance and the new coupon snapshot passed live Phantom/Localnet acceptance. Owner treasury funding and payment acceptance remain pending. Public Devnet proof remains deferred. The owner accepted local signed Administrator and Auditor login flows; disposable staging has only challenge and unauthenticated-denial evidence. See the [deployment record](docs/deployment/render-staging.md).
-- Eighteen SQL migrations and database guard tests are implemented. The third migration requires an empty pre-MVP domain database; it stops when domain records exist. Later migrations add Localnet compatibility, authentication separation, eligibility/revocation audit rules, persisted issuance/action/funding attempts, exact-wire constraints and a single unresolved coupon funding attempt per issuer. All 18 are applied to the persistent local acceptance database; staging migration state is separate.
-- TypeScript domain contracts and matching checked Rust calculations pass shared financial vectors. The retained owner program still has five instructions; the isolated candidate adds entitlement registration/reset/finalization, while owner upgrade, approval, execution and receipts remain pending.
-- The validator smoke-test requires an external Solana CLI installation.
-- Docker Compose currently provisions PostgreSQL only; application containers will be added with their implementation milestone.
-- No production deployment, key custody, or real-money operation is supported.
-- The status-only staging dashboard is publicly deployed at <https://lifecyclekase-web.onrender.com/dashboard>; it is not a production application. Its free PostgreSQL has a short lifetime and no backups; do not store real data there. See the [deployment record](docs/deployment/render-staging.md).
+The legacy/exact-target harness remains `npm run demo:verify`; it uses a distinct financial fixture. Neither harness imports the owner's ledger, wallet keys or `.env`. The [testing strategy](docs/testing/testing-strategy.md) describes each check's scope. The third migration requires an empty pre-MVP domain database; do not apply destructive test scripts to retained owner data.
+
+## Documentation and delivery
+
+Read [product requirements](docs/requirements/PRODUCT_REQUIREMENTS.md), [technical requirements](docs/requirements/TECHNICAL_REQUIREMENTS.md), [BondFlow extension requirements](docs/requirements/KASE_BondFlow_TZ.md), [architecture](docs/architecture/overview.md), [data flow](docs/architecture/data-flow.md), [persistence](docs/architecture/persistence.md), [security model](docs/security/security-model.md), [security policy](SECURITY.md) and [contribution workflow](CONTRIBUTING.md).
+
+The current judge package maps the official contest brief separately from the larger product specification. Completed local English videos: [pitch — 115.104 seconds](docs/submission/lifecyclekase-pitch-en-benjamin.mp4) and [live QA interface demo — 164.964 seconds](docs/submission/lifecyclekase-demo-en-benjamin.mp4), with disclosed synthetic English narration. The demo's financial operations are simulated; saved Localnet evidence is separately identified. [Media validation and remaining upload](docs/submission/ENGLISH_DEMO_AND_PITCH_PLAN.md) records measured scope. Accepted-host upload (YouTube/Loom/Vimeo) and final main/side-track submit remain open. Main registration was owner-confirmed; final project submission is complete only when organizer confirmation and public URLs are recorded. Historical audits and media retain their own dates, source pins and environment limits.

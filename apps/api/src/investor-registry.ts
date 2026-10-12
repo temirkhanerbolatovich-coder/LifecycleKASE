@@ -11,12 +11,12 @@ export class InvestorRegistryError extends Error {
 export type RegistryActor = { id: string; walletAddress: string; correlationId: string };
 const walletSelect = {
   id: true, address: true, network: true, status: true, verifiedAt: true, revokedAt: true,
-  revocationReasonCode: true
+  revocationReasonCode: true, registryVersion: true
 } as const;
 const investorSelect = {
   id: true, externalReference: true, displayName: true, type: true, countryCode: true,
   kycStatus: true, eligibilityStatus: true, eligibilityReasonCode: true, eligibilityReviewedAt: true,
-  status: true, createdAt: true,
+  status: true, registryVersion: true, createdAt: true,
   _count: { select: { wallets: true } },
   wallets: { select: walletSelect, take: 20, orderBy: { id: "asc" as const } }
 } satisfies Prisma.InvestorSelect;
@@ -47,7 +47,12 @@ export async function assertRegistryMutationAllowed(
   }
   const windowStart = new Date(options.now.getTime() - options.graceSeconds * 1000);
   const capturing = await transaction.corporateAction.findFirst({
-    where: { status: "SCHEDULED", recordAt: { gte: windowStart, lte: options.now } },
+    where: { OR: [
+      { status: "SCHEDULED", recordAt: { gte: windowStart, lte: options.now } },
+      { controlledCaptureLocked: true },
+      { blockchainTransactions: { some: { operationType: "CONTROLLED_CAPTURE_BEGIN",
+        status: { in: ["PREPARED", "SUBMITTED", "UNKNOWN_CONFIRMATION"] } } } }
+    ] },
     select: { id: true }
   });
   if (capturing) {
@@ -74,6 +79,11 @@ function text(value: unknown, max: number, field: string): string {
   }
   return value.trim();
 }
+function normalizedCountryCode(value: unknown): string {
+  const countryCode = text(value, 2, "Country code");
+  if (!/^[A-Za-z]{2}$/.test(countryCode)) invalid("Country code must contain two ASCII letters");
+  return countryCode.toUpperCase();
+}
 function databaseError(error: unknown): never {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2002") throw new InvestorRegistryError("REGISTRY_CONFLICT", "Reference or wallet is already registered", 409);
@@ -82,24 +92,75 @@ function databaseError(error: unknown): never {
   throw error;
 }
 
-export async function listInvestors(database: PrismaClient, limit: unknown, cursor: unknown) {
+function pageInput(limit: unknown, cursor: unknown) {
   if (limit !== undefined && (typeof limit !== "string" || !/^[1-9][0-9]{0,2}$/.test(limit))) invalid("Limit must be an integer between 1 and 100");
   const take = limit === undefined ? 20 : Number(limit);
   if (take > 100) invalid("Limit must be an integer between 1 and 100");
-  if (cursor !== undefined && (typeof cursor !== "string" || !REGISTRY_UUID.test(cursor))) invalid("Cursor must be an investor UUID");
+  if (cursor !== undefined && (typeof cursor !== "string" || !REGISTRY_UUID.test(cursor))) invalid("Cursor must be a UUID");
+  return { take, cursor: typeof cursor === "string" ? cursor : undefined };
+}
+
+/** Search the registry without narrowing reads to records already loaded by the operator. */
+export async function listInvestors(database: PrismaClient, limit: unknown, cursor: unknown, search?: unknown) {
+  const page = pageInput(limit, cursor);
+  if (search !== undefined && (typeof search !== "string" || search.trim().length > 200 ||
+      /[\u0000-\u001f\u007f]/.test(search))) invalid("Search must contain at most 200 characters without control characters");
+  const query = typeof search === "string" ? search.trim() : "";
+  const filters: Prisma.InvestorWhereInput[] = [];
+  if (query) {
+    filters.push({ OR: [
+      { displayName: { contains: query, mode: "insensitive" } },
+      { externalReference: { contains: query, mode: "insensitive" } },
+      // Solana addresses are case-sensitive; lowercasing changes the represented public key.
+      { wallets: { some: { address: { contains: query } } } },
+      ...(REGISTRY_UUID.test(query) ? [{ id: query }] : [])
+    ] });
+  }
+  if (page.cursor) {
+    const anchor = await database.investor.findUnique({ where: { id: page.cursor }, select: { id: true } });
+    if (!anchor) invalid("Investor cursor does not identify a registry record");
+    // Prisma compares the stored timestamp at full PostgreSQL precision. Exclude the anchor
+    // rather than offsetting, so a profile correction that stops matching search skips no next row.
+    filters.push({ id: { not: anchor.id } });
+  }
   const rows = await database.investor.findMany({
-    select: investorSelect, take: take + 1, orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    ...(typeof cursor === "string" ? { cursor: { id: cursor }, skip: 1 } : {})
+    select: investorSelect, take: page.take + 1, orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    ...(page.cursor ? { cursor: { id: page.cursor } } : {}),
+    ...(filters.length ? { where: { AND: filters } } : {})
   });
-  const items = rows.slice(0, take);
-  return { items, nextCursor: rows.length > take ? items.at(-1)!.id : null };
+  const items = rows.slice(0, page.take);
+  return { items, nextCursor: rows.length > page.take ? items.at(-1)!.id : null };
+}
+
+/** Return current profile/version and bounded wallet previews; use the wallet route for all wallets. */
+export async function getInvestor(database: PrismaClient, investorId: string) {
+  if (!REGISTRY_UUID.test(investorId)) invalid("Investor ID must be a UUID");
+  const investor = await database.investor.findUnique({ where: { id: investorId }, select: investorSelect });
+  if (!investor) throw new InvestorRegistryError("INVESTOR_NOT_FOUND", "Investor not found", 404);
+  return investor;
+}
+
+/** Page every wallet of a single investor, including pending, blocked and revoked records. */
+export async function listInvestorWallets(database: PrismaClient, investorId: string, limit: unknown, cursor: unknown) {
+  if (!REGISTRY_UUID.test(investorId)) invalid("Investor ID must be a UUID");
+  const page = pageInput(limit, cursor);
+  const investor = await database.investor.findUnique({ where: { id: investorId }, select: { id: true } });
+  if (!investor) throw new InvestorRegistryError("INVESTOR_NOT_FOUND", "Investor not found", 404);
+  if (page.cursor && !await database.wallet.findFirst({
+    where: { id: page.cursor, investorId }, select: { id: true }
+  })) invalid("Wallet cursor does not identify a wallet of this investor");
+  const rows = await database.wallet.findMany({
+    where: { investorId, ...(page.cursor ? { id: { gt: page.cursor } } : {}) },
+    select: walletSelect, take: page.take + 1, orderBy: { id: "asc" }
+  });
+  const items = rows.slice(0, page.take);
+  return { items, nextCursor: rows.length > page.take ? items.at(-1)!.id : null };
 }
 
 export async function createInvestor(database: PrismaClient, body: unknown, actor: RegistryActor) {
   const input = payload(body, ["displayName", "type", "countryCode", "externalReference"]);
   const displayName = text(input["displayName"], 200, "Display name");
-  const countryCode = text(input["countryCode"], 2, "Country code").toUpperCase();
-  if (!/^[A-Z]{2}$/.test(countryCode)) invalid("Country code must contain two ASCII letters");
+  const countryCode = normalizedCountryCode(input["countryCode"]);
   const type = input["type"];
   if (type !== "INDIVIDUAL" && type !== "INSTITUTIONAL") invalid("Investor type is invalid");
   const externalReference = input["externalReference"] === undefined ? undefined : text(input["externalReference"], 100, "External reference");
@@ -177,7 +238,8 @@ export async function revokeInvestorWallet(
       const previousStatus = wallet.status;
       const changed = await tx.wallet.updateMany({
         where: { id: walletId, investorId, status: previousStatus, revokedAt: null },
-        data: { status: "REVOKED", revokedAt: options.now, revocationReasonCode: reasonCode }
+        data: { status: "REVOKED", revokedAt: options.now, revocationReasonCode: reasonCode,
+          registryVersion: { increment: 1 } }
       });
       if (changed.count !== 1) {
         throw new InvestorRegistryError("REGISTRY_CONFLICT", "Concurrent change; refresh before retrying", 409);
@@ -234,7 +296,8 @@ export async function decideInvestorEligibility(
       }
       const changed = await tx.investor.updateMany({
         where: { id: investorId, status: "ACTIVE", eligibilityStatus: "PENDING_REVIEW" },
-        data: { eligibilityStatus: decision, eligibilityReasonCode: reasonCode, eligibilityReviewedAt: options.now }
+        data: { eligibilityStatus: decision, eligibilityReasonCode: reasonCode, eligibilityReviewedAt: options.now,
+          registryVersion: { increment: 1 } }
       });
       if (changed.count !== 1) throw new InvestorRegistryError("REGISTRY_CONFLICT", "Concurrent change; refresh before retrying", 409);
       const updated = await tx.investor.findUniqueOrThrow({ where: { id: investorId }, select: investorSelect });
@@ -247,6 +310,150 @@ export async function decideInvestorEligibility(
         entityId: investorId,
         metadataJson: { previousStatus: "PENDING_REVIEW", decision, reasonCode }
       } });
+      return updated;
+    }, { isolationLevel: "Serializable" });
+  } catch (error) { databaseError(error); }
+}
+
+const REGISTRY_REVIEW_REASONS = new Set([
+  "REGISTRY_CORRECTION", "PERIODIC_REVIEW", "SECURITY_CONCERN", "OWNER_REQUEST"
+]);
+
+function reviewMetadata(input: Record<string, unknown>) {
+  const expectedVersion = input["expectedVersion"];
+  if (typeof expectedVersion !== "number" || !Number.isSafeInteger(expectedVersion) ||
+      expectedVersion < 1 || expectedVersion >= 2_147_483_647) {
+    invalid("Expected registry version must be a positive integer below the database maximum");
+  }
+  const reasonCode = input["reasonCode"];
+  if (typeof reasonCode !== "string" || !REGISTRY_REVIEW_REASONS.has(reasonCode)) {
+    invalid("Registry review reason code is invalid");
+  }
+  return { expectedVersion, reasonCode };
+}
+
+function reviewInput(body: unknown, field: "decision" | "status") {
+  const input = payload(body, [field, "expectedVersion", "reasonCode"]);
+  return { value: input[field], ...reviewMetadata(input) };
+}
+
+/** Correct explicit profile facts with optimistic concurrency and atomic, non-PII actor audit. */
+export async function updateInvestorProfile(database: PrismaClient, investorId: string, body: unknown,
+  actor: RegistryActor, options: RegistryMutationOptions = registryMutationOptionsFromEnvironment()) {
+  if (!REGISTRY_UUID.test(investorId)) invalid("Investor ID must be a UUID");
+  const input = payload(body, ["displayName", "type", "countryCode", "externalReference", "expectedVersion", "reasonCode"]);
+  const { expectedVersion, reasonCode } = reviewMetadata(input);
+  const displayName = text(input["displayName"], 200, "Display name");
+  const countryCode = normalizedCountryCode(input["countryCode"]);
+  const type = input["type"];
+  if (type !== "INDIVIDUAL" && type !== "INSTITUTIONAL") invalid("Investor type is invalid");
+  const externalReference = input["externalReference"] === null ? null : text(input["externalReference"], 100, "External reference");
+  const profile = { displayName, type, countryCode, externalReference } as const;
+  try {
+    return await database.$transaction(async tx => {
+      await assertRegistryMutationAllowed(tx, options);
+      const investor = await tx.investor.findUnique({ where: { id: investorId },
+        select: { id: true, status: true, registryVersion: true, displayName: true,
+          type: true, countryCode: true, externalReference: true } });
+      if (!investor) throw new InvestorRegistryError("INVESTOR_NOT_FOUND", "Investor not found", 404);
+      if (investor.status === "CLOSED") throw new InvestorRegistryError("INVESTOR_INACTIVE", "Closed investor profile cannot be changed", 409);
+      if (investor.registryVersion !== expectedVersion) {
+        throw new InvestorRegistryError("REGISTRY_CONFLICT", "Concurrent change; refresh before retrying", 409);
+      }
+      const changedFields = (["displayName", "type", "countryCode", "externalReference"] as const)
+        .filter(field => investor[field] !== profile[field]);
+      if (!changedFields.length) throw new InvestorRegistryError("REGISTRY_TRANSITION_INVALID", "Investor profile has no changes", 409);
+      const changed = await tx.investor.updateMany({
+        where: { id: investorId, status: investor.status, registryVersion: expectedVersion },
+        data: { ...profile, registryVersion: { increment: 1 } }
+      });
+      if (changed.count !== 1) throw new InvestorRegistryError("REGISTRY_CONFLICT", "Concurrent change; refresh before retrying", 409);
+      const updated = await tx.investor.findUniqueOrThrow({ where: { id: investorId }, select: investorSelect });
+      await tx.auditLog.create({ data: { actorId: actor.id, actorWallet: actor.walletAddress,
+        correlationId: actor.correlationId, event: "INVESTOR_PROFILE_UPDATED", entityType: "Investor", entityId: investorId,
+        metadataJson: { changedFields, previousVersion: expectedVersion, registryVersion: updated.registryVersion,
+          reasonCode, source: "administrator-api" } } });
+      return updated;
+    }, { isolationLevel: "Serializable" });
+  } catch (error) { databaseError(error); }
+}
+
+/** Review a previous demo eligibility decision; captured snapshots and signed attempts are never rewritten. */
+export async function reviewInvestorEligibility(database: PrismaClient, investorId: string, body: unknown,
+  actor: RegistryActor, options: RegistryMutationOptions = registryMutationOptionsFromEnvironment()) {
+  if (!REGISTRY_UUID.test(investorId)) invalid("Investor ID must be a UUID");
+  const { value: decision, expectedVersion, reasonCode } = reviewInput(body, "decision");
+  if (decision !== "ELIGIBLE" && decision !== "NOT_ELIGIBLE" && decision !== "SUSPENDED") {
+    invalid("Eligibility review decision is invalid");
+  }
+  try {
+    return await database.$transaction(async tx => {
+      await assertRegistryMutationAllowed(tx, options);
+      const investor = await tx.investor.findUnique({ where: { id: investorId },
+        select: { status: true, eligibilityStatus: true, registryVersion: true } });
+      if (!investor) throw new InvestorRegistryError("INVESTOR_NOT_FOUND", "Investor not found", 404);
+      if (investor.status !== "ACTIVE") throw new InvestorRegistryError("INVESTOR_INACTIVE", "Investor is not active", 409);
+      if (investor.registryVersion !== expectedVersion) {
+        throw new InvestorRegistryError("REGISTRY_CONFLICT", "Concurrent change; refresh before retrying", 409);
+      }
+      if (investor.eligibilityStatus === "PENDING_REVIEW" || investor.eligibilityStatus === decision) {
+        throw new InvestorRegistryError("REGISTRY_TRANSITION_INVALID", "Use the initial review for pending eligibility; repeated decisions are not allowed", 409);
+      }
+      if (decision === "ELIGIBLE" && await tx.wallet.count({ where: {
+        investorId, status: "ACTIVE", verifiedAt: { not: null }, revokedAt: null
+      } }) < 1) {
+        throw new InvestorRegistryError("VERIFIED_WALLET_REQUIRED", "An active verified wallet is required for eligibility", 409);
+      }
+      // Domain eligibility keeps its established demo criteria; the operator's correction reason is audited separately.
+      const eligibilityReasonCode = decision === "ELIGIBLE" ? "DEMO_CRITERIA_MET" :
+        decision === "NOT_ELIGIBLE" ? "DEMO_CRITERIA_NOT_MET" : "DEMO_ELIGIBILITY_SUSPENDED";
+      const previousEligibilityStatus = investor.eligibilityStatus;
+      const changed = await tx.investor.updateMany({ where: { id: investorId, status: "ACTIVE",
+        eligibilityStatus: investor.eligibilityStatus, registryVersion: expectedVersion },
+        data: { eligibilityStatus: decision, eligibilityReasonCode, eligibilityReviewedAt: options.now,
+          registryVersion: { increment: 1 } } });
+      if (changed.count !== 1) throw new InvestorRegistryError("REGISTRY_CONFLICT", "Concurrent change; refresh before retrying", 409);
+      const updated = await tx.investor.findUniqueOrThrow({ where: { id: investorId }, select: investorSelect });
+      await tx.auditLog.create({ data: { actorId: actor.id, actorWallet: actor.walletAddress,
+        correlationId: actor.correlationId, event: "INVESTOR_ELIGIBILITY_REVIEWED", entityType: "Investor", entityId: investorId,
+        metadataJson: { previousEligibilityStatus, eligibilityStatus: decision,
+          previousVersion: expectedVersion, registryVersion: updated.registryVersion, reasonCode, source: "administrator-api" } } });
+      return updated;
+    }, { isolationLevel: "Serializable" });
+  } catch (error) { databaseError(error); }
+}
+
+/** Temporarily block or restore a verified investor wallet without changing ownership or revocation evidence. */
+export async function changeInvestorWalletStatus(database: PrismaClient, investorId: string, walletId: string,
+  body: unknown, actor: RegistryActor, options: RegistryMutationOptions = registryMutationOptionsFromEnvironment()) {
+  if (!REGISTRY_UUID.test(investorId) || !REGISTRY_UUID.test(walletId)) invalid("Investor and wallet IDs must be UUIDs");
+  const { value: status, expectedVersion, reasonCode } = reviewInput(body, "status");
+  if (status !== "ACTIVE" && status !== "BLOCKED") invalid("Wallet status must be ACTIVE or BLOCKED");
+  try {
+    return await database.$transaction(async tx => {
+      await assertRegistryMutationAllowed(tx, options);
+      const investor = await tx.investor.findUnique({ where: { id: investorId }, select: { status: true } });
+      if (!investor) throw new InvestorRegistryError("INVESTOR_NOT_FOUND", "Investor not found", 404);
+      if (investor.status !== "ACTIVE") throw new InvestorRegistryError("INVESTOR_INACTIVE", "Investor is not active", 409);
+      const wallet = await tx.wallet.findFirst({ where: { id: walletId, investorId }, select: { ...walletSelect, userId: true } });
+      if (!wallet) throw new InvestorRegistryError("WALLET_NOT_FOUND", "Investor wallet not found", 404);
+      if (wallet.registryVersion !== expectedVersion) {
+        throw new InvestorRegistryError("REGISTRY_CONFLICT", "Concurrent change; refresh before retrying", 409);
+      }
+      if (wallet.userId || !["ACTIVE", "BLOCKED"].includes(wallet.status) || wallet.verifiedAt === null || wallet.revokedAt !== null) {
+        throw new InvestorRegistryError("WALLET_STATUS_TRANSITION_INVALID", "Only active or blocked verified investor wallets can change temporary status", 409);
+      }
+      if (wallet.status === status) throw new InvestorRegistryError("REGISTRY_TRANSITION_INVALID", "Wallet already has this status", 409);
+      const previousStatus = wallet.status;
+      const changed = await tx.wallet.updateMany({ where: { id: walletId, investorId,
+        status: wallet.status, registryVersion: expectedVersion, verifiedAt: wallet.verifiedAt, revokedAt: null },
+        data: { status, registryVersion: { increment: 1 } } });
+      if (changed.count !== 1) throw new InvestorRegistryError("REGISTRY_CONFLICT", "Concurrent change; refresh before retrying", 409);
+      const updated = await tx.wallet.findUniqueOrThrow({ where: { id: walletId }, select: walletSelect });
+      await tx.auditLog.create({ data: { actorId: actor.id, actorWallet: actor.walletAddress,
+        correlationId: actor.correlationId, event: "INVESTOR_WALLET_STATUS_CHANGED", entityType: "Wallet", entityId: walletId,
+        metadataJson: { investorId, previousStatus, status, previousVersion: expectedVersion,
+          registryVersion: updated.registryVersion, reasonCode, network: wallet.network } } });
       return updated;
     }, { isolationLevel: "Serializable" });
   } catch (error) { databaseError(error); }

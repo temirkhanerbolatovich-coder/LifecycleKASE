@@ -1,3 +1,5 @@
+import { getDisplayLocale, translateStoredMessage } from "./locale";
+
 async function responseJson(response: Response): Promise<Record<string, unknown>> {
   try {
     const value: unknown = await response.json();
@@ -40,6 +42,37 @@ function errorMessage(payload: Record<string, unknown>, fallback: string): strin
       return "Решение не соответствует текущему этапу согласования. Обновите карточку действия.";
     case "APPROVAL_REQUIRED":
       return "Исполнение требует явного согласования начислений.";
+    case "COUPON_NOT_DUE":
+    case "REDEMPTION_NOT_DUE":
+      return "Время исполнения ещё не наступило в подтверждённом состоянии сети. Повторите подготовку после даты выплаты.";
+    case "COUPON_INCOMPLETE":
+    case "REDEMPTION_INCOMPLETE":
+      return "Подтвердите все выплаты перед подготовкой итогового документа.";
+    case "COUPON_CONFIRMATION_REQUIRED":
+    case "REDEMPTION_CONFIRMATION_REQUIRED":
+    case "ACTION_OPERATION_PENDING":
+      return "Сначала проверьте результат сохранённой попытки по исходной подписи.";
+    case "ENTITLEMENT_ALREADY_EXECUTED":
+      return "Это начисление уже исполнено. Повторная выплата заблокирована.";
+    case "COUPON_RESERVE_REQUIRED":
+    case "REDEMPTION_RESERVE_REQUIRED":
+      return "В резерве недостаточно средств для выбранной выплаты.";
+    case "COUPON_EXECUTION_DISABLED":
+      return "Выплаты ещё не включены в этой среде. Доступна проверка текущего этапа.";
+    case "REDEMPTION_EXECUTION_DISABLED":
+      return "Исполнение погашений ещё не включено в этой среде. Расчёт и доказательства доступны в карточке.";
+    case "REDEMPTION_SUPPLY_CHANGED":
+    case "REDEMPTION_SOURCE_BALANCE_CHANGED":
+    case "REDEMPTION_BALANCE_CHANGED":
+      return "Supply или остатки на зафиксированных счетах изменились. Подпись остановлена; проверьте исходную попытку и состояние сети.";
+    case "RECEIPT_INTEGRITY":
+    case "RECONCILIATION_REQUIRED":
+    case "COUPON_RECEIPT_MISMATCH":
+    case "COUPON_BALANCE_PROOF":
+    case "REDEMPTION_RECEIPT_MISMATCH":
+    case "REDEMPTION_BALANCE_PROOF":
+    case "REDEMPTION_ACCOUNT_MISMATCH":
+      return "Суммы, квитанции и подтверждённые данные не совпадают. Сохранённую попытку нужно сверить; повторная отправка не поможет.";
     case "ACTION_RECORD_TOO_SOON":
       return "До record date осталось меньше минуты. Создайте новый черновик с будущим временем; подписанную попытку проверяйте отдельно.";
     case "INVALID_ACTION_DATES":
@@ -47,7 +80,9 @@ function errorMessage(payload: Record<string, unknown>, fallback: string): strin
     case "ACTION_CANCEL_PENDING":
       return "Для действия уже подготовлена отмена. Сначала завершите проверку этой попытки.";
     case "SNAPSHOT_WINDOW_MISSED":
-      return "Окно snapshot ещё не открылось или уже пропущено. Проверьте record date; задним числом snapshot не создаётся.";
+      return "Окно capture закрыто. Обновите карточку и проверьте окно snapshot; для подтверждённого пропуска создайте новое действие.";
+    case "RECORD_DATE_NOT_REACHED":
+      return "Окно snapshot ещё не открылось. Дождитесь record date и повторите подготовку в пределах окна.";
     case "SNAPSHOT_SLOT_OUTSIDE_WINDOW":
       return "Finalized slot ещё не достиг record date. Подождите и повторите подготовку в пределах окна.";
     case "ACTION_CONFLICT":
@@ -85,13 +120,17 @@ function errorMessage(payload: Record<string, unknown>, fallback: string): strin
 }
 
 export async function apiRequest(path: string, init?: RequestInit, fetchRequest: typeof fetch = fetch): Promise<Record<string, unknown>> {
-  const response = await fetchRequest(path, {
+  let response: Response;
+  try { response = await fetchRequest(path, {
     ...init,
     credentials: "include",
     cache: "no-store",
     headers: { "content-type": "application/json", ...init?.headers },
-    signal: init?.signal ?? AbortSignal.timeout(15_000)
-  });
+    signal: init?.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000)
+  }); } catch (error) {
+    if (init?.signal?.aborted) throw error;
+    throw new OperatorApiError("CONNECTION_UNAVAILABLE", 0, "Потеряна связь с API или истекло время ожидания. Сохраните исходную попытку и подпись; проверьте результат после восстановления связи.");
+  }
   const payload = await responseJson(response);
   if (!response.ok) throw new OperatorApiError(typeof payload["code"] === "string" ? payload["code"] : undefined,
     response.status, errorMessage(payload, "API отклонил запрос."));
@@ -100,17 +139,18 @@ export async function apiRequest(path: string, init?: RequestInit, fetchRequest:
 
 export class OperatorApiError extends Error {
   constructor(public readonly code: string | undefined, public readonly status: number, message: string) {
-    super(message); this.name = "OperatorApiError";
+    super(translateStoredMessage(message, getDisplayLocale())); this.name = "OperatorApiError";
   }
 }
 
 /** Reports lost authentication without retrying a request that may submit a transaction. */
-export function createOperatorRequest(onSessionExpired: () => void, fetchRequest: typeof fetch = fetch) {
+export function createOperatorRequest(onSessionExpired: () => void, fetchRequest: typeof fetch = fetch, onConnectionChange?: (lost: boolean) => void) {
   return async (path: string, init?: RequestInit): Promise<Record<string, unknown>> => {
-    try { return await apiRequest(path, init, fetchRequest); }
+    try { const result = await apiRequest(path, init, fetchRequest); onConnectionChange?.(false); return result; }
     catch (error) {
       if (error instanceof OperatorApiError && error.status === 401 &&
           (error.code === "SESSION_REQUIRED" || error.code === "SESSION_INVALID")) onSessionExpired();
+      if (error instanceof OperatorApiError && error.code === "CONNECTION_UNAVAILABLE") onConnectionChange?.(true);
       throw error;
     }
   };

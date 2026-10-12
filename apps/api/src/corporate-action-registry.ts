@@ -1,5 +1,7 @@
 import { Prisma, type PrismaClient, type CorporateActionType } from "@prisma/client";
 import { ACTION_TYPES } from "@lifecycle-kase/solana-client";
+import { EARLY_REDEMPTION_ALLOCATION_POLICY } from "@lifecycle-kase/domain";
+import { exactTargetRedemptionEnabled, LEGACY_ALLOCATION_POLICY } from "./redemption-policy.js";
 import { instrumentNetworkFromEnvironment, type InstrumentActor } from "./instrument-registry.js";
 import { TransactionWorkflowError, WORKFLOW_UUID } from "./transaction-workflow.js";
 
@@ -7,7 +9,7 @@ export const MIN_ACTION_LEAD_SECONDS = 60;
 const SOURCES = ["MANUAL", "ISSUER_INSTRUCTION", "EXCHANGE_EVENT", "EXTERNAL_API", "SYSTEM"] as const;
 export const actionInclude = {
   instrument: { select: { id: true, ticker: true, name: true, network: true, status: true,
-    programId: true, mintAddress: true, issuerAuthority: true, corporateActionAuthority: true, issueAt: true, maturityAt: true } },
+    programId: true, mintAddress: true, issuerAuthority: true, corporateActionAuthority: true, issueAt: true, maturityAt: true, tokenPolicy: true } },
   snapshot: { select: { id: true, status: true, recordAt: true, blockTime: true, solanaSlot: true,
     snapshotHash: true, investorCount: true, walletCount: true, totalBalance: true } },
   blockchainTransactions: { orderBy: { createdAt: "desc" as const }, take: 20, select: {
@@ -17,6 +19,7 @@ export const actionInclude = {
 
 export function serializeAction(action: Prisma.CorporateActionGetPayload<{ include: typeof actionInclude }>) {
   return { ...action, redemptionPriceMinor: action.redemptionPriceMinor?.toString() ?? null,
+    redemptionTargetTokens: action.redemptionTargetTokens?.toString() ?? null,
     totalEntitlementMinor: action.totalEntitlementMinor.toString(),
     blockchainTransactions: action.blockchainTransactions.map(({ preparedPayload, ...operation }) => ({ ...operation,
       reason: preparedPayload && typeof preparedPayload === "object" && !Array.isArray(preparedPayload) &&
@@ -89,9 +92,10 @@ export async function listCorporateActions(database: PrismaClient, query: { inst
 
 /** requestId is the stable action UUID; a lost response can be retried without creating another draft. */
 export async function createCorporateActionDraft(database: PrismaClient, body: unknown, actor: InstrumentActor,
-  network = instrumentNetworkFromEnvironment(), now = new Date()) {
+  network = instrumentNetworkFromEnvironment(), now = new Date(), exactTargetEnabled = exactTargetRedemptionEnabled()) {
   const input = actionInput(body, ["requestId", "instrumentId", "type", "intent", "sourceType", "sourceReference",
-    "sourceDocument", "sourceTimestamp", "recordAt", "executeAt", "redemptionPercentageBps", "redemptionPriceKzt"]);
+    "sourceDocument", "sourceTimestamp", "recordAt", "executeAt", "redemptionPercentageBps", "redemptionPriceKzt",
+    "redemptionAllocationPolicy", "redemptionTargetTokens"]);
   const id = input["requestId"]; const instrumentId = input["instrumentId"];
   if (typeof id !== "string" || !WORKFLOW_UUID.test(id) || typeof instrumentId !== "string" || !WORKFLOW_UUID.test(instrumentId)) {
     throw new TransactionWorkflowError("INVALID_REQUEST", "Request and instrument UUIDs are required", 400);
@@ -106,20 +110,44 @@ export async function createCorporateActionDraft(database: PrismaClient, body: u
   const sourceDocument = actionText(input["sourceDocument"], "Source document", 500, false);
   const sourceTimestamp = input["sourceTimestamp"] == null ? null : utcSeconds(input["sourceTimestamp"], "Source timestamp");
   let redemptionPercentageBps: number | null = null; let redemptionPriceMinor: bigint | null = null;
+  let redemptionTargetTokens: bigint | null = null;
+  const redemptionAllocationPolicy = input["redemptionAllocationPolicy"] ?? LEGACY_ALLOCATION_POLICY;
+  if (![LEGACY_ALLOCATION_POLICY, EARLY_REDEMPTION_ALLOCATION_POLICY].includes(redemptionAllocationPolicy as string)) {
+    throw new TransactionWorkflowError("INVALID_REQUEST", "Redemption allocation policy is unsupported", 400);
+  }
   if (type === "EARLY_REDEMPTION") {
     const percent = input["redemptionPercentageBps"]; const price = input["redemptionPriceKzt"];
-    if (!Number.isSafeInteger(percent) || (percent as number) < 1 || (percent as number) > 10_000 ||
-        typeof price !== "string" || !/^(0|[1-9][0-9]{0,12})(\.[0-9]{1,6})?$/.test(price)) {
-      throw new TransactionWorkflowError("INVALID_REQUEST", "Early redemption requires 1 to 10000 bps and a positive KZT-Test price with up to six decimals", 400);
+    if (typeof price !== "string" || !/^(0|[1-9][0-9]{0,12})(\.[0-9]{1,6})?$/.test(price)) {
+      throw new TransactionWorkflowError("INVALID_REQUEST", "Early redemption requires a positive KZT-Test price with up to six decimals", 400);
     }
     const [whole, fraction = ""] = price.split(".");
-    redemptionPercentageBps = percent as number; redemptionPriceMinor = BigInt(whole!) * 1_000_000n + BigInt(fraction.padEnd(6, "0"));
+    redemptionPriceMinor = BigInt(whole!) * 1_000_000n + BigInt(fraction.padEnd(6, "0"));
     if (redemptionPriceMinor < 1n || redemptionPriceMinor > (1n << 63n) - 1n) throw new TransactionWorkflowError("INVALID_REQUEST", "Redemption price is outside the database range", 400);
-  } else if (input["redemptionPercentageBps"] != null || input["redemptionPriceKzt"] != null) {
+    if (redemptionAllocationPolicy === EARLY_REDEMPTION_ALLOCATION_POLICY) {
+      const target = input["redemptionTargetTokens"];
+      if (percent != null || typeof target !== "string" || !/^[1-9][0-9]{0,18}$/.test(target)) {
+        throw new TransactionWorkflowError("INVALID_REQUEST", "Exact redemption requires a positive integer token target and no percentage", 400);
+      }
+      redemptionTargetTokens = BigInt(target);
+      if (redemptionTargetTokens > (1n << 63n) - 1n || redemptionTargetTokens * redemptionPriceMinor > (1n << 63n) - 1n) {
+        throw new TransactionWorkflowError("INVALID_REQUEST", "Exact redemption target or obligation exceeds the database range", 400);
+      }
+      if (!exactTargetEnabled || network !== "SOLANA_LOCALNET") {
+        throw new TransactionWorkflowError("EXACT_TARGET_REDEMPTION_DISABLED", "Exact target redemption requires its explicitly enabled Localnet candidate", 503);
+      }
+    } else {
+      if (!Number.isSafeInteger(percent) || (percent as number) < 1 || (percent as number) > 10_000 || input["redemptionTargetTokens"] != null) {
+        throw new TransactionWorkflowError("INVALID_REQUEST", "Legacy redemption requires 1 to 10000 bps and no exact target", 400);
+      }
+      redemptionPercentageBps = percent as number;
+    }
+  } else if (input["redemptionPercentageBps"] != null || input["redemptionPriceKzt"] != null ||
+      input["redemptionTargetTokens"] != null || redemptionAllocationPolicy !== LEGACY_ALLOCATION_POLICY) {
     throw new TransactionWorkflowError("INVALID_REQUEST", "Redemption parameters are only allowed for early redemption", 400);
   }
   const data = { id, instrumentId, type, intent, sourceType: sourceType as typeof SOURCES[number], sourceReference,
-    sourceDocument, sourceTimestamp, recordAt, executeAt, redemptionPercentageBps, redemptionPriceMinor, createdById: actor.id };
+    sourceDocument, sourceTimestamp, recordAt, executeAt, redemptionPercentageBps, redemptionPriceMinor,
+    redemptionAllocationPolicy: redemptionAllocationPolicy as string, redemptionTargetTokens, createdById: actor.id };
   const sameDraft = (existing: Prisma.CorporateActionGetPayload<{ include: typeof actionInclude }>) => {
     if (Object.entries(data).some(([key, value]) => {
       const actual = existing[key as keyof typeof existing];

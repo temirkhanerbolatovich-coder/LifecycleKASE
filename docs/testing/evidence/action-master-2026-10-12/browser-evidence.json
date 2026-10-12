@@ -1,0 +1,104 @@
+{
+  "schema": "operator-master-browser-fixture-v1",
+  "testedAt": "2026-10-12T11:23:45.985Z",
+  "scope": "SYNTHETIC_RESPONSES_REAL_OPERATOR_COMPONENTS_ISOLATED_PRODUCTION_COPY",
+  "authenticatedRuntime": false,
+  "actualWalletUsed": false,
+  "liveRpcQueried": false,
+  "databaseAccessed": false,
+  "financialTransactionsSent": 0,
+  "nativeBrowserZoomAcceptance": false,
+  "nativeScreenReaderAcceptance": false,
+  "realFiveUserAcceptance": false,
+  "limitations": [
+    "Responses and explicit confirmation are simulated; no financial or authentication acceptance is established.",
+    "200% uses CSS zoom as an automated approximation, not native browser zoom.",
+    "No Phantom, native screen reader or real multi-user study was performed."
+  ],
+  "results": [
+    {
+      "label": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "sixStepsVisible": true,
+      "notesAndRecipientsRetained": true,
+      "sectionAndListRetention": true,
+      "historyBackForward": true,
+      "originalSignatureRetained": true,
+      "resubmissionDisabled": true,
+      "navigationReadOnly": true,
+      "captureFinishReadiness": true,
+      "auditorReadOnly": true,
+      "jsonCsvDownloadsVerified": true,
+      "keyboardFocusVisible": true,
+      "reducedMotion": true,
+      "overflow": false,
+      "cssZoom200Percent": true,
+      "languages": [
+        "ru",
+        "en"
+      ],
+      "keyboardSixStepOrder": true,
+      "languageSelectorContrast": 15.249461460899857,
+      "readOnlyActionTypes": [
+        "COUPON_PAYMENT",
+        "EARLY_REDEMPTION",
+        "BOND_REDEMPTION"
+      ]
+    },
+    {
+      "label": "mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "sixStepsVisible": true,
+      "notesAndRecipientsRetained": true,
+      "sectionAndListRetention": true,
+      "historyBackForward": true,
+      "originalSignatureRetained": true,
+      "resubmissionDisabled": true,
+      "navigationReadOnly": true,
+      "captureFinishReadiness": true,
+      "auditorReadOnly": true,
+      "jsonCsvDownloadsVerified": true,
+      "keyboardFocusVisible": true,
+      "reducedMotion": true,
+      "overflow": false,
+      "cssZoom200Percent": false,
+      "languages": [
+        "ru",
+        "en"
+      ],
+      "keyboardSixStepOrder": true,
+      "languageSelectorContrast": 15.249461460899857,
+      "readOnlyActionTypes": [
+        "COUPON_PAYMENT",
+        "EARLY_REDEMPTION",
+        "BOND_REDEMPTION"
+      ]
+    }
+  ],
+  "errors": [],
+  "unexpectedNetwork": [],
+  "sourceFingerprints": {
+    "apps/web/app/dashboard/corporate-action-detail.tsx": "0d1f34bbb87eeee57b663d3abe27ed7bf88ac04d1edc3e05a9d54625b435ce36",
+    "apps/web/app/dashboard/corporate-action-panel.tsx": "d1484113d4df4483b11524dd6d23f68c0e30d154af54d4077e2920ae2b5fd5da",
+    "apps/web/app/dashboard/operator-workspace.tsx": "4b342d5ff348ff8d02b91b7c0feef8102b52ec543be73d934493c0ea3eb3d57c",
+    "apps/web/app/dashboard/entitlement-panel.tsx": "12e32b89126f4da08324140081c539e4354ee44f240e745ae188fb7fc953bd49",
+    "apps/web/app/dashboard/action-approval-panel.tsx": "a3cf4b648f26805655cde6809fdc5e454db3cd096e690ffabe9f26321ccd1267",
+    "apps/web/app/dashboard/action-master-workflow.ts": "2ea15041c764c5d1e0f673c95c18c8d48ef69587968ad87f65e8173ca6709326",
+    "apps/web/app/dashboard/controlled-capture-panel.tsx": "d0876ad0638d95baabf15895ac019b4059fb0dba3b70f7cea8be77f89f555ea9",
+    "apps/web/app/dashboard/coupon-funding-panel.tsx": "9befde023cdaa746ce9cc1ca9db259dcf2ee14f3f69d281a3ec9204233ac7e79",
+    "apps/web/app/dashboard/coupon-execution-panel.tsx": "317a9129bfb8ff37288f2699607068784cd8e67429b9ffebd7d11137dbc5ed4c",
+    "apps/web/app/dashboard/redemption-execution-panel.tsx": "b4e8bbcbffc47ac72125be03b244a970ee79419f2428a9d7339c6598825925ff",
+    "apps/web/app/dashboard/workspace-navigation.ts": "c0ccef6dc79cdccc641f53f1dd729279321e5522afb5c7a586c3c01616e48938",
+    "apps/web/app/dashboard/locale.ts": "1cc35cd16f618e310170ec087e941663ef969e04f0f5694736035ef66649b5e8",
+    "apps/web/app/dashboard/master-messages.ts": "30ab2937b35ae05270fcb4298405371f3aa2ddf08ed4e1bbb513b972bc8db9e8",
+    "apps/web/app/dashboard/action-evidence-download.ts": "c6f8e401b2a3664f341b525238775df522d95109546f1360fcc13319df60f1e7",
+    "apps/web/app/globals.css": "8b26b52e89207e08f3ea59547d0fd324279bf948f30756a98c4708cc87bff10f",
+    "scripts/test-operator-master-browser.mjs": "3728fdbc95b4eef50e878a0cc68a31c8272291772f66eefc331f2ac802c20676"
+  }
+}

@@ -9,7 +9,8 @@ async function collectMarkdown(directory) {
   const files = [];
 
   for (const entry of entries) {
-    if ([".git", "node_modules"].includes(entry.name)) {
+    // Generated evidence and local browser copies are ignored artifacts, not repository documentation.
+    if ([".git", "node_modules", "generated", "target", ".next", ".test-dist", "dist"].includes(entry.name) || entry.name.startsWith(".local-")) {
       continue;
     }
 

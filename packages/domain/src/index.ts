@@ -1,5 +1,6 @@
 export * from "./corporate-action-state.js";
 export * from "./errors.js";
+export * from "./early-redemption-allocation.js";
 export * from "./eligibility.js";
 export * from "./financial.js";
 export * from "./numeric.js";

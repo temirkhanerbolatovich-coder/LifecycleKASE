@@ -15,6 +15,8 @@ test("instrument registry requires a session and keeps auditors read-only", asyn
   process.env.AUTH_ALLOWED_ORIGINS = "http://localhost:3000";
   let role = "AUDITOR";
   const database = {
+    wallet: { findUnique: async () => ({ userId: "00000000-0000-4000-8000-000000000001",
+      status: "ACTIVE", verifiedAt: new Date("2026-09-29"), revokedAt: null }) },
     session: { findUnique: async () => ({ walletAddress: "11111111111111111111111111111111", revokedAt: null,
       expiresAt: new Date("2099-01-01"), user: { id: "00000000-0000-4000-8000-000000000001", role } }) },
     instrument: { findMany: async () => [] }
@@ -22,7 +24,8 @@ test("instrument registry requires a session and keeps auditors read-only", asyn
   const controller = new InstrumentController(database, { consumeMutation() {} } as unknown as AuthRateLimitService);
   try {
     await assert.rejects(controller.list({}, response), status(401));
-    assert.deepEqual(await controller.list(request, response), { items: [], nextCursor: null });
+    assert.deepEqual(await controller.list(request, response), { items: [], nextCursor: null,
+      controlledRegistryEnabled: false, controlledProgramId: null, controlledNetworkGenesisHash: null });
     await assert.rejects(controller.create({}, request, response, "http://localhost:3000"), status(403));
     role = "ISSUER_OPERATOR";
     await assert.rejects(controller.list(request, response), status(403));

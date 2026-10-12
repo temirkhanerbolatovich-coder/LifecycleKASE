@@ -2,6 +2,20 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "outDir": ".test-dist", "rootDir": "app/dashboard", "lib": ["esnext", "dom"] },
   "include": [
+    "app/dashboard/overview-summary.test.ts",
+    "app/dashboard/action-evidence-download.ts",
+    "app/dashboard/action-evidence-download.test.ts",
+    "app/dashboard/action-master-workflow.test.ts",
+    "app/dashboard/controlled-workflow.test.ts",
+    "app/dashboard/investor-registry-workflow.test.ts",
+    "app/dashboard/locale.test.ts",
+    "app/dashboard/qa-sandbox.test.ts",
+    "app/dashboard/redemption-calculation-workflow.test.ts",
+    "app/dashboard/redemption-execution-workflow.test.ts",
+    "app/dashboard/coupon-execution-workflow.test.ts",
+    "app/dashboard/workspace-presentation.test.ts",
+    "app/dashboard/action-approval-workflow.test.ts",
+    "app/dashboard/program-upgrade-workflow.test.ts",
     "app/dashboard/coupon-workflow.ts",
     "app/dashboard/coupon-workflow.test.ts",
     "app/dashboard/finalized-check.ts",
@@ -11,6 +25,7 @@
     "app/dashboard/onchain-entitlement-workflow.test.ts",
     "app/dashboard/action-workflow.ts",
     "app/dashboard/action-workflow.test.ts",
+    "app/dashboard/exact-redemption-action-workflow.test.ts",
     "app/dashboard/wallet-transaction.ts",
     "app/dashboard/wallet-transaction.test.ts",
     "app/dashboard/operator-api.ts",
@@ -18,6 +33,8 @@
     "app/dashboard/snapshot-workflow.ts",
     "app/dashboard/snapshot-workflow.test.ts",
     "app/dashboard/wallet-account-selection.ts",
-    "app/dashboard/wallet-account-selection.test.ts"
+    "app/dashboard/wallet-account-selection.test.ts",
+    "app/dashboard/workspace-navigation.ts",
+    "app/dashboard/workspace-navigation.test.ts"
   ]
 }

@@ -18,3 +18,27 @@ targetRules = ["generic-api-key"]
 condition = "AND"
 paths = ['''^packages/solana-client/src/instrument-mint-setup\.test\.ts$''']
 regexes = ['''^FbCaQHM2nCe1gLoqBLciC86socdSmHvnN9MiiFa8t2Mj$''']
+
+[[allowlists]]
+description = "Reviewed public token addresses in the disposable controlled-registry evidence"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^docs/testing/evidence/controlled-registry-2026-10-12/runtime\.json$''']
+regexes = [
+  '''^DcRdANuwgyu8p5D5ErbEnU6Y7CgAmzKkyGzUoQMBwfdR$''',
+  '''^2ApMkjF7iwWskDGbqmyMTruUz73cJhSg5SyLXTDQ7uCr$''',
+  '''^Cwu2ZpG6DjUp5kAe1APuPgy12QYE2dxETpX2uvfKc9yY$''',
+  '''^9rnAVe8mz1kvX3PwuguWwuRhn184hTHitvTkHHgh4mBZ$''',
+  '''^5bundgfTfajv7cbUhC7W8Ye5QbUNUVUwb7ifJUXn9xzy$''',
+]
+
+[[allowlists]]
+description = "Reviewed public reserved token-account addresses in controlled workflow receipts"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^docs/testing/evidence/controlled-workflow-2026-10-12/(2-EARLY_REDEMPTION|3-EXACT_EARLY_REDEMPTION|4-BOND_REDEMPTION)\.canonical\.json$''']
+regexes = [
+  '''^6ZmDAecYnXXVrC1VqjoAspXKxdP1htJBHXghc6TEKGUY$''',
+  '''^CvQki9PdKAmBZSz3iy1dgCfHW1bqzgttTvLZ2bNsJnnF$''',
+  '''^G223urZT7Q8GSdoasBL7jHxKwcWwSgdPzvxP6UckhkmT$''',
+]

@@ -9,6 +9,10 @@ import { NestFactory } from "@nestjs/core";
 import { encodePublicKey, HttpSolanaRpc, verifySignedPreparedTransaction } from "@lifecycle-kase/solana-client";
 import { syntheticEntitlementAction, testEntitlementsFlow } from "./test-entitlements-flow.mjs";
 import { testCouponFundingFlow } from "./test-coupon-funding-flow.mjs";
+import { testSnapshotWindowFlow } from "./test-snapshot-window-flow.mjs";
+import { testOnchainEntitlementsFlow } from "./test-onchain-entitlements-flow.mjs";
+import { testActionApprovalFlow } from "./test-action-approval-flow.mjs";
+import { testLiveActionApprovalFlow } from "./test-live-action-approval-flow.mjs";
 
 // Never load .env. Only a generated database on an explicit loopback port is modified.
 const base = new URL(process.env.ACTION_TEST_DATABASE_URL ?? process.env.DATABASE_URL ??
@@ -46,6 +50,7 @@ try {
   process.env.DATABASE_URL = url.toString(); process.env.AUTH_ENABLED = "true";
   process.env.AUTH_DOMAIN = "localhost:3000"; process.env.AUTH_ALLOWED_ORIGINS = origin;
   process.env.AUTH_COOKIE_SECURE = "false"; process.env.SOLANA_CLUSTER = "localnet"; process.env.WALLET_NETWORK = "SOLANA_LOCALNET";
+  process.env.LOCALNET_PROGRAM_UPGRADE_ENABLED = "false";
   process.env.MUTATION_RATE_LIMIT = "200"; process.env.AUTH_CHALLENGE_RATE_LIMIT = "20"; process.env.AUTH_VERIFY_RATE_LIMIT = "20";
   process.env.PROGRAM_ID = validatorFixture?.programId ?? "6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo";
   process.env.SOLANA_RPC_URL = validatorFixture?.rpcUrl ?? "http://127.0.0.1:1";
@@ -133,6 +138,8 @@ try {
   console.log("PASS PostgreSQL action/audit rollback; no persistent project records modified");
 
   if (!validatorFixture) {
+    await testSnapshotWindowFlow({ database, request, administrator, auditor, outsider, instrument });
+    const calculationFixture = await testOnchainEntitlementsFlow({ database, instrument, administrator, request, write });
     for (const type of ["COUPON_PAYMENT", "BOND_REDEMPTION", "EARLY_REDEMPTION"]) {
       const actionId = await syntheticEntitlementAction(database, instrument, administrator, type);
       await testEntitlementsFlow({ database, request, write, administrator, auditor, outsider, actionId });
@@ -154,29 +161,39 @@ try {
       }
       const calculated = await request(path + "/calculate", write({ version: state.actionVersion, receivers }));
       assert.equal(calculated.status, 201, JSON.stringify(calculated.payload)); state = calculated.payload;
+      const reviewEvents = await database.auditLog.count({ where: { entityId: actionId, event: "ENTITLEMENTS_REVIEW_DECIDED" } });
       const reviewed = await request(path + "/review", write({ version: state.actionVersion, decision: "SUBMIT", note: "Review zero rounding" }));
-      assert.equal(reviewed.status, 201); state = reviewed.payload;
-      const approved = await request(path + "/review", write({ version: state.actionVersion, decision: "APPROVE", note: "Explicit zero rounding decision" }));
       if (percentage === 1) {
-        assert.equal(approved.status, 409); assert.equal(approved.payload.code, "CALCULATION_INCOMPLETE");
+        assert.equal(reviewed.status, 409); assert.equal(reviewed.payload.code, "CALCULATION_INCOMPLETE");
         assert.ok(state.items.every(row => row.status === "NOT_ELIGIBLE_ZERO_ROUNDING"));
-        const rejected = await request(path + "/review", write({ version: state.actionVersion, decision: "REJECT", note: "All rows round to zero" }));
-        assert.equal(rejected.status, 201); assert.equal(rejected.payload.status, "REJECTED");
-        assert.equal((await request(path + "/calculate", write({ version: rejected.payload.actionVersion, receivers }))).status, 409);
+        const unchanged = await request(path, { cookie: administrator.cookie });
+        assert.equal(unchanged.status, 200); assert.equal(unchanged.payload.status, "CALCULATED");
+        assert.equal(unchanged.payload.actionVersion, state.actionVersion);
+        assert.equal(await database.auditLog.count({ where: { entityId: actionId, event: "ENTITLEMENTS_REVIEW_DECIDED" } }), reviewEvents);
+        const approved = await request(path + "/review", write({ version: state.actionVersion, decision: "APPROVE", note: "Cannot bypass a zero submission" }));
+        assert.equal(approved.status, 409); assert.equal(approved.payload.code, "REVIEW_NOT_ALLOWED");
+        const recalculated = await request(path + "/calculate", write({ version: state.actionVersion, receivers }));
+        assert.equal(recalculated.status, 409); assert.equal(recalculated.payload.code, "CALCULATION_NOT_ALLOWED");
+        const finalState = await request(path, { cookie: administrator.cookie });
+        assert.equal(finalState.payload.status, "CALCULATED"); assert.equal(finalState.payload.totalEntitlementMinor, "0");
+        assert.equal(finalState.payload.actionVersion, state.actionVersion);
       } else {
+        assert.equal(reviewed.status, 201, JSON.stringify(reviewed.payload)); state = reviewed.payload;
+        const approved = await request(path + "/review", write({ version: state.actionVersion, decision: "APPROVE", note: "Explicit zero rounding decision" }));
         assert.equal(approved.status, 201); assert.equal(approved.payload.eligibleHolders, 2);
         assert.equal(approved.payload.items.filter(row => row.status === "READY").length, 2);
         assert.equal(approved.payload.items.filter(row => row.status === "NOT_ELIGIBLE_ZERO_ROUNDING").length, 1);
       }
     }
-    console.log("PASS zero-rounding exclusion, all-zero approval rejection, terminal rejection and complete calculation/audit rollback");
+    console.log("PASS mixed zero-rounding approval, all-zero submission rejection with unchanged audit/version, readable blocked calculation and calculation/audit rollback");
     console.log("Synthetic finalized snapshot fixtures test application logic; they do not prove any chain registration");
+    await testActionApprovalFlow({ ...calculationFixture, database, instrument, administrator, approver: outsider, auditor, otherRole, request, write });
   }
 
   if (validatorFixture) {
-    async function createAction(type, recordAt = future(10)) {
+    async function createAction(type, recordAt = future(10), executeAt = future(20)) {
       const response = await request("/corporate-actions", write({ ...input, requestId: randomUUID(), type, recordAt,
-        executeAt: type === "BOND_REDEMPTION" ? instrument.maturityAt.toISOString() : future(20),
+        executeAt: type === "BOND_REDEMPTION" ? instrument.maturityAt.toISOString() : executeAt,
         ...(type === "EARLY_REDEMPTION" ? { redemptionPercentageBps: 2000, redemptionPriceKzt: "1000.000001" } : {}) }));
       assert.equal(response.status, 201, JSON.stringify(response.payload)); return response.payload;
     }
@@ -221,7 +238,7 @@ try {
     }
     console.log("PASS live Localnet + HTTP/PostgreSQL: all three action types schedule/cancel, exact signed-wire/PDA confirmation, replay/resume and cancellation/snapshot exclusion");
 
-    const snapshotAction = await createAction("COUPON_PAYMENT", future(2));
+    const snapshotAction = await createAction("COUPON_PAYMENT", future(2), process.env.COUPON_ACCEPTANCE === "true" ? future(3) : future(20));
     const schedule = await prepare(snapshotAction, "SCHEDULE"); await confirm(schedule, await signAndSubmit(schedule));
     console.log("Waiting for disposable action record window (up to two minutes); the owner's instrument is untouched");
     while (Date.now() < Date.parse(snapshotAction.recordAt) + 1000) await new Promise(resolve => setTimeout(resolve, Math.min(1000, Date.parse(snapshotAction.recordAt) + 1000 - Date.now())));
@@ -255,10 +272,26 @@ try {
       genesisHash: process.env.SOLANA_GENESIS_HASH, snapshotHash: plan.snapshotHash, signature,
       recordAt: plan.recordAt, effectiveBlockTime: plan.effectiveBlockTime, effectiveSlot: plan.effectiveSlot,
       investorCount: state.payload.snapshot.investorCount, totalBalance: state.payload.snapshot.totalBalance }));
-    await testEntitlementsFlow({ database, request, write, administrator, auditor, outsider, actionId: snapshotAction.id, extensive: false,
+    if (validatorFixture.approvalAcceptance) {
+      await testLiveActionApprovalFlow({ database, request, write, administrator, approver: outsider, auditor, actionId: snapshotAction.id, rpc, signAndSubmit, confirm });
+    } else await testEntitlementsFlow({ database, request, write, administrator, auditor, outsider, actionId: snapshotAction.id, extensive: false,
       beforeApproval: current => testCouponFundingFlow({ database, request, write, administrator, auditor, outsider,
         actionId: snapshotAction.id, version: current.actionVersion, signAndSubmit, confirm }) });
   }
+  // This fixture tests the global HTTP/DB boundary; loader acceptance is a separate suite.
+  assert.equal((await request("/program-upgrade")).status, 401);
+  assert.deepEqual((await request("/program-upgrade", { cookie: auditor.cookie })).payload, { enabled: false });
+  const maintenance = await database.programUpgrade.create({ data: {
+    programId: process.env.PROGRAM_ID, networkGenesisHash: process.env.SOLANA_GENESIS_HASH,
+    bufferAddress: publicAddress(), requiredSigner: administrator.walletAddress, reviewedPlan: {}, protectedAccounts: []
+  } });
+  assert.equal((await request("/corporate-actions", write({}))).status, 409);
+  assert.equal((await request("/auth/session", { cookie: administrator.cookie })).status, 200);
+  assert.equal((await request("/corporate-actions", { cookie: auditor.cookie })).status, 200);
+  assert.equal((await request("/program-upgrade/confirm", write({}))).status, 503);
+  await assert.rejects(database.instrument.update({ where: { id: instrument.id }, data: { name: "Blocked maintenance fixture" } }), /PROGRAM_UPGRADE_MAINTENANCE/);
+  assert.equal((await database.programUpgrade.findUniqueOrThrow({ where: { id: maintenance.id } })).status, "ACTIVE");
+  console.log("PASS persistent upgrade maintenance through HTTP/PostgreSQL: writes blocked, login/reads preserved, disabled recovery retains lock");
 } finally {
   try {
     if (app) await app.close(); if (database) await database.$disconnect();

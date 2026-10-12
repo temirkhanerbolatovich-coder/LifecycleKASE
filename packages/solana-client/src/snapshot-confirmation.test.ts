@@ -132,6 +132,7 @@ test("decodes the snapshot commitment from a SnapshotCreated action account", ()
   offset += 8 + 4 + 4;
   data[offset] = 2;
   const decoded = decodeConfirmedSnapshotAccount(data.toString("base64"));
+  assert.equal(decoded.version, 1);
   assert.equal(decoded.snapshotHash, "ab".repeat(32));
   assert.equal(decoded.snapshotSlot, 101n);
   assert.equal(decoded.investorCount, 1);
@@ -141,4 +142,13 @@ test("decodes the snapshot commitment from a SnapshotCreated action account", ()
   const wrongStatus = Buffer.from(data);
   wrongStatus[offset] = 1;
   assert.throws(() => decodeConfirmedSnapshotAccount(wrongStatus.toString("base64")), /SnapshotCreated/);
+  const unknownVersion = Buffer.from(data); unknownVersion[8] = 3;
+  assert.throws(() => decodeConfirmedSnapshotAccount(unknownVersion.toString("base64")), /version/);
+  const exact = Buffer.concat([data.subarray(0, 75), Buffer.from([1, 1, 0, 0, 0, 0, 0, 0, 0]), data.subarray(76)]);
+  exact[8] = 2; exact[57] = 2;
+  const exactDecoded = decodeConfirmedSnapshotAccount(exact.toString("base64"));
+  assert.equal(exactDecoded.version, 2); assert.equal(exactDecoded.snapshotHash, decoded.snapshotHash);
+  assert.equal(exactDecoded.totalBalance, decoded.totalBalance);
+  const invalidExact = Buffer.from(exact); invalidExact[57] = 0;
+  assert.throws(() => decodeConfirmedSnapshotAccount(invalidExact.toString("base64")), /v2 exact-target terms/);
 });

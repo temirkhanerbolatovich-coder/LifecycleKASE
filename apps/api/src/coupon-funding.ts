@@ -5,6 +5,8 @@ import { buildCouponFunding, decodeFundingMint, decodeFundingTreasury, deriveIns
 import { actionInput, requireActionIssuer, workflowDatabaseError } from "./corporate-action-registry.js";
 import { requireCouponFundingCalculation, type EntitlementActor } from "./entitlements.js";
 import { verifyConfirmedInstrument, type InstrumentDeploymentOptions } from "./instrument-deployment.js";
+import { requireControlledRegistry } from "./controlled-policy.js";
+import { controlledCaptureState } from "./controlled-settlement.js";
 import { uuidBytes } from "./snapshot-registration.js";
 import { ACTIVE_TRANSACTION_STATUSES, requireWorkflowNetwork, resumeWorkflowAttempt, rpcNumber, rpcObject,
   submitWorkflowTransaction, TransactionWorkflowError, verifyWorkflowFinalization, workflowBlockhash,
@@ -13,7 +15,7 @@ import { ACTIVE_TRANSACTION_STATUSES, requireWorkflowNetwork, resumeWorkflowAtte
 const OPERATION = "COUPON_FUNDING";
 const active = { in: [...ACTIVE_TRANSACTION_STATUSES] };
 const MAX_INTEGER = (1n << 63n) - 1n;
-export type CouponFundingOptions = InstrumentDeploymentOptions & { networkReserveLamports: bigint };
+export type CouponFundingOptions = InstrumentDeploymentOptions & { networkReserveLamports: bigint; redemptionEnabled?: boolean; controlledRegistryEnabled?: boolean };
 
 /** Configured reserve is a policy buffer, not escrow or an estimate of future execution fees. */
 export function couponNetworkReserve(environment: NodeJS.ProcessEnv = process.env): bigint {
@@ -28,9 +30,10 @@ async function fundingAction(database: PrismaClient, id: string, options: Coupon
   const action = await database.corporateAction.findUnique({ where: { id }, include: { instrument: { include: { settlementAsset: true } } } });
   if (!action) throw new TransactionWorkflowError("ACTION_NOT_FOUND", "Corporate action was not found", 404);
   const instrument = action.instrument; const asset = instrument.settlementAsset;
+  requireControlledRegistry(instrument, options);
   if (options.cluster !== "localnet" || instrument.network !== "SOLANA_LOCALNET" || asset.network !== instrument.network ||
       instrument.programId !== options.programId) throw new TransactionWorkflowError("FUNDING_LOCALNET_ONLY", "Simulated funding requires the pinned Localnet instrument");
-  if (action.type !== "COUPON_PAYMENT" || instrument.status !== "ACTIVE" || !instrument.mintAddress || !asset.active ||
+  if (action.type !== "COUPON_PAYMENT" && !options.redemptionEnabled || instrument.status !== "ACTIVE" || !instrument.mintAddress || !asset.active ||
       !asset.isSimulated || asset.code !== "KZT_TEST" || asset.decimals !== 6 || !asset.mintAddress || asset.mintAddress === instrument.mintAddress) {
     throw new TransactionWorkflowError("FUNDING_NOT_ALLOWED", "Funding requires an ACTIVE instrument and its simulated KZT-Test mint");
   }
@@ -67,6 +70,7 @@ export async function getCouponBudget(database: PrismaClient, rpc: SolanaRpc, id
   const calculation = await requireCouponFundingCalculation(database, id);
   if (action.version !== calculation.version) throw new TransactionWorkflowError("ACTION_CONFLICT", "Calculation changed; refresh before funding");
   await requireWorkflowNetwork(rpc, options.expectedGenesisHash);
+  const controlled = await controlledCaptureState(rpc, calculation, options, "FINISHED");
   const addresses = await deriveInstrumentLifecycleAddresses(options.programId, uuidBytes(action.instrumentId));
   verifyConfirmedInstrument(await workflowProgramAccount(rpc, addresses.instrumentAddress, options.programId), action.instrument, "ACTIVE");
   const mint = action.instrument.settlementAsset.mintAddress!; const issuer = action.instrument.issuerAuthority;
@@ -82,6 +86,8 @@ export async function getCouponBudget(database: PrismaClient, rpc: SolanaRpc, id
   const storedFunding = await database.blockchainTransaction.findFirst({ where: { corporateActionId: id, operationType: OPERATION,
     status: { in: [...ACTIVE_TRANSACTION_STATUSES, "FINALIZED"] } }, orderBy: { createdAt: "desc" } });
   return { corporateActionId: id, actionVersion: calculation.version, cluster: options.cluster, networkGenesisHash: options.expectedGenesisHash,
+    tokenPolicy: action.instrument.tokenPolicy ?? "LEGACY_UNRESTRICTED_V1",
+    ...(controlled ? { controlledPolicyAddress: controlled.controlledPolicyAddress, controlledCaptureAddress: controlled.controlledCaptureAddress } : {}),
     requiredSigner: issuer, settlementMint: mint, treasuryTokenAccount: probe.treasury,
     snapshotHash: Buffer.from(calculation.snapshot!.snapshotHash).toString("hex"), totalCouponMinor: required.toString(),
     treasuryBalanceMinor: state.treasuryBalance.toString(), deficitMinor: deficit.toString(), mintSupplyMinor: state.mintSupply.toString(),
@@ -129,6 +135,11 @@ export async function prepareCouponFunding(database: PrismaClient, rpc: SolanaRp
       const current = await tx.corporateAction.findUnique({ where: { id } });
       if (!current || current.version !== action.version || current.status !== action.status) throw new TransactionWorkflowError("ACTION_CONFLICT", "Action changed during funding preparation");
       await requireCouponFundingCalculation(tx, id);
+      if (await tx.blockchainTransaction.findFirst({ where: { corporateActionId: id,
+        operationType: { in: ["ACTION_RESERVE_FUND", "ACTION_RESERVE_RELEASE", "ACTION_APPROVAL"] },
+        status: { in: [...ACTIVE_TRANSACTION_STATUSES, "FINALIZED"] } }, select: { id: true } })) {
+        throw new TransactionWorkflowError("ACTION_OPERATION_PENDING", "Action reserve funding has begun; reconcile its recorded reserve workflow");
+      }
       const row = await tx.blockchainTransaction.create({ data: { instrumentId: action.instrumentId, corporateActionId: id,
         operationType: OPERATION, requiredSigner: actor.walletAddress, networkGenesisHash: options.expectedGenesisHash,
         preparedTransactionBase64: wire, preparedPayload: payload, ...blockhash, lastValidBlockHeight: BigInt(blockhash.lastValidBlockHeight) } });
@@ -152,8 +163,11 @@ async function fundingAttempt(database: PrismaClient, id: string, operationId: u
 export async function submitCouponFunding(database: PrismaClient, rpc: SolanaRpc, id: string, body: unknown, actor: EntitlementActor, options: CouponFundingOptions) {
   const input = actionInput(body, ["operationId", "signedTransactionBase64"]);
   const { operation } = await fundingAttempt(database, id, input["operationId"], actor, options);
-  if (operation.status !== "FINALIZED") await requireCouponFundingCalculation(database, id);
-  return submitWorkflowTransaction(database, rpc, operation, input["signedTransactionBase64"] as string, actor, options);
+  if (operation.status !== "FINALIZED" && !operation.signature) {
+    const calculation = await requireCouponFundingCalculation(database, id);
+    await controlledCaptureState(rpc, calculation, options, "FINISHED");
+  }
+  return submitWorkflowTransaction(database, rpc, operation, input["signedTransactionBase64"] as string, actor, { ...options, confirmationOnlyAfterSubmission: true });
 }
 
 /** Exact transaction token deltas prove this funding even if treasury later changes. */

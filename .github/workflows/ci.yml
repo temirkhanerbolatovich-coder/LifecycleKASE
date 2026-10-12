@@ -130,3 +130,6 @@ jobs:
 
       - name: Test corporate-action HTTP and database boundaries
         run: npm run test:actions:database
+
+      - name: Test durable program upgrade maintenance and recovery
+        run: npm run test:upgrade:database

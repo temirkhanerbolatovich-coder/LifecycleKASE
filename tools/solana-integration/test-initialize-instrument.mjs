@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { access, readFile, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
@@ -9,6 +10,8 @@ import { buildSnapshotRegistrationInstruction, buildInstrumentMintSetup, buildIn
   buildCorporateActionCancellation, decodeConfirmedCorporateAction, decodeConfirmedSnapshotAccount,
   buildEntitlementRegistration, buildCalculationFinalization, buildCalculationReset } from "../../packages/solana-client/dist/index.js";
 import anchor from "@anchor-lang/core";
+import { testActionApproval } from "./test-action-approval.mjs";
+import { testZeroRoundedCoupon } from "./test-zero-rounded-coupon.mjs";
 import {
   Connection,
   Keypair,
@@ -29,6 +32,7 @@ import {
   createMintToInstruction,
   createSetAuthorityInstruction,
   createTransferCheckedInstruction,
+  createCloseAccountInstruction,
   getAssociatedTokenAddressSync,
   getMintLen,
   getMint,
@@ -306,6 +310,7 @@ async function sendPreparedInstructions(instructions, signer = administrator) {
   verifyFinalizedTransaction({ expectedUnsignedTransactionBase64: unsigned,
     finalizedTransactionBase64: Buffer.from(finalizedWire.serialize()).toString("base64"),
     requiredSigner: signer.publicKey.toBase58(), signature });
+  return { signature, finalized };
 }
 
 const wireId = new Uint8Array(16).fill(211);
@@ -329,8 +334,9 @@ assert.equal(wireSettlement.mintAuthority.toBase58(), wireIssuer);
 assert.equal(wireSettlement.freezeAuthority, null);
 console.log("PASS prepared v0 MINT_SETUP finalizes with explicit compute budget, fixed supply and revoked authority");
 
+const wireHolders = [10n, 20n, 5n].map(amount => ({ key: Keypair.generate(), amount }));
 const wireDistribution = await buildInstrumentDistribution({ administrator: wireIssuer, bondMint: wireSetup.bondMint,
-  allocations: [10n, 20n, 5n].map(amount => ({ walletAddress: Keypair.generate().publicKey.toBase58(), amount })) });
+  allocations: wireHolders.map(row => ({ walletAddress: row.key.publicKey.toBase58(), amount: row.amount })) });
 await sendPreparedInstructions(wireDistribution.instructions);
 for (const allocation of wireDistribution.allocations) {
   const account = await getAccount(connection, new PublicKey(allocation.tokenAccount), "finalized", TOKEN_2022_PROGRAM_ID);
@@ -340,10 +346,13 @@ for (const allocation of wireDistribution.allocations) {
 assert.equal((await getAccount(connection, new PublicKey(wireDistribution.treasuryTokenAccount), "finalized", TOKEN_2022_PROGRAM_ID)).amount, 0n);
 console.log("PASS prepared v0 DISTRIBUTION finalizes exact 10/20/5 and empty treasury");
 
+// The accelerated maturity leaves room for both legacy and exact-target partial-redemption acceptance.
+const kaseDemo = process.env.KASE_DEMO_ACCEPTANCE === "true";
+const wireMaturityAt = kaseDemo ? BigInt(Math.floor(Date.now() / 1000) + 900) : 1_800_000_000n;
 const wireInitialization = await buildInstrumentInitialization({ programId: programId.toBase58(), instrumentId: wireId,
   administrator: wireIssuer, bondMint: wireSetup.bondMint, settlementMint: wireSetup.settlementMint,
   complianceAuthority: wireIssuer, corporateActionAuthority: wireIssuer, faceValueMinor: 1_000_000_000n,
-  couponRateBps: 1000, paymentsPerYear: 2, issueAt: 1_700_000_000n, maturityAt: 1_800_000_000n, totalSupply: 35n });
+  couponRateBps: 1000, paymentsPerYear: 2, issueAt: 1_700_000_000n, maturityAt: wireMaturityAt, totalSupply: 35n });
 await sendPreparedInstructions([wireInitialization.instruction]);
 const wireAddress = new PublicKey(wireInitialization.instrumentAddress);
 assert.deepEqual(Object.keys((await program.account.instrument.fetch(wireAddress)).status), ["deploying"]);
@@ -359,7 +368,7 @@ const wireNow = BigInt(Math.floor(Date.now() / 1000));
 for (const [index, type] of ["COUPON_PAYMENT", "BOND_REDEMPTION", "EARLY_REDEMPTION"].entries()) {
   const action = await buildCorporateActionSchedule({ programId: programId.toBase58(), instrumentId: wireId,
     actionId: new Uint8Array(16).fill(212 + index), issuerAuthority: wireIssuer, type,
-    recordAt: wireNow + 120n, executeAt: type === "BOND_REDEMPTION" ? 1_800_000_000n : wireNow + 240n,
+    recordAt: wireNow + 120n, executeAt: type === "BOND_REDEMPTION" ? wireMaturityAt : wireNow + 240n,
     redemptionPercentageBps: type === "EARLY_REDEMPTION" ? 2000 : null,
     redemptionPriceMinor: type === "EARLY_REDEMPTION" ? 1_000_000_000n : null });
   await sendPreparedInstructions([action.instruction]);
@@ -401,12 +410,38 @@ const wireCommitment = decodeConfirmedSnapshotAccount((await connection.getAccou
 assert.equal(wireCommitment.status, "SNAPSHOT_CREATED"); assert.equal(wireCommitment.snapshotHash, "ef".repeat(32));
 assert.equal(wireCommitment.snapshotSlot, BigInt(wireSlot)); assert.equal(wireCommitment.totalBalance, 35n);
 console.log("PASS prepared v0 snapshot finalizes an exact immutable commitment in the live record window");
+if (process.env.APPROVAL_ACCEPTANCE_ONLY === "true") {
+  if (!program.methods.assignApprover || !program.methods.fundActionReserve || !program.methods.releaseActionReserve || !program.methods.approveAction) {
+    throw new Error("Approval-only acceptance requires all four candidate instructions; skipping is forbidden");
+  }
+  const investorIds = [1, 2, 3].map(value => new Uint8Array(16).fill(value));
+  const identity = { programId: programId.toBase58(), instrumentId: wireId, actionId: wireSnapshotId, corporateActionAuthority: wireIssuer };
+  for (const [index, row] of wireDistribution.allocations.entries()) {
+    const registration = await buildEntitlementRegistration({ ...identity, investorId: investorIds[index], snapshotHash: "ef".repeat(32),
+      settlementWallet: row.walletAddress, balanceAtSnapshot: row.amount, eligible: true, paymentAmountMinor: row.amount * 50_000_000n, tokensToRedeem: 0n });
+    await sendPreparedInstructions([registration.instruction]);
+  }
+  const finalization = await buildCalculationFinalization({ ...identity, investorIds });
+  await sendPreparedInstructions([finalization.instruction]);
+  await testActionApproval({ connection, program, issuer: administrator, calculationAuthority: administrator.publicKey,
+    instrumentId: wireId, actionId: wireSnapshotId, mintAddress: wireSetup.settlementMint, bondMint: wireSetup.bondMint,
+    allocations: wireDistribution.allocations, investorIds, send, sendPreparedInstructions });
+  console.log("PASS focused approval acceptance on disposable validator; earlier lifecycle negative groups are outside this mode");
+  process.exit(0);
+}
 
 await waitForDisposableUpgrade();
+
+if (kaseDemo && process.env.KASE_CONTROLLED_WORKFLOW !== "true") {
+  await testZeroRoundedCoupon({ connection, program, issuer: administrator, send, sendPreparedInstructions });
+} else if (kaseDemo) {
+  console.log("INFO controlled workflow excludes the legacy zero/mixed coupon prelude; run it separately in legacy demo mode");
+}
 
 if (process.env.ACTION_TEST_DATABASE_URL) {
   // Keep production RPC's loopback-only HTTP policy intact when WSL uses a private IP.
   const relay = createServer(async (request, response) => {
+    let method = "UNKNOWN";
     try {
       if (request.method !== "POST" || request.url !== "/") { response.writeHead(404).end(); return; }
       let body = "";
@@ -414,23 +449,92 @@ if (process.env.ACTION_TEST_DATABASE_URL) {
         body += chunk;
         if (body.length > 2_000_000) { response.writeHead(413).end(); return; }
       }
+      const requestedMethod = JSON.parse(body).method;
+      if (typeof requestedMethod === "string" && /^[A-Za-z]{1,64}$/.test(requestedMethod)) method = requestedMethod;
       const upstream = await fetch(rpcUrl, { method: "POST", headers: { "content-type": "application/json" }, body,
         redirect: "error", signal: AbortSignal.timeout(15_000) });
       response.writeHead(upstream.status, { "content-type": "application/json" }).end(await upstream.text());
-    } catch { response.writeHead(503).end(); }
+    } catch (error) {
+      // Diagnose disposable transport failures without logging signed bytes or RPC parameters.
+      const code = error?.cause?.code;
+      console.warn("WARN disposable RPC relay failed", method,
+        ["AbortError", "TimeoutError", "TypeError", "SyntaxError"].includes(error?.name) ? error.name : "Error",
+        typeof code === "string" && /^[A-Z0-9_]{1,64}$/.test(code) ? code : "UNKNOWN_CAUSE");
+      response.writeHead(503).end();
+    }
   });
   await new Promise(resolve => relay.listen(0, "127.0.0.1", resolve));
   const hex = Buffer.from(wireId).toString("hex");
   const fixture = { rpcUrl: `http://127.0.0.1:${relay.address().port}`, programId: programId.toBase58(),
     instrumentId: `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`,
     bondMint: wireSetup.bondMint, settlementMint: wireSetup.settlementMint,
-    allocations: wireDistribution.allocations.map(row => ({ walletAddress: row.walletAddress, amount: row.amount.toString() })) };
+    allocations: wireDistribution.allocations.map(row => ({ walletAddress: row.walletAddress, amount: row.amount.toString() })),
+    maturityAt: wireMaturityAt.toString(), kaseDemo,
+    validatorTicksPerSlot: process.env.KASE_CONTROLLED_WORKFLOW === "true" ? 64 : kaseDemo ? 8 : 64,
+    approvalAcceptance: process.env.APPROVAL_HTTP_ACCEPTANCE_ONLY === "true" };
+  if (process.env.KASE_CONTROLLED_WORKFLOW === "true") {
+    fixture.programSha256 = createHash("sha256").update(await readFile(idlPath.replace(/lifecycle_kase\.json$/, "lifecycle_kase.so"))).digest("hex");
+    fixture.idlSha256 = createHash("sha256").update(await readFile(idlPath)).digest("hex");
+  }
   try {
-    const acceptance = spawn(process.execPath, [fileURLToPath(new URL("../../scripts/test-corporate-actions.mjs", import.meta.url)), JSON.stringify(fixture), administratorKeyPath],
-      { stdio: "inherit", env: process.env });
+    const acceptanceScript = kaseDemo ? (process.env.KASE_CONTROLLED_WORKFLOW === "true"
+      ? "../../scripts/test-controlled-workflow.mjs" : "../../scripts/test-kase-demo.mjs") : "../../scripts/test-corporate-actions.mjs";
+    const acceptance = spawn(process.execPath, [fileURLToPath(new URL(acceptanceScript, import.meta.url)), JSON.stringify(fixture), administratorKeyPath],
+      { stdio: kaseDemo ? ["inherit", "inherit", "inherit", "ipc"] : "inherit", env: process.env });
+    if (kaseDemo) acceptance.on("message", async message => {
+      // Only these generated holders can transfer; no key is sent to the child or logged.
+      try {
+        if (message?.kind === "CLOSE_CONTROLLED_SOURCE") {
+          assert.equal(process.env.KASE_CONTROLLED_WORKFLOW, "true");
+          assert.ok(Number.isInteger(message.holderIndex) && message.holderIndex >= 0 && message.holderIndex < 3);
+          assert.match(message.instrumentId, /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+          const id = Buffer.from(message.instrumentId.replaceAll("-", ""), "hex");
+          const [controlledInstrument] = PublicKey.findProgramAddressSync([Buffer.from("instrument"), id], programId);
+          const chainInstrument = await program.account.instrument.fetch(controlledInstrument);
+          const mint = new PublicKey(message.bondMint);
+          assert.equal(chainInstrument.version, 2);
+          assert.equal(chainInstrument.bondMint.toBase58(), mint.toBase58());
+          assert.equal(chainInstrument.issuerAuthority.toBase58(), administrator.publicKey.toBase58());
+          const holder = wireHolders[message.holderIndex].key;
+          const source = getAssociatedTokenAddressSync(mint, holder.publicKey, false, TOKEN_2022_PROGRAM_ID);
+          assert.equal(source.toBase58(), message.tokenAccount);
+          const token = await getAccount(connection, source, "finalized", TOKEN_2022_PROGRAM_ID);
+          assert.equal(token.owner.toBase58(), holder.publicKey.toBase58()); assert.equal(token.amount, 0n); assert.equal(token.isFrozen, true);
+          const [holdingAddress] = PublicKey.findProgramAddressSync([Buffer.from("controlled-holding"), controlledInstrument.toBuffer(), source.toBuffer()], programId);
+          const holding = await program.account.controlledHolding.fetch(holdingAddress);
+          assert.equal(holding.reservedTokens.toString(), "0"); assert.equal(holding.wallet.toBase58(), holder.publicKey.toBase58());
+          const lifetime = await connection.getLatestBlockhash("finalized");
+          const transaction = new Transaction({ ...lifetime, feePayer: administrator.publicKey }).add(
+            createCloseAccountInstruction(source, holder.publicKey, holder.publicKey, [], TOKEN_2022_PROGRAM_ID));
+          transaction.sign(administrator, holder);
+          const signature = await connection.sendRawTransaction(transaction.serialize(), { preflightCommitment: "finalized", maxRetries: 0 });
+          const confirmation = await connection.confirmTransaction({ ...lifetime, signature }, "finalized");
+          assert.equal(confirmation.value.err, null); assert.equal(await connection.getAccountInfo(source, "finalized"), null);
+          acceptance.send({ id: message.id, signature }); return;
+        }
+        assert.equal(message?.kind, "TRANSFER");
+        assert.ok(Number.isInteger(message.from) && Number.isInteger(message.to));
+        assert.ok(message.from >= 0 && message.from < 3 && message.to >= 0 && message.to < 3 && message.from !== message.to);
+        assert.match(message.amount, /^(?:[1-9]|[12][0-9]|3[0-5])$/);
+        const sender = wireHolders[message.from].key;
+        const transfer = createTransferCheckedInstruction(new PublicKey(wireDistribution.allocations[message.from].tokenAccount),
+          new PublicKey(wireSetup.bondMint), new PublicKey(wireDistribution.allocations[message.to].tokenAccount), sender.publicKey,
+          BigInt(message.amount), 0, [], TOKEN_2022_PROGRAM_ID);
+        // Administrator pays fees; the generated holder authorizes the transfer.
+        // Demo slots are accelerated; the SDK's 30-second blockhash cache can outlive the hash.
+        const lifetime = await connection.getLatestBlockhash("finalized");
+        const transaction = new Transaction({ ...lifetime, feePayer: administrator.publicKey }).add(transfer);
+        transaction.sign(administrator, sender);
+        const signature = await connection.sendRawTransaction(transaction.serialize(), { preflightCommitment: "finalized" });
+        const confirmation = await connection.confirmTransaction({ ...lifetime, signature }, "finalized");
+        assert.equal(confirmation.value.err, null);
+        acceptance.send({ id: message.id, signature });
+      } catch (error) { acceptance.send({ id: message?.id, error: error.message }); }
+    });
     const status = await new Promise((resolve, reject) => { acceptance.once("error", reject); acceptance.once("exit", resolve); });
     if (status !== 0) throw new Error("Action API/database/validator acceptance failed");
   } finally { relay.closeAllConnections(); await new Promise(resolve => relay.close(resolve)); }
+  if (process.env.APPROVAL_HTTP_ACCEPTANCE_ONLY === "true" || kaseDemo) { console.log("PASS focused live corporate-action API/database/validator acceptance"); process.exit(0); }
 }
 
 const bondMint = await createBondMint(instrumentAuthority, true);
@@ -842,6 +946,11 @@ if (program.methods.registerEntitlement && program.methods.finalizeCalculation &
   assert.equal(completedCalculation.totalAmountMinor, 1_750_000_000n);
   await assert.rejects(sendPreparedInstructions([finalization.instruction]), rejectsProgram(/InvalidActionStatus/));
   console.log("PASS full calculation finalizes UNDER_REVIEW; duplicate, foreign, wrong signer and replay rejected");
+  if (program.methods.assignApprover && program.methods.fundActionReserve && program.methods.releaseActionReserve && program.methods.approveAction) {
+    await testActionApproval({ connection, program, issuer: administrator, calculationAuthority: administrator.publicKey,
+      instrumentId: wireId, actionId: wireSnapshotId, mintAddress: wireSetup.settlementMint, bondMint: wireSetup.bondMint,
+      allocations: wireDistribution.allocations, investorIds, send, sendPreparedInstructions });
+  } else console.log("SKIP approval acceptance: retained artifact does not expose approval instructions");
 
   // A distinct CA authority is mandatory even when the issuer owns the instrument.
   await send(SystemProgram.transfer({ fromPubkey: administrator.publicKey, toPubkey: calculationAuthority.publicKey, lamports: 100_000_000 }));

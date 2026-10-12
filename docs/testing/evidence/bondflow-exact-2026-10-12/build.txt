@@ -1,0 +1,52 @@
+
+> lifecycle-kase@0.0.0 build
+> npm run build --workspaces --if-present
+
+
+> @lifecycle-kase/api@0.1.0 build
+> npm run build --workspace @lifecycle-kase/domain && npm run build --workspace @lifecycle-kase/solana-client && tsc -p tsconfig.json
+
+
+> @lifecycle-kase/domain@0.1.0 build
+> tsc -p tsconfig.json
+
+
+> @lifecycle-kase/solana-client@0.1.0 build
+> tsc -p tsconfig.json
+
+
+> @lifecycle-kase/web@0.1.0 build
+> next build
+
+▲ Next.js 16.4.0 (Turbopack)
+✓ Running next.config.mjs took 71ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1971ms
+  Running TypeScript ...
+  Finished TypeScript in 1365ms ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/6) ...
+  Generating static pages using 7 workers (1/6)
+  Generating static pages using 7 workers (2/6)
+  Generating static pages using 7 workers (4/6)
+✓ Generating static pages using 7 workers (6/6) in 2.3s
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ƒ /_not-found
+├ ƒ /dashboard
+├ ƒ /health/live
+└ ƒ /qa
+
+
+ƒ  (Dynamic)  server-rendered on demand
+
+
+> @lifecycle-kase/domain@0.1.0 build
+> tsc -p tsconfig.json
+
+
+> @lifecycle-kase/solana-client@0.1.0 build
+> tsc -p tsconfig.json

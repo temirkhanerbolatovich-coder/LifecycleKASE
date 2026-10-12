@@ -1,0 +1,34 @@
+{
+  "schema": "operator-continuation-checks-v1",
+  "recordedAt": "2026-10-12T11:29:22.1437766Z",
+  "scope": "LOCAL_ENGINEERING_AND_SYNTHETIC_DISPOSABLE_ACCEPTANCE",
+  "checks": {
+    "npmCheck": "PASS",
+    "apiTests": 231,
+    "webTests": 188,
+    "domainTests": 43,
+    "solanaClientTests": 82,
+    "rootTests": 140,
+    "nodeTests": 684,
+    "productionBuild": "PASS",
+    "isolatedProductionProxy": "PASS",
+    "migrationsOnDisposablePostgresql": 23,
+    "workerQueueAssertionGroups": 8,
+    "overviewSyntheticActions": 10000,
+    "registrySyntheticInvestors": 10000,
+    "extendedWorkerValidatorWorkflow": "NOT_RUN_AFTER_USER_STOP",
+    "authenticatedRealSettlementExport": "NOT_RERUN",
+    "periodObligationV3": "STOPPED_ISOLATED_UNACCEPTED_UNPUBLISHED",
+    "retainedOwnerMutation": false,
+    "deploymentPerformed": false,
+    "workerTestsAfterFixtureCleanup": 11
+  },
+  "files": {
+    "node-check.log": "e711a14397476aefe59fe028d0e345bd3203ba03b341e9d2f8bb6d853724f834",
+    "production-build.log": "ac798c0e21a6572699fc4e448c945118318cb9d8c558b4abb7416d37bef795f8",
+    "production-proxy.log": "56d8768989139b30b23478d5a532e96b1baaf7b8866d2538c801d3250b739826",
+    "overview-database.json": "bc394cfca2af7aef6451d58c37e0837d130099edb9cf8dc9347ca0fc125a5d4e",
+    "reconciliation-database.json": "e46605bc536c0a5f578fc1028e027240235d891ebcd36d7486f7cae67f59edf2",
+    "worker-fixture-tests.log": "7a72ebac679d20e0345ebefc83231153d8cf47f2977cbc377f70913f0c05189f"
+  }
+}

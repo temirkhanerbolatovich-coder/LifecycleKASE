@@ -1,0 +1,16 @@
+
+> @lifecycle-kase/solana-client@0.1.0 build
+> tsc -p tsconfig.json
+
+Testing localnet-candidate-controlled-20261012-c on a fresh disposable controlled-registry Localnet validator
+Disposable validator genesis: 5MAbDmYLZL4eqG6UyH8fkgivEWFZCtv6EiyL1ZzCvok7
+PASS version 2 default-frozen mint, program bootstrap, controlled 10/20/5 distribution and activation
+PASS direct transfer, burn, thaw, delegate and authority bypasses reject; wrong controlled signers roll back
+PASS capture blocks transfers, rejects omissions and wrong PDAs, permits safe pre-commit abort and rejects post-commit abort
+PASS coupon rights remain 500/1000/250 KZT-Test after transfers resume
+PASS reserved boundary rejects and rolls back; all 27 unreserved units move; zero-assignment original source closes safely
+PASS cash-short funding and wrong recipient roll back; distinct approval, exact finalized deltas and both replay forms verified
+PASS CPI guard and memo settings before and after reservation preserve outgoing transfers and redemption; recreated zero-assignment source cannot block settlement
+PASS exact target 8 reserves 2/5/1, unreserved units move, cash and burn settle atomically, receipts finalize supply 27
+Controlled-registry evidence: C:\Users\Админ\Documents\ChatGPT\LifecycleKASE\generated\controlled-registry-20261012-004411-lifecycle-kase-controlled.PvQDFYp0\controlled-registry-evidence.json
+Controlled-registry evidence SHA-256: f049fab3b3fd39c163a58d7ec4cc6f03e93f942d447a86265be0132593851166

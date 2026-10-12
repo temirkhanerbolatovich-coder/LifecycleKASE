@@ -1,5 +1,7 @@
 # LifecycleKASE: аудит и оставшиеся работы — 7 октября 2026
 
+Historical audit checkpoint: this document preserves its original dates, source and environment observations. Current source/remaining scope is in [implemented versus simulated](IMPLEMENTED_VS_SIMULATED.md); current judge materials and actual submission gates are in the [2026-10-12 checklist](submission/SUBMISSION_CHECKLIST_2026-10-12.md). Later completion does not rewrite this audit's recorded results.
+
 Дата проверки: 2026-10-07, Asia/Qyzylorda (UTC+5). Основа сравнения — [утверждённые продуктовые требования](requirements/PRODUCT_REQUIREMENTS.md), [технические требования](requirements/TECHNICAL_REQUIREMENTS.md), [текущий checklist](deployment/DEVNET_TO_MVP_CHECKLIST.md), код, тесты и доступные live-сервисы.
 
 ## Вывод

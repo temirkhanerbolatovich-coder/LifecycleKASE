@@ -59,7 +59,7 @@ test("creates an audited local instrument draft with fixed demo supply and opera
     complianceAuthority: ACTOR.walletAddress, corporateActionAuthority: ACTOR.walletAddress,
     faceValueMinor: 1_000_000_000n, couponRateBps: 1000, paymentsPerYear: 2,
     issueAt: new Date(INPUT.issueAt), maturityAt: new Date(INPUT.maturityAt), totalSupply: 35n,
-    circulatingSupply: 0n, status: "DRAFT"
+    circulatingSupply: 0n, status: "DRAFT", tokenPolicy: "LEGACY_UNRESTRICTED_V1"
   });
   assert.equal(audits[0].data.event, "INSTRUMENT_DRAFT_CREATED");
   assert.deepEqual(audits[0].data.metadataJson, {
@@ -105,4 +105,37 @@ test("derives only matching localnet or devnet database networks", () => {
     { SOLANA_CLUSTER: "localnet", WALLET_NETWORK: "SOLANA_DEVNET" }
   ]) assert.throws(() => instrumentNetworkFromEnvironment(environment), (error: unknown) =>
     error instanceof InstrumentRegistryError && error.code === "INSTRUMENT_CONFIGURATION_INVALID");
+});
+
+test("controlled draft creation is explicit and gated; existing draft callers keep legacy policy", async () => {
+  await assert.rejects(createInstrumentDraft({} as never, { ...INPUT, tokenPolicy: "CONTROLLED_FROZEN_V2" }, ACTOR, "SOLANA_DEVNET"),
+    (error: unknown) => error instanceof InstrumentRegistryError && error.code === "CONTROLLED_REGISTRY_DISABLED");
+  await assert.rejects(createInstrumentDraft({} as never, { ...INPUT, tokenPolicy: "invalid" }, ACTOR, "SOLANA_LOCALNET"),
+    (error: unknown) => error instanceof InstrumentRegistryError && error.code === "INVALID_REQUEST");
+  const saved = { enabled: process.env.CONTROLLED_REGISTRY_ENABLED, programId: process.env.PROGRAM_ID };
+  let created: any;
+  try {
+    process.env.CONTROLLED_REGISTRY_ENABLED = "false";
+    await assert.rejects(createInstrumentDraft({} as never, { ...INPUT, tokenPolicy: "CONTROLLED_FROZEN_V2" }, ACTOR, "SOLANA_LOCALNET"),
+      (error: unknown) => error instanceof InstrumentRegistryError && error.code === "CONTROLLED_REGISTRY_DISABLED");
+    process.env.CONTROLLED_REGISTRY_ENABLED = "true";
+    process.env.PROGRAM_ID = "6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo";
+    for (const field of ["issueAt", "maturityAt"]) {
+      await assert.rejects(createInstrumentDraft({} as never, { ...INPUT, tokenPolicy: "CONTROLLED_FROZEN_V2",
+        [field]: INPUT[field as "issueAt" | "maturityAt"].replace(".000Z", ".123Z") }, ACTOR, "SOLANA_LOCALNET"),
+        (error: unknown) => error instanceof InstrumentRegistryError && error.code === "INVALID_REQUEST");
+    }
+    const transaction = {
+      settlementAsset: { findUnique: async () => null, create: async () => ({ id: row().settlementAsset.id }) },
+      issuer: { upsert: async () => row().issuer },
+      instrument: { create: async ({ data }: any) => { created = data; return row({ tokenPolicy: data.tokenPolicy }); } },
+      auditLog: { create: async () => ({}) }
+    };
+    const result = await createInstrumentDraft({ $transaction: async (work: any) => work(transaction) } as never,
+      { ...INPUT, tokenPolicy: "CONTROLLED_FROZEN_V2" }, ACTOR, "SOLANA_LOCALNET");
+    assert.equal(created.tokenPolicy, "CONTROLLED_FROZEN_V2"); assert.equal(result.tokenPolicy, "CONTROLLED_FROZEN_V2");
+  } finally {
+    if (saved.enabled === undefined) delete process.env.CONTROLLED_REGISTRY_ENABLED; else process.env.CONTROLLED_REGISTRY_ENABLED = saved.enabled;
+    if (saved.programId === undefined) delete process.env.PROGRAM_ID; else process.env.PROGRAM_ID = saved.programId;
+  }
 });

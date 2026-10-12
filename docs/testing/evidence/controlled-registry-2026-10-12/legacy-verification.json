@@ -1,0 +1,40 @@
+{
+  "schema": "kase-four-actions-demo-v2",
+  "completedAt": "2026-10-12T00:43:48.467Z",
+  "actions": [
+    {
+      "scenario": "COUPON_PAYMENT",
+      "receiptHash": "c61943857944d8fe2344acadad2414dd368d860f5389c915581f7f55b3996f10",
+      "amountMinor": "1750000000",
+      "tokensRedeemed": "0",
+      "supplyBefore": "35",
+      "supplyAfter": "35"
+    },
+    {
+      "scenario": "EARLY_REDEMPTION",
+      "receiptHash": "855c96819c6bf8d9ade8935f6b0d722d66d6580c4f1994d9ebeaa4799e081138",
+      "amountMinor": "7000000000",
+      "tokensRedeemed": "7",
+      "supplyBefore": "35",
+      "supplyAfter": "28"
+    },
+    {
+      "scenario": "EXACT_EARLY_REDEMPTION",
+      "receiptHash": "ce996a1ffc743c0af56ce4103cd83fc00eb222168afed304c2811110a673c380",
+      "amountMinor": "8000000000",
+      "tokensRedeemed": "8",
+      "supplyBefore": "28",
+      "supplyAfter": "20"
+    },
+    {
+      "scenario": "BOND_REDEMPTION",
+      "receiptHash": "80605a49d66191c27685401cda0a3e40902445d994803c9b3f7ecc191c25a465",
+      "amountMinor": "21000000000",
+      "tokensRedeemed": "20",
+      "supplyBefore": "20",
+      "supplyAfter": "0"
+    }
+  ],
+  "verification": "OFFLINE_EVIDENCE_CONSISTENCY_ONLY",
+  "reQueriedChain": false
+}

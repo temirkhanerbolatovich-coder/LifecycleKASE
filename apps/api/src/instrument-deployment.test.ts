@@ -3,14 +3,194 @@ import { createHash, generateKeyPairSync, sign } from "node:crypto";
 import test from "node:test";
 
 import { buildInstrumentActivation, buildInstrumentDistribution, buildInstrumentInitialization, decodePublicKey, encodePublicKey, serializeUnsignedInstructionsTransaction,
-  buildInstrumentMintSetup, TOKEN_2022_PROGRAM_ID } from "@lifecycle-kase/solana-client";
+  buildInstrumentMintSetup, buildControlledMintSetup, buildControlledInstrumentInitialization,
+  deriveControlledPolicyAddress, deriveControlledHoldingAddress, TOKEN_2022_PROGRAM_ID } from "@lifecycle-kase/solana-client";
 
 import { confirmInstrumentActivation, confirmInstrumentDistribution, confirmInstrumentInitialization, InstrumentDeploymentError, instrumentDeploymentOptions,
   prepareInstrumentActivation, prepareInstrumentDistribution, prepareInstrumentInitialization,
-  prepareInstrumentMintSetup, confirmInstrumentMintSetup, submitInstrumentDeployment } from "./instrument-deployment.js";
+  prepareInstrumentMintSetup, confirmInstrumentMintSetup, submitInstrumentDeployment, verifyControlledMint } from "./instrument-deployment.js";
+import { CONTROLLED_TOKEN_POLICY, ControlledRegistryError, controlledRegistryEnabled, requireControlledRegistry } from "./controlled-policy.js";
 
 const KEY = "5Nn5WtR1dzVamAJYAheUBucFu6wUuJLbCUr2VwTTJzMM";
 const PROGRAM = "6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo";
+
+test("controlled registry fails closed unless explicitly enabled for the Localnet candidate", () => {
+  const controlled = { tokenPolicy: CONTROLLED_TOKEN_POLICY };
+  assert.equal(controlledRegistryEnabled({}), false);
+  assert.equal(controlledRegistryEnabled({ CONTROLLED_REGISTRY_ENABLED: "false" }), false);
+  assert.equal(controlledRegistryEnabled({ CONTROLLED_REGISTRY_ENABLED: "true" }), true);
+  assert.throws(() => controlledRegistryEnabled({ CONTROLLED_REGISTRY_ENABLED: "1" }), ControlledRegistryError);
+  assert.equal(requireControlledRegistry({}, { cluster: "devnet", programId: KEY }), false);
+  assert.equal(requireControlledRegistry(controlled, { cluster: "localnet", programId: PROGRAM, controlledRegistryEnabled: true }), true);
+  for (const options of [
+    { cluster: "localnet" as const, programId: PROGRAM },
+    { cluster: "devnet" as const, programId: PROGRAM, controlledRegistryEnabled: true },
+    { cluster: "localnet" as const, programId: KEY, controlledRegistryEnabled: true }
+  ]) assert.throws(() => requireControlledRegistry(controlled, options), ControlledRegistryError);
+  assert.throws(() => requireControlledRegistry({ tokenPolicy: "unknown" }, { cluster: "localnet", programId: PROGRAM }),
+    (error: unknown) => error instanceof ControlledRegistryError && error.code === "INSTRUMENT_TOKEN_POLICY_INVALID");
+});
+
+test("disabled controlled registry cannot resume any saved issuance signature", async () => {
+  const id = "00000000-0000-4000-8000-000000000002";
+  const actor = { id, walletAddress: KEY, correlationId: id };
+  const database = { blockchainTransaction: { findFirst: async () => ({ id, status: "UNKNOWN_CONFIRMATION", signature: "2".repeat(64),
+    requiredSigner: KEY, instrument: { tokenPolicy: CONTROLLED_TOKEN_POLICY }, preparedTransactionBase64: "original-wire",
+    networkGenesisHash: KEY, recentBlockhash: KEY, lastValidBlockHeight: 9n }) } };
+  const rpc = { request: async () => { throw new Error("Disabled controlled attempt must not reach RPC"); } };
+  const options = { cluster: "localnet" as const, rpcEndpoint: "http://127.0.0.1:8899", rpcTimeoutMs: 15_000, expectedGenesisHash: KEY, programId: PROGRAM };
+  for (const prepare of [
+    () => prepareInstrumentMintSetup(database as never, rpc, id, actor, options),
+    () => prepareInstrumentInitialization(database as never, rpc, id, actor, options),
+    () => prepareInstrumentActivation(database as never, rpc, id, actor, options),
+    () => prepareInstrumentDistribution(database as never, rpc, id, actor, options, { allocations: [
+      { walletAddress: KEY, amount: "10" }, { walletAddress: PROGRAM, amount: "20" },
+      { walletAddress: "9bHwb1ghrc3e1ntCyrgccNHVAppbtRJu1bAwHybjpAWK", amount: "5" }
+    ] })
+  ]) await assert.rejects(prepare(), (error: unknown) => error instanceof ControlledRegistryError && error.code === "CONTROLLED_REGISTRY_DISABLED");
+});
+
+function controlledMint(authority: string, supply: bigint, mintAuthority?: string): Buffer {
+  const data = Buffer.alloc(207); data.writeUInt32LE(mintAuthority ? 1 : 0, 0);
+  if (mintAuthority) Buffer.from(decodePublicKey(mintAuthority)).copy(data, 4);
+  data.writeBigUInt64LE(supply, 36); data[45] = 1; data.writeUInt32LE(1, 46);
+  Buffer.from(decodePublicKey(authority)).copy(data, 50); data[165] = 1;
+  data.writeUInt16LE(12, 166); data.writeUInt16LE(32, 168);
+  Buffer.from(decodePublicKey(authority)).copy(data, 170);
+  data.writeUInt16LE(6, 202); data.writeUInt16LE(1, 204); data[206] = 2;
+  return data;
+}
+
+test("controlled mint verification rejects unlocked authority, default state, extra TLV and supply drift", () => {
+  const valid = controlledMint(KEY, 35n);
+  verifyControlledMint(valid, { supply: 35n, instrumentAuthority: KEY });
+  for (const [offset, value] of [[46, 0], [50, 0], [206, 1], [202, 9], [165, 2], [36, 34], [82, 1], [0, 1]] as const) {
+    const changed = Buffer.from(valid); changed[offset] = value;
+    assert.throws(() => verifyControlledMint(changed, { supply: 35n, instrumentAuthority: KEY }), InstrumentDeploymentError);
+  }
+  assert.throws(() => verifyControlledMint(Buffer.concat([valid, Buffer.alloc(4)]), { supply: 35n, instrumentAuthority: KEY }), InstrumentDeploymentError);
+});
+
+test("controlled issuance advances mint-zero → initialize → frozen 10/20/5 distribution → activate with finalized readbacks", async () => {
+  const instrumentId = "00000000-0000-4000-8000-000000000002";
+  const actor = { id: "00000000-0000-4000-8000-000000000001", walletAddress: KEY,
+    correlationId: "00000000-0000-4000-8000-000000000003" };
+  const options = { cluster: "localnet" as const, rpcEndpoint: "http://127.0.0.1:8899", rpcTimeoutMs: 15_000,
+    expectedGenesisHash: KEY, programId: PROGRAM, controlledRegistryEnabled: true };
+  const instrument = { ...lifecycleInstrument(instrumentId, "DRAFT"), tokenPolicy: CONTROLLED_TOKEN_POLICY, version: 0,
+    mintAddress: null as string | null, circulatingSupply: 0n, programId: null as string | null,
+    settlementAssetId: "00000000-0000-4000-8000-000000000004", settlementAsset: { mintAddress: null as string | null } };
+  const instrumentBytes = Uint8Array.from(Buffer.from(instrumentId.replaceAll("-", ""), "hex"));
+  const setup = await buildControlledMintSetup({ programId: PROGRAM, instrumentId: instrumentBytes, administrator: KEY,
+    bondRentLamports: 2_000_000n, settlementRentLamports: 1_500_000n, totalSupply: 35n });
+  const walletAddresses = ["9bHwb1ghrc3e1ntCyrgccNHVAppbtRJu1bAwHybjpAWK",
+    "6heq5Nw2ErTWsaAYxWS8ZKtzorgpNdwNNeH4QMXWD3Bk", "C8LAzJwa6XyecAnjC9XkSHNm28M242qBSmacUytvBKb5"];
+  const wallets = walletAddresses.map((address, index) => ({ address, network: "SOLANA_LOCALNET", status: "ACTIVE",
+    verifiedAt: new Date(), revokedAt: null, investor: { id: `00000000-0000-4000-8000-00000000000${index + 5}`,
+      status: "ACTIVE", eligibilityStatus: "ELIGIBLE" } }));
+  const requested = { allocations: walletAddresses.map((walletAddress, index) => ({ walletAddress, amount: ["10", "20", "5"][index]! })) };
+  const distribution = await buildInstrumentDistribution({ administrator: KEY, bondMint: setup.bondMint,
+    allocations: requested.allocations.map(row => ({ walletAddress: row.walletAddress, amount: BigInt(row.amount) })) });
+  const operations: Record<string, any>[] = []; const audits: Record<string, any>[] = []; const accounts = new Map<string, unknown>();
+  const reads: readonly unknown[][] = [];
+  const accountResponse = (data: Buffer, owner = TOKEN_2022_PROGRAM_ID) => ({ context: { slot: 42 },
+    value: { owner, executable: false, data: [data.toString("base64"), "base64"] } });
+  const token = (mint: string, wallet: string, amount: bigint) => {
+    const data = Buffer.alloc(170); Buffer.from(decodePublicKey(mint)).copy(data, 0);
+    Buffer.from(decodePublicKey(wallet)).copy(data, 32); data.writeBigUInt64LE(amount, 64); data[108] = 2;
+    data[165] = 2; data.writeUInt16LE(7, 166); return accountResponse(data);
+  };
+  const sidecar = (name: string, keys: readonly string[], trailing: Buffer) => {
+    const data = Buffer.concat([createHash("sha256").update(`account:${name}`).digest().subarray(0, 8), Buffer.from([1]),
+      ...keys.map(key => Buffer.from(decodePublicKey(key))), trailing]); return accountResponse(data, PROGRAM);
+  };
+  const database = {
+    instrument: { findUnique: async () => instrument }, wallet: { findMany: async () => wallets },
+    blockchainTransaction: {
+      findFirst: async ({ where }: any) => operations.find(row => row.operationType === where.operationType &&
+        (typeof where.status === "string" ? row.status === where.status : where.status.in.includes(row.status))) ?? null,
+      findUnique: async ({ where }: any) => operations.find(row => row.id === where.id)
+    },
+    $transaction: async (work: (transaction: unknown) => Promise<unknown>) => work({
+      blockchainTransaction: {
+        create: async ({ data }: any) => { const row = { ...data, id: `00000000-0000-4000-8000-0000000000${String(10 + operations.length).padStart(2, "0")}`,
+          signature: null, instrument }; operations.push(row); return row; },
+        updateMany: async ({ where, data }: any) => { Object.assign(operations.find(row => row.id === where.id)!, data); return { count: 1 }; }
+      },
+      instrument: { updateMany: async ({ where, data }: any) => {
+        assert.equal(where.status, instrument.status); if (where.circulatingSupply !== undefined) assert.equal(where.circulatingSupply, instrument.circulatingSupply);
+        Object.assign(instrument, { ...data, version: instrument.version + 1 }); return { count: 1 };
+      } },
+      settlementAsset: { updateMany: async ({ data }: any) => { Object.assign(instrument.settlementAsset, data); return { count: 1 }; } },
+      auditLog: { create: async ({ data }: any) => { audits.push(data); return data; } }
+    })
+  };
+  const rpc = { request: async (method: string, params: readonly unknown[]) => {
+    if (method === "getGenesisHash") return KEY;
+    if (method === "getMinimumBalanceForRentExemption") return params[0] === 207 ? 2_000_000 : 1_500_000;
+    if (method === "getLatestBlockhash") return { value: { blockhash: KEY, lastValidBlockHeight: 99 } };
+    if (method === "getAccountInfo") { (reads as unknown[][]).push([...params]); return accounts.get(String(params[0])) ?? { context: { slot: 42 }, value: null }; }
+    if (method === "getTransaction") { const op = operations.find(row => row.signature === params[0]); return { slot: 42, meta: { err: null }, transaction: [op!.signed, "base64"] }; }
+    throw new Error(`unexpected RPC method ${method}`);
+  } };
+  const signPrepared = (prepared: { operationId: string; serializedTransactionBase64: string }) => {
+    const operation = operations.find(row => row.id === prepared.operationId)!;
+    const signed = Buffer.from(prepared.serializedTransactionBase64, "base64"); signed.fill(23 + operations.indexOf(operation), 1, 65);
+    operation.signature = base58(signed.subarray(1, 65)); operation.signed = signed.toString("base64"); return operation.signature as string;
+  };
+  const mintPrepared = await prepareInstrumentMintSetup(database as never, rpc, instrumentId, actor, options);
+  assert.equal(mintPrepared.serializedTransactionBase64, serializeUnsignedInstructionsTransaction({ instructions: setup.instructions, feePayer: KEY, recentBlockhash: KEY, lastValidBlockHeight: 99 }));
+  accounts.set(setup.bondMint, accountResponse(controlledMint(setup.instrumentAuthority, 0n, KEY)));
+  const settlement = Buffer.alloc(82); settlement.writeUInt32LE(1, 0); Buffer.from(decodePublicKey(KEY)).copy(settlement, 4); settlement[44] = 6; settlement[45] = 1;
+  accounts.set(setup.settlementMint, accountResponse(settlement)); accounts.set(setup.treasuryTokenAccount, token(setup.bondMint, KEY, 0n));
+  const mintResult = await confirmInstrumentMintSetup(database as never, rpc, instrumentId, mintPrepared.operationId, signPrepared(mintPrepared), actor, options);
+  assert.equal(mintResult.nextPhase, "INITIALIZE"); assert.equal(instrument.circulatingSupply, 0n);
+  await assert.rejects(prepareInstrumentDistribution(database as never, rpc, instrumentId, actor, options, requested),
+    (error: unknown) => error instanceof InstrumentDeploymentError && error.code === "DISTRIBUTION_NOT_AVAILABLE");
+  const initialized = await prepareInstrumentInitialization(database as never, rpc, instrumentId, actor, options);
+  const initialization = await buildControlledInstrumentInitialization({ programId: PROGRAM, instrumentId: instrumentBytes,
+    administrator: KEY, bondMint: setup.bondMint, settlementMint: setup.settlementMint, complianceAuthority: KEY,
+    corporateActionAuthority: KEY, faceValueMinor: instrument.faceValueMinor, couponRateBps: instrument.couponRateBps,
+    paymentsPerYear: instrument.paymentsPerYear, issueAt: BigInt(instrument.issueAt.getTime() / 1000),
+    maturityAt: BigInt(instrument.maturityAt.getTime() / 1000), totalSupply: 35n });
+  assert.equal(initialized.serializedTransactionBase64, serializeUnsignedInstructionsTransaction({ instructions: initialization.instructions, feePayer: KEY, recentBlockhash: KEY, lastValidBlockHeight: 99 }));
+  const chainInstrument = () => { const result = instrumentAccount(instrumentId, 0); const data = Buffer.from(result.value.data[0]!, "base64"); data[8] = 2;
+    Buffer.from(decodePublicKey(setup.bondMint)).copy(data, 121); Buffer.from(decodePublicKey(setup.settlementMint)).copy(data, 153); return accountResponse(data, PROGRAM); };
+  accounts.set(setup.instrumentAddress, chainInstrument());
+  const policyAddress = await deriveControlledPolicyAddress(PROGRAM, setup.instrumentAddress);
+  accounts.set(policyAddress, sidecar("ControlledPolicy", [setup.instrumentAddress, setup.bondMint, "11111111111111111111111111111111", "11111111111111111111111111111111"], Buffer.alloc(1)));
+  accounts.set(setup.bondMint, accountResponse(controlledMint(setup.instrumentAuthority, 35n)));
+  accounts.set(setup.treasuryTokenAccount, token(setup.bondMint, KEY, 35n));
+  const initResult = await confirmInstrumentInitialization(database as never, rpc, instrumentId, initialized.operationId, signPrepared(initialized), actor, options);
+  assert.equal(initResult.nextPhase, "DISTRIBUTION"); assert.equal(instrument.status, "DEPLOYING"); assert.equal(instrument.circulatingSupply, 0n);
+  const distributed = await prepareInstrumentDistribution(database as never, rpc, instrumentId, actor, options, requested);
+  assert.ok(Buffer.from(distributed.serializedTransactionBase64, "base64").length <= 1232);
+  accounts.set(setup.treasuryTokenAccount, token(setup.bondMint, KEY, 0n));
+  for (const row of [{ tokenAccount: setup.treasuryTokenAccount, walletAddress: KEY, amount: 0n }, ...distribution.allocations]) {
+    accounts.set(row.tokenAccount, token(setup.bondMint, row.walletAddress, row.amount));
+    accounts.set(await deriveControlledHoldingAddress(PROGRAM, setup.instrumentAddress, row.tokenAccount),
+      sidecar("ControlledHolding", [setup.instrumentAddress, setup.bondMint, row.tokenAccount, row.walletAddress], Buffer.alloc(9)));
+  }
+  const distributionSignature = signPrepared(distributed);
+  accounts.set(distribution.allocations[0]!.tokenAccount, token(setup.bondMint, KEY, 10n));
+  await assert.rejects(confirmInstrumentDistribution(database as never, rpc, instrumentId, distributed.operationId, distributionSignature, actor, options), InstrumentDeploymentError);
+  assert.equal(instrument.circulatingSupply, 0n, "Wrong holder must not finalize the projection");
+  accounts.set(distribution.allocations[0]!.tokenAccount, token(setup.bondMint, walletAddresses[0]!, 10n));
+  const distResult = await confirmInstrumentDistribution(database as never, rpc, instrumentId, distributed.operationId, distributionSignature, actor, options);
+  assert.equal(distResult.nextPhase, "ACTIVATE"); assert.equal(instrument.circulatingSupply, 35n);
+  const activated = await prepareInstrumentActivation(database as never, rpc, instrumentId, actor, options);
+  const active = chainInstrument(); const activeBytes = Buffer.from(active.value.data[0]!, "base64"); activeBytes[222] = 1;
+  accounts.set(setup.instrumentAddress, accountResponse(activeBytes, PROGRAM));
+  const activationSignature = signPrepared(activated);
+  const holdingAddress = await deriveControlledHoldingAddress(PROGRAM, setup.instrumentAddress, distribution.allocations[0]!.tokenAccount);
+  const validHolding = accounts.get(holdingAddress); accounts.delete(holdingAddress);
+  await assert.rejects(confirmInstrumentActivation(database as never, rpc, instrumentId, activated.operationId, activationSignature, actor, options), InstrumentDeploymentError);
+  assert.equal(instrument.status, "DEPLOYING"); accounts.set(holdingAddress, validHolding);
+  assert.equal((await confirmInstrumentActivation(database as never, rpc, instrumentId, activated.operationId, activationSignature, actor, options)).status, "FINALIZED");
+  assert.equal(instrument.status, "ACTIVE"); assert.equal(operations.length, 4);
+  assert.ok(reads.some(params => (params[1] as Record<string, unknown>)["minContextSlot"] === 42));
+  assert.equal(audits.at(-1)!["event"], "INSTRUMENT_ACTIVATED");
+});
 
 test("accepts explicit Localnet and Devnet deployment configuration", () => {
   assert.deepEqual(instrumentDeploymentOptions({ SOLANA_CLUSTER: "localnet", WALLET_NETWORK: "SOLANA_LOCALNET",

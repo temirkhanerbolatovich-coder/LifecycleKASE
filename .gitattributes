@@ -1,2 +1,4 @@
 * text=auto eol=lf
 *.ps1 text eol=crlf
+# Preserve the RFC 4180 attachment bytes captured and hashed by the browser fixture.
+docs/testing/evidence/action-master-2026-10-12/*.csv -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

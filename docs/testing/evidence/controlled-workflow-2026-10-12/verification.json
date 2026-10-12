@@ -1,0 +1,50 @@
+{
+  "schema": "controlled-four-actions-workflow-v1",
+  "completedAt": "2026-10-12T09:19:06.723Z",
+  "tokenPolicy": "CONTROLLED_FROZEN_V2",
+  "programSha256": "772d8217c6395bbcd854f60f743139d756a15e7a0b7bb03396a586dc4b7b407b",
+  "idlSha256": "4d50cb17cd0c0e0d3740e4b0ec42a71e2bdb62001fc9b654093024d33f5d046f",
+  "actions": [
+    {
+      "scenario": "COUPON_PAYMENT",
+      "receiptHash": "f81e8dae03de1221e3bc4842873d1f45bc4bbec99fcd3cb93a039937343c89be",
+      "amountMinor": "1750000000",
+      "tokensRedeemed": "0",
+      "supplyBefore": "35",
+      "supplyAfter": "35"
+    },
+    {
+      "scenario": "EARLY_REDEMPTION",
+      "receiptHash": "03dec87a73b10fb4ed3debe9456f872c5fc984f34ffa41e3510f356765e6934d",
+      "amountMinor": "7000000000",
+      "tokensRedeemed": "7",
+      "supplyBefore": "35",
+      "supplyAfter": "28"
+    },
+    {
+      "scenario": "EXACT_EARLY_REDEMPTION",
+      "receiptHash": "69d9fbf091aada34f7ec7de6fc5526efbea4bd989aca72f012f21df53473b83f",
+      "amountMinor": "8000000000",
+      "tokensRedeemed": "8",
+      "supplyBefore": "28",
+      "supplyAfter": "20"
+    },
+    {
+      "scenario": "BOND_REDEMPTION",
+      "receiptHash": "9a9721df0c4f2bc50c2c78a1904a763c72de7001634b80bb76aed2378b412a61",
+      "amountMinor": "21000000000",
+      "tokensRedeemed": "20",
+      "supplyBefore": "20",
+      "supplyAfter": "0"
+    }
+  ],
+  "verification": "OFFLINE_EVIDENCE_CONSISTENCY_ONLY",
+  "reQueriedChain": false,
+  "authenticatedRuntime": false,
+  "postBurnClosureBoundToMaturityReceipt": true,
+  "limitations": [
+    "Saved artifact/source hashes are checked for structure, not compared with disk or authenticated against a trusted signer.",
+    "This verifier covers the fixed four-action fixture with positive per-source burns; zero-assignment/closed-source acceptance uses separate controlled-registry evidence.",
+    "It does not establish present chain/database state, HTTP authorization, immutability triggers or runtime assertions."
+  ]
+}

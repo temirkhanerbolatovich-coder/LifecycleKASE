@@ -2,8 +2,11 @@ import { Prisma, type PrismaClient, type BlockchainTransaction } from "@prisma/c
 import { buildCorporateActionSchedule, buildCorporateActionCancellation, decodeConfirmedCorporateAction,
   deriveCorporateActionAddresses, serializeUnsignedInstructionsTransaction, type SolanaRpc } from "@lifecycle-kase/solana-client";
 import { verifyConfirmedInstrument, type InstrumentDeploymentOptions } from "./instrument-deployment.js";
+import { requireControlledRegistry } from "./controlled-policy.js";
 import { actionInput, actionText, requireActionIssuer, requireFutureAction, workflowDatabaseError } from "./corporate-action-registry.js";
 import type { InstrumentActor } from "./instrument-registry.js";
+import { exactTargetRedemptionEnabled, onchainActionVersion, redemptionAllocationPolicy,
+  verifyExactRedemptionTarget, type RedemptionPolicyAction } from "./redemption-policy.js";
 import { uuidBytes } from "./snapshot-registration.js";
 import { ACTIVE_TRANSACTION_STATUSES, rpcObject, resumeWorkflowAttempt, requireAttemptSigner, requireWorkflowNetwork,
   submitWorkflowTransaction, TransactionWorkflowError, verifyWorkflowFinalization, workflowBlockhash, workflowProgramAccount, WORKFLOW_UUID } from "./transaction-workflow.js";
@@ -36,6 +39,8 @@ export async function prepareCorporateActionOperation(database: PrismaClient, rp
   if (!action) throw new TransactionWorkflowError("ACTION_NOT_FOUND", "Corporate action was not found", 404);
   const instrument = action.instrument;
   requireActionIssuer(instrument, actor);
+  const controlled = requireControlledRegistry(instrument, options);
+  if (controlled && phase === "CANCEL") throw new TransactionWorkflowError("CONTROLLED_CANCELLATION_UNSUPPORTED", "Scheduled controlled actions require continuation; cancellation is unsupported");
   if (instrument.programId !== options.programId || instrument.network !== (options.cluster === "localnet" ? "SOLANA_LOCALNET" : "SOLANA_DEVNET")) {
     throw new TransactionWorkflowError("WRONG_SOLANA_NETWORK", "Instrument program/network differs from configuration");
   }
@@ -51,21 +56,28 @@ export async function prepareCorporateActionOperation(database: PrismaClient, rp
     throw new TransactionWorkflowError("ACTION_NOT_READY", "Action or instrument cannot enter this phase");
   }
   if (phase === "SCHEDULE") requireFutureAction(action.recordAt, now);
+  if (phase === "SCHEDULE" && onchainActionVersion(action) === 2 && (!exactTargetRedemptionEnabled() || options.cluster !== "localnet")) {
+    throw new TransactionWorkflowError("EXACT_TARGET_REDEMPTION_DISABLED", "Exact target scheduling requires its explicitly enabled Localnet candidate", 503);
+  }
   const addresses = await deriveCorporateActionAddresses(options.programId, uuidBytes(instrument.id), uuidBytes(action.id));
   verifyConfirmedInstrument(await workflowProgramAccount(rpc, addresses.instrumentAddress, options.programId), instrument, "ACTIVE");
   const chainAccount = rpcObject(await rpc.request("getAccountInfo", [addresses.actionAddress, { commitment: "finalized", encoding: "base64" }]));
   if (phase === "SCHEDULE" && chainAccount["value"] !== null) throw new TransactionWorkflowError("ACTION_ADDRESS_OCCUPIED", "Action PDA is already occupied; confirm the existing attempt");
   if (phase === "CANCEL") verifyActionAccount(await workflowProgramAccount(rpc, addresses.actionAddress, options.programId), action, addresses.instrumentAddress, "SCHEDULED");
+  if (phase === "CANCEL") await verifyExactRedemptionTarget(rpc, action, addresses.actionAddress, options.programId);
   const input = { programId: options.programId, instrumentId: uuidBytes(instrument.id), actionId: uuidBytes(action.id), issuerAuthority: actor.walletAddress };
   const plan = phase === "SCHEDULE" ? await buildCorporateActionSchedule({ ...input, type: action.type,
     recordAt: BigInt(action.recordAt.getTime() / 1000), executeAt: BigInt(action.executeAt.getTime() / 1000),
-    redemptionPercentageBps: action.redemptionPercentageBps, redemptionPriceMinor: action.redemptionPriceMinor })
+    redemptionPercentageBps: action.redemptionPercentageBps, redemptionPriceMinor: action.redemptionPriceMinor,
+    allocationPolicy: redemptionAllocationPolicy(action), redemptionTargetTokens: action.redemptionTargetTokens })
     : await buildCorporateActionCancellation(input);
   const blockhash = await workflowBlockhash(rpc);
   const wire = serializeUnsignedInstructionsTransaction({ instructions: [plan.instruction], feePayer: actor.walletAddress, ...blockhash });
   const payload = { corporateActionId: action.id, phase, ...addresses, programId: options.programId, reason,
     type: action.type, intent: action.intent, recordAt: action.recordAt.toISOString(), executeAt: action.executeAt.toISOString(),
-    redemptionPercentageBps: action.redemptionPercentageBps, redemptionPriceMinor: action.redemptionPriceMinor?.toString() ?? null };
+    redemptionPercentageBps: action.redemptionPercentageBps, redemptionPriceMinor: action.redemptionPriceMinor?.toString() ?? null,
+    redemptionAllocationPolicy: redemptionAllocationPolicy(action), redemptionTargetTokens: action.redemptionTargetTokens?.toString() ?? null,
+    ...(phase === "SCHEDULE" && "targetAddress" in plan && plan.targetAddress ? { targetAddress: plan.targetAddress } : {}) };
   try {
     const operation = await database.$transaction(async tx => {
       const current = await tx.corporateAction.findUnique({ where: { id: action.id }, include: { snapshot: true } });
@@ -86,13 +98,13 @@ export async function prepareCorporateActionOperation(database: PrismaClient, rp
   } catch (error) { return workflowDatabaseError(error); }
 }
 
-function verifyActionAccount(base64: string, action: {
-  id: string; type: string; recordAt: Date; executeAt: Date; redemptionPercentageBps: number | null; redemptionPriceMinor: bigint | null;
+export function verifyActionAccount(base64: string, action: RedemptionPolicyAction & {
+  id: string; recordAt: Date; executeAt: Date;
 }, instrumentAddress: string, status: "SCHEDULED" | "CANCELLED") {
   let chain;
   try { chain = decodeConfirmedCorporateAction(base64); }
   catch { throw new TransactionWorkflowError("ACTION_ACCOUNT_MISMATCH", "Action PDA data is invalid"); }
-  if (!Buffer.from(chain.actionId).equals(Buffer.from(uuidBytes(action.id))) || chain.instrumentAddress !== instrumentAddress ||
+  if (chain.version !== onchainActionVersion(action) || !Buffer.from(chain.actionId).equals(Buffer.from(uuidBytes(action.id))) || chain.instrumentAddress !== instrumentAddress ||
       chain.type !== action.type || chain.recordAt !== BigInt(action.recordAt.getTime() / 1000) || chain.executeAt !== BigInt(action.executeAt.getTime() / 1000) ||
       chain.redemptionPercentageBps !== action.redemptionPercentageBps || chain.redemptionPriceMinor !== action.redemptionPriceMinor ||
       chain.status !== status || chain.snapshotHash !== "0".repeat(64) || chain.snapshotSlot !== 0n ||
@@ -109,6 +121,9 @@ async function actionOperation(database: PrismaClient, actionId: string, body: u
   const operation = await database.blockchainTransaction.findUnique({ where: { id: input["operationId"] }, include: { corporateAction: { include: actionRelations } } });
   if (!operation?.corporateAction || operation.corporateAction.id !== actionId || operation.operationType !== operationType(input["phase"] as ActionPhase)) {
     throw new TransactionWorkflowError("ACTION_OPERATION_NOT_FOUND", "Action operation was not found", 404);
+  }
+  if (operation.corporateAction && requireControlledRegistry(operation.corporateAction.instrument, options) && input["phase"] === "CANCEL") {
+    throw new TransactionWorkflowError("CONTROLLED_CANCELLATION_UNSUPPORTED", "Scheduled controlled cancellation is unsupported");
   }
   requireActionIssuer(operation.corporateAction.instrument, actor);
   requireAttemptSigner(operation, actor.walletAddress, options.expectedGenesisHash);
@@ -138,6 +153,7 @@ export async function confirmCorporateActionOperation(database: PrismaClient, rp
   const slot = await verifyWorkflowFinalization(database, rpc, operation, signature, actor, options.expectedGenesisHash);
   const addresses = await deriveCorporateActionAddresses(options.programId, uuidBytes(action.instrumentId), uuidBytes(action.id));
   verifyActionAccount(await workflowProgramAccount(rpc, addresses.actionAddress, options.programId, slot), action, addresses.instrumentAddress, nextStatus);
+  await verifyExactRedemptionTarget(rpc, action, addresses.actionAddress, options.programId, slot);
   try {
     await database.$transaction(async tx => {
       const current = await tx.corporateAction.findUnique({ where: { id: action.id }, include: { snapshot: true } });

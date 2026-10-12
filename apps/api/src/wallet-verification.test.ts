@@ -20,7 +20,7 @@ function fixture() {
   const address = encodePublicKey(publicDer.subarray(-32));
   let state = {
     wallet: { id: WALLET_ID, investorId: INVESTOR_ID, address, network: "SOLANA_LOCALNET",
-      status: "PENDING", verifiedAt: null as Date | null, revokedAt: null as Date | null,
+      status: "PENDING", registryVersion: 1, verifiedAt: null as Date | null, revokedAt: null as Date | null,
       investor: { status: "ACTIVE" } },
     challenges: new Map<string, any>(),
     audit: [] as any[]
@@ -30,13 +30,19 @@ function fixture() {
     corporateAction: { findFirst: async () => null },
     wallet: {
       findFirst: async ({ where }: any) => state.wallet.id === where.id && state.wallet.investorId === where.investorId ? state.wallet : null,
-      update: async ({ data }: any) => Object.assign(state.wallet, data)
+      update: async ({ data }: any) => {
+        const { registryVersion, ...fields } = data;
+        Object.assign(state.wallet, fields);
+        state.wallet.registryVersion += registryVersion?.increment ?? 0;
+        return state.wallet;
+      }
     },
     authChallenge: {
       findUnique: async ({ where }: any) => state.challenges.get(where.id) ?? null,
       updateMany: async ({ where, data }: any) => {
         const value = state.challenges.get(where.id);
         if (!value || value.usedAt !== null || value.expiresAt <= where.expiresAt.gt) return { count: 0 };
+        assert.ok(data.usedAt >= value.createdAt, "Stored challenge creation must not be later than consumption");
         Object.assign(value, data);
         return { count: 1 };
       }
@@ -52,7 +58,10 @@ function fixture() {
     wallet: tx.wallet,
     authChallenge: {
       ...tx.authChallenge,
-      create: async ({ data }: any) => { state.challenges.set(data.id, { ...data, usedAt: null }); return data; }
+      create: async ({ data }: any) => {
+        state.challenges.set(data.id, { ...data, createdAt: data.createdAt ?? new Date(NOW.getTime() + 2), usedAt: null });
+        return data;
+      }
     },
     $transaction: async (callback: (value: typeof tx) => Promise<unknown>, settings: any) => {
       assert.equal(settings.isolationLevel, "Serializable");
@@ -79,6 +88,9 @@ test("activates a pending localnet wallet only after its exact Ed25519 proof and
   const f = fixture();
   const { challenge, body } = await proof(f);
   assert.match(challenge.message, /does not submit a transaction, approve eligibility, or authorize a payment/);
+  const storedChallenge = f.state().challenges.get(challenge.challengeId);
+  assert.equal(storedChallenge.createdAt.getTime(), NOW.getTime(), "A faster database clock must not supply the challenge timestamp");
+  assert.equal(storedChallenge.expiresAt.getTime() - storedChallenge.createdAt.getTime(), options.challengeTtlSeconds * 1000);
   const verified = await verifyWalletOwnership(f.database, INVESTOR_ID, WALLET_ID, body, actor, ORIGIN, NOW, options);
   assert.equal(verified.status, "ACTIVE");
   assert.equal(verified.verifiedAt, NOW);

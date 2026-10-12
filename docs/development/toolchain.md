@@ -1,5 +1,9 @@
 # Solana development toolchain
 
+Current redemption continuation — 2026-10-10: both host profiles pass the same 18 unique tests plus Rustfmt/Clippy. The non-root isolated build produces663968bytes, SHA-256 `031b43f0b16de244aa4fc7ff194d7e48ddb8c83b2fa83a2bdaea6bd59212b062`, in `generated/localnet-candidate-redemption-20261010`. It does not overwrite retained artifacts or authorize an owner upgrade. Current reproduction/runtime evidence is in [three-action acceptance](../testing/kase-three-actions-2026-10-10.md).
+
+Earlier coupon checkpoint — 2026-10-10:12 host tests per profile;526624-byte SBF, SHA-256 `ccc5ebe7841a43fc22f8c687557264f22025a35840ebf1aae10b820df3d84295`. Legacy integration-tool audit reported12 advisories (5 high/7 moderate). Earlier versions/counts/artifacts below are dated checkpoints; see the [current audit](../PROJECT_AUDIT_2026-10-10.md).
+
 ## Validator isolation correction — 2026-10-02
 
 Both validator wrappers reserve four adjacent ports: RPC at the requested port, websocket at RPC+1, faucet at RPC+2 and gossip at RPC+3. The maximum RPC port is 65532. Preflight rejects an occupied port before creating a ledger. This prevents the disposable integration/smoke validator from competing with the persistent acceptance validator's default faucet at 9900; it does not stop or reset that validator. A localnet integration run passed after this correction while the persistent Localnet remained available.

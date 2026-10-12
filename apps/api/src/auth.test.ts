@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash, generateKeyPairSync, sign } from "node:crypto";
 import test from "node:test";
 
-import type { PrismaClient, UserRole } from "@prisma/client";
+import type { PrismaClient, UserRole, WalletStatus } from "@prisma/client";
 import { encodePublicKey } from "@lifecycle-kase/solana-client";
 
 import {
@@ -35,19 +35,22 @@ function fixture(overrides: { role?: UserRole; verified?: boolean } = {}) {
   };
   const wallet = {
     address: walletAddress,
-    status: "ACTIVE",
+    userId: user.id as string | null,
+    status: "ACTIVE" as WalletStatus,
     verifiedAt: overrides.verified === false ? null : new Date("2026-09-29T00:00:00.000Z"),
-    revokedAt: null,
+    revokedAt: null as Date | null,
     user
   };
+  let currentWallet: typeof wallet | null = wallet;
   const challenges = new Map<string, any>();
   const sessions = new Map<string, any>();
   const tx = {
-    wallet: { findUnique: async () => wallet },
+    wallet: { findUnique: async () => currentWallet },
     authChallenge: {
       updateMany: async ({ where, data }: any) => {
         const challenge = challenges.get(where.id);
         if (!challenge || challenge.usedAt !== null || challenge.expiresAt <= where.expiresAt.gt) return { count: 0 };
+        assert.ok(data.usedAt >= challenge.createdAt, "Stored challenge creation must not be later than consumption");
         challenge.usedAt = data.usedAt;
         return { count: 1 };
       }
@@ -61,9 +64,11 @@ function fixture(overrides: { role?: UserRole; verified?: boolean } = {}) {
     }
   };
   const database = {
-    wallet: { findUnique: async () => wallet },
+    wallet: { findUnique: async () => currentWallet },
     authChallenge: {
-      create: async ({ data }: any) => { challenges.set(data.id, { ...data, usedAt: null }); },
+      create: async ({ data }: any) => {
+        challenges.set(data.id, { ...data, createdAt: data.createdAt ?? new Date(NOW.getTime() + 2), usedAt: null });
+      },
       findUnique: async ({ where }: any) => challenges.get(where.id) ?? null
     },
     session: {
@@ -77,8 +82,55 @@ function fixture(overrides: { role?: UserRole; verified?: boolean } = {}) {
     },
     $transaction: async (callback: (transaction: typeof tx) => Promise<unknown>) => callback(tx)
   } as unknown as PrismaClient;
-  return { database, privateKey, walletAddress, challenges, sessions };
+  return { database, privateKey, walletAddress, wallet, challenges, sessions,
+    removeWallet: () => { currentWallet = null; } };
 }
+
+async function authenticatedFixture() {
+  const setup = fixture();
+  const challenge = await createOperatorChallenge(setup.database, {
+    walletAddress: setup.walletAddress, origin: ORIGIN, now: NOW
+  }, options);
+  const result = await verifyOperatorChallenge(setup.database, {
+    challengeId: challenge.challengeId,
+    nonce: challenge.nonce,
+    signature: sign(null, Buffer.from(challenge.message), setup.privateKey).toString("base64"),
+    origin: ORIGIN,
+    now: NOW
+  }, options);
+  return { ...setup, sessionToken: result.sessionToken };
+}
+
+const walletInvalidations: ReadonlyArray<{
+  name: string;
+  apply: (setup: Awaited<ReturnType<typeof authenticatedFixture>>) => void;
+}> = [
+  { name: "blocked", apply: setup => { setup.wallet.status = "BLOCKED"; } },
+  { name: "pending", apply: setup => { setup.wallet.status = "PENDING"; } },
+  { name: "revoked", apply: setup => { setup.wallet.status = "REVOKED"; setup.wallet.revokedAt = NOW; } },
+  { name: "deleted", apply: setup => { setup.removeWallet(); } },
+  { name: "reassigned", apply: setup => { setup.wallet.userId = "00000000-0000-4000-8000-000000000002"; } },
+  { name: "detached from the user", apply: setup => { setup.wallet.userId = null; } },
+  { name: "unverified", apply: setup => { setup.wallet.verifiedAt = null; } },
+  { name: "revoked without a status update", apply: setup => { setup.wallet.revokedAt = NOW; } }
+];
+
+for (const invalidation of walletInvalidations) {
+  test(`rejects an existing operator session after its wallet is ${invalidation.name}`, async () => {
+    const setup = await authenticatedFixture();
+    assert.equal((await readOperatorSession(setup.database, setup.sessionToken, NOW)).walletAddress, setup.walletAddress);
+    invalidation.apply(setup);
+    await assert.rejects(readOperatorSession(setup.database, setup.sessionToken, NOW),
+      (error: unknown) => error instanceof AuthFlowError && error.code === "SESSION_INVALID" && error.status === 401);
+  });
+}
+
+test("an active verified wallet cannot extend an expired operator session", async () => {
+  const setup = await authenticatedFixture();
+  await assert.rejects(readOperatorSession(setup.database, setup.sessionToken,
+    new Date(NOW.getTime() + options.sessionTtlSeconds * 1000)),
+  (error: unknown) => error instanceof AuthFlowError && error.code === "SESSION_INVALID" && error.status === 401);
+});
 
 test("creates a domain-bound challenge and one-time operator session", async () => {
   const setup = fixture();
@@ -89,6 +141,7 @@ test("creates a domain-bound challenge and one-time operator session", async () 
   assert.equal(challenge.message.includes(challenge.nonce), true);
   const storedChallenge = setup.challenges.get(challenge.challengeId);
   assert.equal(storedChallenge.createdAt.getTime(), NOW.getTime());
+  assert.equal(storedChallenge.expiresAt.getTime() - storedChallenge.createdAt.getTime(), options.challengeTtlSeconds * 1000);
   assert.notEqual(Buffer.from(storedChallenge.nonceHash).toString("hex"), challenge.nonce);
   assert.equal(
     Buffer.from(storedChallenge.nonceHash).toString("hex"),

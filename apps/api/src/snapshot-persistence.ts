@@ -1,10 +1,15 @@
 import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 
 import { Prisma, type PrismaClient } from "@prisma/client";
 
-import { MAX_SNAPSHOT_GRACE_SECONDS, prepareSnapshotCandidate, SnapshotPreparationError } from "./snapshot-candidate.js";
+import { MAX_SNAPSHOT_GRACE_SECONDS, prepareSnapshotCandidate, snapshotInvestorEligibility,
+  SnapshotPreparationError } from "./snapshot-candidate.js";
+import { isControlledInstrument } from "./controlled-capture.js";
+import { requireControlledSnapshotEvidence } from "./controlled-snapshot.js";
 
-type SnapshotCandidate = Awaited<ReturnType<typeof prepareSnapshotCandidate>>;
+type PreparedCandidate = Awaited<ReturnType<typeof prepareSnapshotCandidate>>;
+type SnapshotCandidate = Omit<PreparedCandidate, "captureEvidence"> & Partial<Pick<PreparedCandidate, "captureEvidence">>;
 
 export type SnapshotPersistenceOptions = {
   now: Date;
@@ -58,13 +63,30 @@ export async function persistSnapshotCandidate(
       throw new SnapshotPreparationError("CANDIDATE_STALE", "Corporate action or instrument changed after capture");
     }
     const sinceRecordMs = options.now.getTime() - action.recordAt.getTime();
-    if (sinceRecordMs < 0 || sinceRecordMs > options.graceSeconds * 1000) {
+    if (sinceRecordMs < 0) {
+      throw new SnapshotPreparationError("RECORD_DATE_NOT_REACHED", "Snapshot record-date window has not opened");
+    }
+    if (!isControlledInstrument(action.instrument) && sinceRecordMs > options.graceSeconds * 1000) {
       throw new SnapshotPreparationError("SNAPSHOT_WINDOW_MISSED", "Snapshot is outside its record-date window");
     }
+
+    if (isControlledInstrument(action.instrument) && (!candidate.captureEvidence ||
+        candidate.captureEvidence.startedSlot !== payload.solana_slot ||
+        new Date(Number(candidate.captureEvidence.startedAt) * 1000).toISOString() !== payload.block_time ||
+        createHash("sha256").update(candidate.captureEvidence.registryCanonicalJson).digest("hex") !== candidate.captureEvidence.registrySha256 ||
+        !isDeepStrictEqual(JSON.parse(candidate.captureEvidence.registryCanonicalJson), candidate.captureEvidence.registry))) {
+      throw new SnapshotPreparationError("CANDIDATE_CHANGED", "Controlled raw evidence differs from the locked capture");
+    }
+    if (isControlledInstrument(action.instrument)) requireControlledSnapshotEvidence(candidate.captureEvidence, payload);
 
     const candidateWallets = payload.investors.flatMap((investor) =>
       investor.wallets.map((wallet) => ({ investor, wallet }))
     );
+    if (!Array.isArray(candidate.registryFacts) || candidate.registryFacts.length !== candidateWallets.length ||
+        new Set(candidate.registryFacts.map(fact => fact.walletAddress)).size !== candidateWallets.length) {
+      throw new SnapshotPreparationError("CANDIDATE_CHANGED", "Snapshot registry facts are missing or duplicated");
+    }
+    const factsByAddress = new Map(candidate.registryFacts.map(fact => [fact.walletAddress, fact]));
     const effectiveAt = new Date(payload.block_time);
     const walletRows = await tx.wallet.findMany({
       where: { address: { in: candidateWallets.map(({ wallet }) => wallet.wallet_address) } },
@@ -75,13 +97,24 @@ export async function persistSnapshotCandidate(
       throw new SnapshotPreparationError("REGISTRY_CHANGED", "Holder wallet mapping changed after capture");
     }
     for (const { investor, wallet } of candidateWallets) {
+      const captured = factsByAddress.get(wallet.wallet_address);
+      if (!captured || captured.walletId !== wallet.wallet_id || captured.investorId !== investor.investor_id ||
+          captured.walletStatus !== wallet.wallet_status ||
+          snapshotInvestorEligibility({ status: captured.investorStatus, eligibilityStatus: captured.eligibilityStatus }) !== investor.eligibility_status) {
+        throw new SnapshotPreparationError("CANDIDATE_CHANGED", "Snapshot registry facts differ from the canonical candidate");
+      }
       const current = walletsByAddress.get(wallet.wallet_address);
       if (
         !current || current.id !== wallet.wallet_id ||
         current.investorId !== investor.investor_id ||
-        current.investor?.eligibilityStatus !== investor.eligibility_status ||
+        !current.investor || current.investor.status !== captured.investorStatus ||
+        current.investor.eligibilityStatus !== captured.eligibilityStatus ||
+        current.investor.registryVersion !== captured.investorRegistryVersion ||
+        current.registryVersion !== captured.walletRegistryVersion ||
+        (current.verifiedAt?.toISOString() ?? null) !== captured.verifiedAt ||
+        (current.revokedAt?.toISOString() ?? null) !== captured.revokedAt ||
         current.verifiedAt === null || current.verifiedAt > effectiveAt ||
-        current.network !== options.walletNetwork ||
+        current.network !== options.walletNetwork || current.network !== captured.network ||
         current.status !== wallet.wallet_status
       ) {
         throw new SnapshotPreparationError("REGISTRY_CHANGED", "Holder wallet or investor status changed after capture");
@@ -106,6 +139,7 @@ export async function persistSnapshotCandidate(
         blockTime: new Date(payload.block_time),
         createdAt: new Date(payload.created_at),
         canonicalJson: JSON.parse(candidate.canonicalJson) as Prisma.InputJsonValue,
+        ...(candidate.captureEvidence ? { captureEvidence: candidate.captureEvidence as Prisma.InputJsonValue } : {}),
         snapshotHash: Buffer.from(candidate.sha256, "hex"),
         investorCount: payload.investor_count,
         walletCount: payload.wallet_count,

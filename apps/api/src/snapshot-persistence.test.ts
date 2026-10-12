@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PrismaClient } from "@prisma/client";
+import type { InvestorStatus, PrismaClient } from "@prisma/client";
 import { createSnapshotV2Commitment } from "@lifecycle-kase/domain";
 
 import { persistSnapshotCandidate, SnapshotPreparationError } from "./index.js";
+import type { SnapshotRegistryFact } from "./snapshot-candidate.js";
 
 const ACTION_ID = "00000000-0000-4000-8000-000000000001";
 const INSTRUMENT_ID = "00000000-0000-4000-8000-000000000002";
@@ -22,6 +23,7 @@ function fixture(overrides: {
   lockCount?: number;
   now?: Date;
   pendingCancellation?: boolean;
+  capturedInvestorStatus?: InvestorStatus;
 } = {}) {
   const commitment = createSnapshotV2Commitment({
     actionId: ACTION_ID,
@@ -36,7 +38,8 @@ function fixture(overrides: {
     mintSupply: 10n,
     investors: [{
       investorId: INVESTOR_ID,
-      eligibilityStatus: "ELIGIBLE",
+      eligibilityStatus: overrides.capturedInvestorStatus === "SUSPENDED" ? "SUSPENDED" :
+        overrides.capturedInvestorStatus === "CLOSED" ? "NOT_ELIGIBLE" : "ELIGIBLE",
       wallets: [{
         walletId: WALLET_ID,
         walletAddress: KEY,
@@ -49,7 +52,14 @@ function fixture(overrides: {
     ...commitment,
     captureSlot: 101,
     actionVersion: 3,
-    instrumentVersion: 2
+    instrumentVersion: 2,
+    registryFacts: [{
+      walletId: WALLET_ID, walletAddress: KEY, investorId: INVESTOR_ID,
+      walletStatus: "ACTIVE", network: "SOLANA_DEVNET",
+      verifiedAt: (overrides.verifiedAt ?? new Date("2026-09-28T00:00:00.000Z")).toISOString(), revokedAt: null,
+      walletRegistryVersion: 1, investorStatus: overrides.capturedInvestorStatus ?? "ACTIVE",
+      eligibilityStatus: "ELIGIBLE", investorRegistryVersion: 1
+    }] satisfies SnapshotRegistryFact[]
   };
   const action = {
     id: ACTION_ID,
@@ -70,9 +80,12 @@ function fixture(overrides: {
     investorId: INVESTOR_ID,
     address: KEY,
     status: overrides.walletStatus ?? "ACTIVE",
+    registryVersion: 1,
     verifiedAt: overrides.verifiedAt ?? new Date("2026-09-28T00:00:00.000Z"),
+    revokedAt: null as Date | null,
     network: "SOLANA_DEVNET",
-    investor: { id: INVESTOR_ID, eligibilityStatus: "ELIGIBLE" }
+    investor: { id: INVESTOR_ID, eligibilityStatus: "ELIGIBLE",
+      status: overrides.capturedInvestorStatus ?? "ACTIVE", registryVersion: 1 }
   }];
   const calls: { lock?: unknown; create?: unknown; audit?: unknown } = {};
   const tx = {
@@ -102,7 +115,7 @@ function fixture(overrides: {
     walletNetwork: "SOLANA_DEVNET",
     audit: { actorId: ACTION_ID, actorWallet: KEY, correlationId: CORRELATION_ID }
   };
-  return { candidate, database, options, calls };
+  return { candidate, database, options, calls, wallet: wallets[0]! };
 }
 
 test("persists all snapshot rows atomically while action stays scheduled", async () => {
@@ -178,4 +191,56 @@ test("accepts wallet verification between planned record time and effective fina
   const setup = fixture({ verifiedAt: new Date("2026-09-29T00:00:30.000Z") });
   const result = await persistSnapshotCandidate(setup.database, setup.candidate, setup.options);
   assert.equal(result.status, "PENDING_REGISTRATION");
+});
+
+test("persists a suspended lifecycle without changing the canonical snapshot format", async () => {
+  const setup = fixture({ capturedInvestorStatus: "SUSPENDED" });
+  const canonical = setup.candidate.canonicalJson;
+  const hash = setup.candidate.sha256;
+  await persistSnapshotCandidate(setup.database, setup.candidate, setup.options);
+  const stored = (setup.calls.create as { data: { canonicalJson: unknown; investors: { create: { eligibilityStatus: string }[] } } }).data;
+  assert.equal(stored.investors.create[0]?.eligibilityStatus, "SUSPENDED");
+  assert.deepEqual(stored.canonicalJson, JSON.parse(canonical));
+  assert.equal(setup.candidate.sha256, hash);
+});
+
+const registryChanges: { name: string; change: (setup: ReturnType<typeof fixture>) => void }[] = [
+  { name: "investor suspension", change: setup => { setup.wallet.investor.status = "SUSPENDED"; } },
+  { name: "investor closure", change: setup => { setup.wallet.investor.status = "CLOSED"; } },
+  { name: "investor version after suspend and restore", change: setup => { setup.wallet.investor.registryVersion += 2; } },
+  { name: "wallet version after block and unblock", change: setup => { setup.wallet.registryVersion += 2; } },
+  { name: "revocation timestamp", change: setup => { setup.wallet.revokedAt = new Date("2026-09-29T00:01:30.000Z"); } },
+  { name: "changed early verification timestamp", change: setup => { setup.wallet.verifiedAt = new Date("2026-09-28T12:00:00.000Z"); } }
+];
+for (const { name, change } of registryChanges) {
+  test(`rejects changed ${name} before creating snapshot rows`, async () => {
+    const setup = fixture();
+    change(setup);
+    await assert.rejects(persistSnapshotCandidate(setup.database, setup.candidate, setup.options),
+      (error: unknown) => error instanceof SnapshotPreparationError && error.code === "REGISTRY_CHANGED");
+    assert.equal(setup.calls.create, undefined);
+    assert.equal(setup.calls.audit, undefined);
+    assert.equal(setup.calls.lock, undefined);
+  });
+}
+
+test("rejects a restored investor when its candidate captured a suspended lifecycle", async () => {
+  const setup = fixture({ capturedInvestorStatus: "SUSPENDED" });
+  setup.wallet.investor.status = "ACTIVE";
+  await assert.rejects(persistSnapshotCandidate(setup.database, setup.candidate, setup.options),
+    (error: unknown) => error instanceof SnapshotPreparationError && error.code === "REGISTRY_CHANGED");
+  assert.equal(setup.calls.create, undefined);
+});
+
+test("rejects missing or changed transient registry facts", async () => {
+  for (const change of [
+    (setup: ReturnType<typeof fixture>) => { setup.candidate.registryFacts = []; },
+    (setup: ReturnType<typeof fixture>) => { setup.candidate.registryFacts[0]!.walletId = ACTION_ID; },
+    (setup: ReturnType<typeof fixture>) => { setup.candidate.registryFacts[0]!.investorStatus = "SUSPENDED"; }
+  ]) {
+    const setup = fixture(); change(setup);
+    await assert.rejects(persistSnapshotCandidate(setup.database, setup.candidate, setup.options),
+      (error: unknown) => error instanceof SnapshotPreparationError && error.code === "CANDIDATE_CHANGED");
+    assert.equal(setup.calls.create, undefined);
+  }
 });

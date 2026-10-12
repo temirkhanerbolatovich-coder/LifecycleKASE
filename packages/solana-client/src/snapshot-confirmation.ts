@@ -5,6 +5,7 @@ import { getBase58Encoder, getSignatureFromTransaction, getTransactionDecoder, s
 import { decodePublicKey, encodePublicKey } from "./base58.js";
 
 export type ConfirmedSnapshotAccount = {
+  version: number;
   actionId: Uint8Array;
   instrumentAddress: string;
   snapshotHash: string;
@@ -108,12 +109,20 @@ export function decodeConfirmedSnapshotAccount(dataBase64: string): ConfirmedSna
   }
   let offset = 8;
   requireBytes(data, offset, 1 + 16 + 32 + 1 + 8 + 8);
-  offset += 1; // account version
+  const version = data[offset++]!;
+  if (version !== 1 && version !== 2) throw new Error("Corporate action version is unsupported");
   const actionId = data.subarray(offset, offset + 16); offset += 16;
   const instrumentAddress = encodePublicKey(data.subarray(offset, offset + 32)); offset += 32;
-  offset += 1 + 8 + 8; // action type, record_at, execute_at
+  const actionType = data[offset++]!;
+  offset += 8 + 8; // record_at, execute_at
+  const percentageOffset = offset;
   offset = readOption(data, offset, 2);
+  const priceOffset = offset;
   offset = readOption(data, offset, 8);
+  if (version === 2 && (actionType !== 2 || data[percentageOffset] !== 0 ||
+      data[priceOffset] !== 1 || data.readBigUInt64LE(priceOffset + 1) === 0n)) {
+    throw new Error("Corporate action v2 exact-target terms are invalid");
+  }
   requireBytes(data, offset, 32 + 8 + 4 + 4 + 8 + 8 + 4 + 4 + 1);
   const snapshotHash = data.subarray(offset, offset + 32).toString("hex"); offset += 32;
   const snapshotSlot = data.readBigUInt64LE(offset); offset += 8;
@@ -124,6 +133,7 @@ export function decodeConfirmedSnapshotAccount(dataBase64: string): ConfirmedSna
   const status = data[offset];
   if (status !== 2) throw new Error("Corporate action account is not in SnapshotCreated state");
   return {
+    version,
     actionId: Uint8Array.from(actionId),
     instrumentAddress,
     snapshotHash,

@@ -1,12 +1,22 @@
 use crate::program::LifecycleKase;
 use anchor_lang::prelude::*;
+pub mod approval;
+pub mod controlled_registry;
+pub mod coupon;
 pub mod entitlement;
+pub mod exact_redemption;
+pub mod redemption;
+pub use approval::*;
+pub use controlled_registry::*;
+pub use coupon::*;
 pub mod financial;
 use anchor_spl::token_2022::spl_token_2022::{
     extension::StateWithExtensions, state::Account as TokenAccount,
 };
 use anchor_spl::token_interface::{Mint, Token2022};
 pub use entitlement::*;
+pub use exact_redemption::*;
+pub use redemption::*;
 
 #[cfg(not(feature = "devnet"))]
 declare_id!("6qLE1S9tMngm8oqWepdSwa3dUij5ZUNNdN9QV8mqm1fo");
@@ -19,6 +29,70 @@ const SNAPSHOT_GRACE_SECONDS: i64 = 300;
 #[program]
 pub mod lifecycle_kase {
     use super::*;
+
+    pub fn initialize_controlled_instrument(
+        ctx: Context<InitializeControlledInstrument>,
+        terms: InstrumentTerms,
+    ) -> Result<()> {
+        controlled_registry::initialize(ctx, terms)
+    }
+
+    pub fn register_controlled_holding(ctx: Context<RegisterControlledHolding>) -> Result<()> {
+        controlled_registry::register_holding(ctx)
+    }
+
+    pub fn activate_controlled_instrument(
+        ctx: Context<ActivateControlledInstrument>,
+    ) -> Result<()> {
+        controlled_registry::activate(ctx)
+    }
+
+    pub fn controlled_transfer(ctx: Context<ControlledTransfer>, amount: u64) -> Result<()> {
+        controlled_registry::transfer(ctx, amount)
+    }
+
+    pub fn begin_controlled_capture(ctx: Context<BeginControlledCapture>) -> Result<()> {
+        controlled_registry::begin_capture(ctx)
+    }
+
+    pub fn record_controlled_snapshot(
+        ctx: Context<RecordControlledSnapshot>,
+        commitment: SnapshotCommitmentTerms,
+    ) -> Result<()> {
+        controlled_registry::record_snapshot(ctx, commitment)
+    }
+
+    pub fn finish_controlled_capture(ctx: Context<FinishControlledCapture>) -> Result<()> {
+        controlled_registry::finish_capture(ctx)
+    }
+
+    pub fn abort_controlled_capture(ctx: Context<AbortControlledCapture>) -> Result<()> {
+        controlled_registry::abort_capture(ctx)
+    }
+
+    pub fn register_controlled_redemption_sources<'info>(
+        ctx: Context<'info, RegisterRedemptionSources<'info>>,
+        sources: Vec<RedemptionSource>,
+    ) -> Result<()> {
+        controlled_registry::register_controlled_sources(ctx, sources)
+    }
+
+    pub fn reserve_controlled_redemption(ctx: Context<ReserveControlledRedemption>) -> Result<()> {
+        controlled_registry::reserve(ctx)
+    }
+
+    pub fn complete_controlled_redemption(
+        ctx: Context<CompleteControlledRedemption>,
+    ) -> Result<()> {
+        controlled_registry::complete_redemption(ctx)
+    }
+
+    pub fn execute_controlled_redemption<'info>(
+        ctx: Context<'info, ExecuteRedemption<'info>>,
+        idempotency_hash: [u8; 32],
+    ) -> Result<()> {
+        redemption::execute_controlled_atomic(ctx, idempotency_hash)
+    }
 
     pub fn initialize_instrument(
         ctx: Context<InitializeInstrument>,
@@ -125,8 +199,17 @@ pub mod lifecycle_kase {
         Ok(())
     }
 
+    pub fn create_exact_redemption_action(
+        ctx: Context<CreateExactRedemptionAction>,
+        terms: CorporateActionTerms,
+        target_tokens: u64,
+    ) -> Result<()> {
+        exact_redemption::create(ctx, terms, target_tokens)
+    }
+
     pub fn activate_instrument(ctx: Context<ActivateInstrument>) -> Result<()> {
         let instrument = &mut ctx.accounts.instrument;
+        require_eq!(instrument.version, 1, ErrorCode::InvalidControlledPolicy);
         require!(
             instrument.status == InstrumentStatus::Deploying,
             ErrorCode::InvalidInstrumentStatus
@@ -191,6 +274,11 @@ pub mod lifecycle_kase {
     }
 
     pub fn cancel_action(ctx: Context<CancelAction>) -> Result<()> {
+        require_eq!(
+            ctx.accounts.instrument.version,
+            1,
+            ErrorCode::InvalidControlledPolicy
+        );
         let action = &mut ctx.accounts.corporate_action;
         require!(
             action.status == CorporateActionStatus::Scheduled,
@@ -205,6 +293,11 @@ pub mod lifecycle_kase {
         ctx: Context<RegisterSnapshot>,
         commitment: SnapshotCommitmentTerms,
     ) -> Result<()> {
+        require_eq!(
+            ctx.accounts.instrument.version,
+            1,
+            ErrorCode::InvalidControlledPolicy
+        );
         let bond_mint = &ctx.accounts.bond_mint;
         require_keys_eq!(
             *bond_mint.to_account_info().owner,
@@ -249,8 +342,77 @@ pub mod lifecycle_kase {
         entitlement::finalize(ctx)
     }
 
+    pub fn register_entitlement_v2(
+        ctx: Context<RegisterEntitlementV2>,
+        terms: EntitlementTerms,
+    ) -> Result<()> {
+        entitlement::register_v2(ctx, terms)
+    }
+
+    pub fn finalize_calculation_v2(ctx: Context<FinalizeCalculationV2>) -> Result<()> {
+        entitlement::finalize_v2(ctx)
+    }
+
     pub fn reset_calculation<'info>(ctx: Context<'info, ResetCalculation<'info>>) -> Result<()> {
         entitlement::reset(ctx)
+    }
+
+    pub fn assign_approver(
+        ctx: Context<AssignApprover>,
+        approver: Pubkey,
+        network_reserve_lamports: u64,
+    ) -> Result<()> {
+        approval::assign(ctx, approver, network_reserve_lamports)
+    }
+    pub fn fund_action_reserve(
+        ctx: Context<FundActionReserve>,
+        snapshot_hash: [u8; 32],
+        amount_minor: u64,
+    ) -> Result<()> {
+        approval::fund(ctx, snapshot_hash, amount_minor)
+    }
+    pub fn approve_action(
+        ctx: Context<ApproveAction>,
+        snapshot_hash: [u8; 32],
+        amount_minor: u64,
+    ) -> Result<()> {
+        approval::approve(ctx, snapshot_hash, amount_minor)
+    }
+    pub fn release_action_reserve(
+        ctx: Context<ReleaseActionReserve>,
+        snapshot_hash: [u8; 32],
+        amount_minor: u64,
+    ) -> Result<()> {
+        approval::release(ctx, snapshot_hash, amount_minor)
+    }
+
+    pub fn execute_coupon(ctx: Context<ExecuteCoupon>, idempotency_hash: [u8; 32]) -> Result<()> {
+        coupon::execute(ctx, idempotency_hash)
+    }
+
+    pub fn finalize_coupon(ctx: Context<FinalizeCoupon>, receipt_hash: [u8; 32]) -> Result<()> {
+        coupon::finalize_coupon_receipt(ctx, receipt_hash)
+    }
+
+    pub fn register_redemption_sources(
+        ctx: Context<RegisterRedemptionSources>,
+        sources: Vec<RedemptionSource>,
+    ) -> Result<()> {
+        redemption::register_sources(ctx, sources)
+    }
+
+    pub fn execute_redemption<'info>(
+        ctx: Context<'info, ExecuteRedemption<'info>>,
+        idempotency_hash: [u8; 32],
+    ) -> Result<()> {
+        redemption::execute_atomic(ctx, idempotency_hash)
+    }
+
+    pub fn finalize_redemption(
+        ctx: Context<FinalizeRedemption>,
+        receipt_hash: [u8; 32],
+    ) -> Result<()> {
+        redemption::finalize_redemption_receipt(ctx, receipt_hash)
     }
 }
 
@@ -425,7 +587,7 @@ pub struct CorporateActionTerms {
 }
 
 impl CorporateActionTerms {
-    fn validate(&self, instrument: &Instrument, now: i64) -> Result<()> {
+    fn validate_schedule(&self, instrument: &Instrument, now: i64) -> Result<()> {
         require!(self.action_id != [0; 16], ErrorCode::InvalidActionId);
         require!(
             matches!(
@@ -440,7 +602,11 @@ impl CorporateActionTerms {
                 && self.record_at <= self.execute_at,
             ErrorCode::InvalidActionDates
         );
+        Ok(())
+    }
 
+    fn validate(&self, instrument: &Instrument, now: i64) -> Result<()> {
+        self.validate_schedule(instrument, now)?;
         match self.action_type {
             CorporateActionType::CouponPayment => {
                 require!(
@@ -602,6 +768,11 @@ pub enum CorporateActionStatus {
     SnapshotCreated,
     Calculated,
     UnderReview,
+    Approved,
+    Reserved,
+    Processing,
+    Settled,
+    Finalized,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, PartialEq, Eq, InitSpace)]
@@ -678,6 +849,38 @@ pub enum ErrorCode {
     IncompleteCalculation,
     #[msg("Calculation amounts or counters overflowed")]
     CalculationOverflow,
+    #[msg("Approver must be distinct from issuer and calculation authority")]
+    InvalidApprover,
+    #[msg("Only the configured approver may approve this action")]
+    UnauthorizedApprover,
+    #[msg("Action reserve identity, mint, amount or state is invalid")]
+    InvalidActionReserve,
+    #[msg("Approval network budget is insufficient or invalid")]
+    InvalidApprovalBudget,
+    #[msg("Coupon execution is premature, repeated or incomplete")]
+    InvalidCouponExecution,
+    #[msg("Receipt identity or hash is invalid")]
+    InvalidReceipt,
+    #[msg("Redemption execution is premature, repeated or incomplete")]
+    InvalidRedemptionExecution,
+    #[msg("Redemption sources do not match the immutable snapshot commitment")]
+    InvalidRedemptionSources,
+    #[msg("Bond supply changed outside this redemption action")]
+    StaleRedemptionSupply,
+    #[msg("Controlled instruments require the frozen default state and PDA mint authorities")]
+    InvalidControlledMint,
+    #[msg("The account is not a frozen immutable-owner controlled holding")]
+    InvalidControlledHolding,
+    #[msg("Controlled policy identity or capture lock is invalid")]
+    InvalidControlledPolicy,
+    #[msg("A capture or unfinished redemption already locks this instrument")]
+    InstrumentLocked,
+    #[msg("The complete captured source set must be reconciled before unlocking transfers")]
+    IncompleteControlledCapture,
+    #[msg("Assigned redemption units are reserved and cannot be transferred")]
+    ReservedUnits,
+    #[msg("The reservation does not match the immutable entitlement and source allocation")]
+    InvalidUnitReservation,
 }
 
 #[cfg(test)]
